@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import os
 import re
 import sys
 import time
@@ -185,7 +186,7 @@ def parse_deepseek_json(content: str) -> dict[str, Any]:
 
 def call_deepseek(payload: dict[str, Any]) -> dict[str, Any]:
     provider = str(payload.get("provider") or "deepseek").strip()
-    api_key = str(payload.get("apiKey") or "").strip()
+    api_key = str(payload.get("apiKey") or os.getenv("DEEPSEEK_API_KEY", "")).strip()
     model = str(payload.get("model") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
     if not api_key or provider != "deepseek":
         return build_fallback_copy(payload)

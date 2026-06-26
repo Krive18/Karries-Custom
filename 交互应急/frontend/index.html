@@ -773,18 +773,9 @@
               <div class="panel-body stack">
                 <div class="two-col">
                   <div class="field">
-                    <label for="style">内容方向</label>
-                    <select id="style">
-                      <option>小红书种草</option>
-                      <option>自定义</option>
-                    </select>
+                    <label for="contentDirection">内容方向</label>
+                    <input id="contentDirection" type="text" value="小红书种草" placeholder="请输入内容方向">
                   </div>
-                  <div class="field">
-                    <label for="customContentDirection">自定义方向</label>
-                    <input id="customContentDirection" type="text" placeholder="例如：新品发布、门店活动、课程招生">
-                  </div>
-                </div>
-                <div class="two-col">
                   <div class="field">
                     <label for="tone">文案语气</label>
                     <select id="tone">
@@ -936,7 +927,7 @@
                 </select>
               </div>
               <div class="field">
-                <label id="apiKeyLabel" for="apiKey">API Key</label>
+                <label id="apiKeyLabel" for="apiKey">AI API KEY</label>
                 <input id="apiKey" type="password" placeholder="sk-...">
               </div>
               <div class="field">
@@ -953,18 +944,18 @@
 
           <section class="panel">
             <div class="panel-head">
-              <h3>模型与账号</h3>
-              <div class="badge-line"><span id="settingsSavedAt" class="badge">未保存</span></div>
+              <h3>小红书账号管理</h3>
+              <div class="badge-line"><span id="accountCountBadge" class="badge">账号 0</span></div>
             </div>
             <div class="panel-body stack">
               <div class="two-col">
                 <div class="field">
-                  <label for="accountName">小红书账号名称</label>
-                  <input id="accountName" type="text" placeholder="例如：品牌运营号">
+                  <label for="accountNameInput">小红书账号名称</label>
+                  <input id="accountNameInput" type="text" placeholder="例如：品牌运营号">
                 </div>
                 <div class="field">
-                  <label for="xhsLoginMode">登录方式</label>
-                  <select id="xhsLoginMode">
+                  <label for="accountLoginModeInput">登录方式</label>
+                  <select id="accountLoginModeInput">
                     <option>浏览器扫码登录</option>
                     <option>沿用本机登录状态</option>
                     <option>手动确认登录状态</option>
@@ -973,17 +964,21 @@
               </div>
               <div class="two-col">
                 <div class="field">
-                  <label for="defaultTitlePrefix">默认标题前缀</label>
-                  <input id="defaultTitlePrefix" type="text" placeholder="例如：新品上新">
+                  <label for="accountTitlePrefixInput">默认标题前缀</label>
+                  <input id="accountTitlePrefixInput" type="text" placeholder="例如：新品上新">
                 </div>
                 <div class="field">
-                  <label for="defaultTag">默认标签</label>
-                  <input id="defaultTag" type="text" placeholder="例如：小红书运营">
+                  <label for="accountDefaultTagInput">默认标签</label>
+                  <input id="accountDefaultTagInput" type="text" placeholder="例如：小红书运营">
                 </div>
               </div>
               <div class="actions">
-                <button id="saveSettingsBtn" class="btn btn-teal" type="button">保存配置</button>
+                <button id="addAccountBtn" class="btn btn-teal" type="button">新增账号</button>
                 <button id="testConfigBtn" class="btn btn-ghost" type="button">检查配置</button>
+              </div>
+              <div class="config-card">
+                <h4>账号列表</h4>
+                <div id="accountRows" class="stack"></div>
               </div>
             </div>
           </section>
@@ -1044,7 +1039,9 @@
       materials: [],
       result: null,
       tasks: JSON.parse(localStorage.getItem("xhs_workspace_tasks") || "[]"),
-      logs: JSON.parse(localStorage.getItem("xhs_workspace_logs") || "[]")
+      logs: JSON.parse(localStorage.getItem("xhs_workspace_logs") || "[]"),
+      accounts: JSON.parse(localStorage.getItem("xhs_workspace_accounts") || "[]"),
+      activeAccountId: Number(localStorage.getItem("xhs_workspace_active_account") || "0")
     };
 
     const els = {
@@ -1056,24 +1053,24 @@
       aiProvider: document.getElementById("aiProvider"),
       settingsAiProvider: document.getElementById("settingsAiProvider"),
       publishContentType: document.getElementById("publishContentType"),
-      customContentDirection: document.getElementById("customContentDirection"),
+      contentDirection: document.getElementById("contentDirection"),
       apiKey: document.getElementById("apiKey"),
       apiKeyLabel: document.getElementById("apiKeyLabel"),
       apiEndpoint: document.getElementById("apiEndpoint"),
       modelName: document.getElementById("modelName"),
-      style: document.getElementById("style"),
       tone: document.getElementById("tone"),
       publishTime: document.getElementById("publishTime"),
       extraPrompt: document.getElementById("extraPrompt"),
       saveKeyBtn: document.getElementById("saveKeyBtn"),
       clearKeyBtn: document.getElementById("clearKeyBtn"),
-      saveSettingsBtn: document.getElementById("saveSettingsBtn"),
       testConfigBtn: document.getElementById("testConfigBtn"),
-      accountName: document.getElementById("accountName"),
-      xhsLoginMode: document.getElementById("xhsLoginMode"),
-      defaultTitlePrefix: document.getElementById("defaultTitlePrefix"),
-      defaultTag: document.getElementById("defaultTag"),
-      settingsSavedAt: document.getElementById("settingsSavedAt"),
+      accountNameInput: document.getElementById("accountNameInput"),
+      accountLoginModeInput: document.getElementById("accountLoginModeInput"),
+      accountTitlePrefixInput: document.getElementById("accountTitlePrefixInput"),
+      accountDefaultTagInput: document.getElementById("accountDefaultTagInput"),
+      addAccountBtn: document.getElementById("addAccountBtn"),
+      accountRows: document.getElementById("accountRows"),
+      accountCountBadge: document.getElementById("accountCountBadge"),
       analyzeBtn: document.getElementById("analyzeBtn"),
       sideAnalyzeBtn: document.getElementById("sideAnalyzeBtn"),
       goScheduleBtn: document.getElementById("goScheduleBtn"),
@@ -1173,6 +1170,11 @@
       localStorage.setItem("xhs_workspace_logs", JSON.stringify(state.logs.slice(0, 30)));
     }
 
+    function saveAccounts() {
+      localStorage.setItem("xhs_workspace_accounts", JSON.stringify(state.accounts));
+      localStorage.setItem("xhs_workspace_active_account", String(state.activeAccountId || 0));
+    }
+
     function addLog(message) {
       state.logs.unshift({
         id: Date.now(),
@@ -1200,7 +1202,7 @@
       const provider = providerDefaults[providerName] || providerDefaults.deepseek;
       els.aiProvider.value = providerName;
       els.settingsAiProvider.value = providerName;
-      els.apiKeyLabel.textContent = `${provider.label} API Key`;
+      els.apiKeyLabel.textContent = "AI API KEY";
       els.apiKey.placeholder = provider.placeholder;
       if (shouldApplyDefaults) {
         els.modelName.value = provider.model;
@@ -1210,8 +1212,57 @@
     }
 
     function getContentDirection() {
-      const custom = els.customContentDirection.value.trim();
-      return els.style.value === "自定义" && custom ? custom : "小红书种草";
+      return els.contentDirection.value.trim() || "小红书种草";
+    }
+
+    function addAccount() {
+      const accountName = els.accountNameInput.value.trim();
+      if (!accountName) {
+        showToast("请输入小红书账号名称");
+        return;
+      }
+      const account = {
+        id: Date.now(),
+        name: accountName,
+        loginMode: els.accountLoginModeInput.value,
+        titlePrefix: els.accountTitlePrefixInput.value.trim(),
+        defaultTag: els.accountDefaultTagInput.value.trim(),
+        status: "待登录"
+      };
+      state.accounts.unshift(account);
+      state.activeAccountId = account.id;
+      saveAccounts();
+      renderAccounts();
+      addLog(`已新增账号：${account.name}`);
+      showToast("账号已添加");
+      els.accountNameInput.value = "";
+      els.accountTitlePrefixInput.value = "";
+      els.accountDefaultTagInput.value = "";
+    }
+
+    function renderAccounts() {
+      els.accountCountBadge.textContent = `账号 ${state.accounts.length}`;
+      if (!state.accounts.length) {
+        els.accountRows.innerHTML = '<div class="empty">暂无账号，请先新增需要发布的小红书账号。</div>';
+        return;
+      }
+      els.accountRows.innerHTML = state.accounts.map((account) => {
+        const active = account.id === state.activeAccountId;
+        return `
+          <div class="config-card">
+            <div class="badge-line">
+              <strong>${escapeHtml(account.name)}</strong>
+              <span class="badge ${active ? "green" : ""}">${active ? "当前账号" : account.status}</span>
+              <span class="badge">${escapeHtml(account.loginMode)}</span>
+            </div>
+            <div class="hint">标题前缀：${escapeHtml(account.titlePrefix || "未设置")}　默认标签：${escapeHtml(account.defaultTag || "未设置")}</div>
+            <div class="actions">
+              <button class="small-btn" type="button" data-active-account="${account.id}">设为当前</button>
+              <button class="small-btn danger" type="button" data-delete-account="${account.id}">删除</button>
+            </div>
+          </div>
+        `;
+      }).join("");
     }
 
     function materialForApi(material) {
@@ -1447,6 +1498,7 @@
         showToast("请先生成解析结果");
         return;
       }
+      const activeAccount = state.accounts.find((account) => account.id === state.activeAccountId);
       const task = {
         id: Date.now(),
         title: els.resultTitle.value.trim() || "未命名任务",
@@ -1455,6 +1507,7 @@
         contentType: els.publishContentType.value,
         materialCount: state.materials.length,
         publishTime: els.publishTime.value || "待定",
+        accountName: activeAccount?.name || "未选择账号",
         status: "待发布"
       };
       state.tasks.unshift(task);
@@ -1487,7 +1540,7 @@
       }
       els.taskRows.innerHTML = state.tasks.map((task) => `
         <tr>
-          <td><strong>${escapeHtml(task.title)}</strong><br><span style="color:#667085;">${escapeHtml(String(task.tags || ""))}</span></td>
+          <td><strong>${escapeHtml(task.title)}</strong><br><span style="color:#667085;">${escapeHtml(task.accountName || "未选择账号")} / ${escapeHtml(String(task.tags || ""))}</span></td>
           <td>${escapeHtml(task.contentType || "图文笔记")}</td>
           <td>${task.materialCount} 个素材</td>
           <td>${escapeHtml(task.publishTime || "待定")}</td>
@@ -1536,23 +1589,15 @@
       }
     }
 
-    function saveSettings() {
+    function saveWorkspaceSettings() {
       localStorage.setItem("xhs_workspace_settings", JSON.stringify({
         aiProvider: els.aiProvider.value,
         apiEndpoint: els.apiEndpoint.value.trim(),
         modelName: els.modelName.value.trim(),
-        style: els.style.value,
-        customContentDirection: els.customContentDirection.value.trim(),
+        contentDirection: els.contentDirection.value.trim(),
         tone: els.tone.value,
-        publishContentType: els.publishContentType.value,
-        accountName: els.accountName.value.trim(),
-        xhsLoginMode: els.xhsLoginMode.value,
-        defaultTitlePrefix: els.defaultTitlePrefix.value.trim(),
-        defaultTag: els.defaultTag.value.trim()
+        publishContentType: els.publishContentType.value
       }));
-      els.settingsSavedAt.textContent = new Date().toLocaleTimeString();
-      addLog("系统配置已保存");
-      showToast("配置已保存");
     }
 
     function loadSettings() {
@@ -1560,14 +1605,9 @@
       if (saved.aiProvider) syncProviderControls(saved.aiProvider, false);
       if (saved.apiEndpoint) els.apiEndpoint.value = saved.apiEndpoint;
       if (saved.modelName) els.modelName.value = saved.modelName;
-      if (saved.style) els.style.value = saved.style;
-      if (saved.customContentDirection) els.customContentDirection.value = saved.customContentDirection;
+      if (saved.contentDirection) els.contentDirection.value = saved.contentDirection;
       if (saved.tone) els.tone.value = saved.tone;
       if (saved.publishContentType) els.publishContentType.value = saved.publishContentType;
-      if (saved.accountName) els.accountName.value = saved.accountName;
-      if (saved.xhsLoginMode) els.xhsLoginMode.value = saved.xhsLoginMode;
-      if (saved.defaultTitlePrefix) els.defaultTitlePrefix.value = saved.defaultTitlePrefix;
-      if (saved.defaultTag) els.defaultTag.value = saved.defaultTag;
     }
 
     els.navCards.forEach((card) => card.addEventListener("click", () => setActiveSection(card.dataset.section)));
@@ -1596,8 +1636,19 @@
       renderMaterials();
       showToast("素材已清空");
     });
-    els.aiProvider.addEventListener("change", () => syncProviderControls(els.aiProvider.value));
-    els.settingsAiProvider.addEventListener("change", () => syncProviderControls(els.settingsAiProvider.value));
+    els.aiProvider.addEventListener("change", () => {
+      syncProviderControls(els.aiProvider.value);
+      saveWorkspaceSettings();
+    });
+    els.settingsAiProvider.addEventListener("change", () => {
+      syncProviderControls(els.settingsAiProvider.value);
+      saveWorkspaceSettings();
+    });
+    els.contentDirection.addEventListener("change", saveWorkspaceSettings);
+    els.tone.addEventListener("change", saveWorkspaceSettings);
+    els.publishContentType.addEventListener("change", saveWorkspaceSettings);
+    els.modelName.addEventListener("change", saveWorkspaceSettings);
+    els.apiEndpoint.addEventListener("change", saveWorkspaceSettings);
     els.analyzeBtn.addEventListener("click", analyze);
     els.sideAnalyzeBtn.addEventListener("click", () => {
       setActiveSection("creation");
@@ -1646,7 +1697,27 @@
       showToast("Key 已清除");
     });
     els.apiKey.addEventListener("input", updateKeyStatus);
-    els.saveSettingsBtn.addEventListener("click", saveSettings);
+    els.addAccountBtn.addEventListener("click", addAccount);
+    els.accountRows.addEventListener("click", (event) => {
+      const activeButton = event.target.closest("[data-active-account]");
+      const deleteButton = event.target.closest("[data-delete-account]");
+      if (activeButton) {
+        state.activeAccountId = Number(activeButton.getAttribute("data-active-account"));
+        saveAccounts();
+        renderAccounts();
+        showToast("当前账号已切换");
+      }
+      if (deleteButton) {
+        const id = Number(deleteButton.getAttribute("data-delete-account"));
+        state.accounts = state.accounts.filter((account) => account.id !== id);
+        if (state.activeAccountId === id) {
+          state.activeAccountId = state.accounts[0]?.id || 0;
+        }
+        saveAccounts();
+        renderAccounts();
+        showToast("账号已删除");
+      }
+    });
     els.testConfigBtn.addEventListener("click", () => {
       const mode = els.apiKey.value.trim() ? `${providerDefaults[els.aiProvider.value].label} Key 已填写` : "当前未填写 Key";
       showToast(`${mode}，后端服务状态见右上角`);
@@ -1659,6 +1730,7 @@
     updateKeyStatus();
     renderMaterials();
     renderTasks();
+    renderAccounts();
     renderLogs();
     renderDashboard();
     checkServer();

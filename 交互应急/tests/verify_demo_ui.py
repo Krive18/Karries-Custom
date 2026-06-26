@@ -56,5 +56,24 @@ def test_customer_flow_has_required_business_controls():
     assert "Gemini" in html
     assert 'id="publishContentType"' in html
     assert "图文笔记" in html
-    assert 'id="customContentDirection"' in html
+    assert 'id="contentDirection"' in html
+    assert '<select id="style"' not in html
+    assert ">自定义<" not in html
     assert "小红书种草" in html
+
+
+def test_settings_use_generic_ai_key_and_multi_account_management():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "AI API KEY" in html
+    assert "DeepSeek API Key" not in html
+    assert "小红书账号管理" in html
+    assert 'id="accountRows"' in html
+    assert 'id="addAccountBtn"' in html
+    assert 'id="accountNameInput"' in html
+
+
+def test_secret_key_is_not_hardcoded():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "sk-5779" not in html
