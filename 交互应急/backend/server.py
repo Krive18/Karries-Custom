@@ -40,6 +40,15 @@ def fail(code: str, message: str) -> dict[str, Any]:
     return {"success": False, "data": None, "error": {"code": code, "message": message}}
 
 
+def ai_key_status() -> dict[str, Any]:
+    has_key = bool(os.getenv("DEEPSEEK_API_KEY", "").strip())
+    return {
+        "provider": "deepseek",
+        "hasKey": has_key,
+        "source": "environment" if has_key else "none",
+    }
+
+
 def trim_title(title: str) -> str:
     cleaned = re.sub(r"\s+", "", title).strip("，。,. ")
     return (cleaned or "今日灵感上新")[:20]
@@ -246,6 +255,9 @@ class WorkspaceHandler(SimpleHTTPRequestHandler):
             return
         if self.path == "/api/health":
             json_response(self, 200, ok({"status": "ok", "time": int(time.time())}))
+            return
+        if self.path == "/api/config/ai-status":
+            json_response(self, 200, ok(ai_key_status()))
             return
         self.send_error(404, "Not Found")
 

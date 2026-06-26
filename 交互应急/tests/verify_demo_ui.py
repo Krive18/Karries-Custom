@@ -3,6 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML = ROOT / "frontend" / "index.html"
+SERVER_PY = ROOT / "backend" / "server.py"
 
 
 def test_sidebar_has_three_business_modules():
@@ -73,7 +74,26 @@ def test_settings_use_generic_ai_key_and_multi_account_management():
     assert 'id="accountNameInput"' in html
 
 
+def test_creation_flow_can_choose_publish_account():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "发布账号" in html
+    assert 'id="publishAccountSelect"' in html
+    assert 'id="currentAccountBadge"' in html
+    assert "请选择发布账号" in html
+    assert "syncPublishAccountSelect" in html
+
+
+def test_backend_exposes_ai_status_without_secret():
+    server = SERVER_PY.read_text(encoding="utf-8")
+
+    assert "/api/config/ai-status" in server
+    assert "DEEPSEEK_API_KEY" in server
+    assert "sk-" not in server
+
+
 def test_secret_key_is_not_hardcoded():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "sk-5779" not in html
+    assert 'value="sk-' not in html
+    assert 'localStorage.setItem("xhs_workspace_ai_key", "sk-' not in html

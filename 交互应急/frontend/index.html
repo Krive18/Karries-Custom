@@ -801,6 +801,13 @@
                 </div>
                 <div class="two-col">
                   <div class="field">
+                    <label for="publishAccountSelect">发布账号</label>
+                    <select id="publishAccountSelect">
+                      <option value="">请选择发布账号</option>
+                    </select>
+                    <div id="currentAccountBadge" class="hint">当前任务尚未选择发布账号</div>
+                  </div>
+                  <div class="field">
                     <label for="aiProvider">AI 服务商</label>
                     <select id="aiProvider">
                       <option value="deepseek">DeepSeek</option>
@@ -809,10 +816,10 @@
                       <option value="gemini">Gemini</option>
                     </select>
                   </div>
-                  <div class="field">
-                    <label for="modelName">模型</label>
-                    <input id="modelName" type="text" value="deepseek-v4-flash">
-                  </div>
+                </div>
+                <div class="field">
+                  <label for="modelName">模型</label>
+                  <input id="modelName" type="text" value="deepseek-v4-flash">
                 </div>
                 <div class="field">
                   <label for="extraPrompt">补充要求</label>
@@ -1041,7 +1048,8 @@
       tasks: JSON.parse(localStorage.getItem("xhs_workspace_tasks") || "[]"),
       logs: JSON.parse(localStorage.getItem("xhs_workspace_logs") || "[]"),
       accounts: JSON.parse(localStorage.getItem("xhs_workspace_accounts") || "[]"),
-      activeAccountId: Number(localStorage.getItem("xhs_workspace_active_account") || "0")
+      activeAccountId: Number(localStorage.getItem("xhs_workspace_active_account") || "0"),
+      aiStatus: { provider: "deepseek", hasKey: false, source: "none" }
     };
 
     const els = {
@@ -1053,6 +1061,8 @@
       aiProvider: document.getElementById("aiProvider"),
       settingsAiProvider: document.getElementById("settingsAiProvider"),
       publishContentType: document.getElementById("publishContentType"),
+      publishAccountSelect: document.getElementById("publishAccountSelect"),
+      currentAccountBadge: document.getElementById("currentAccountBadge"),
       contentDirection: document.getElementById("contentDirection"),
       apiKey: document.getElementById("apiKey"),
       apiKeyLabel: document.getElementById("apiKeyLabel"),
@@ -1185,8 +1195,19 @@
       renderLogs();
     }
 
+    function getProviderKeyStatus() {
+      const providerName = els.aiProvider.value || "deepseek";
+      const browserHasKey = Boolean(els.apiKey.value.trim());
+      const serverHasKey = providerName === state.aiStatus.provider && Boolean(state.aiStatus.hasKey);
+      return {
+        hasKey: browserHasKey || serverHasKey,
+        source: browserHasKey ? "本机 Key" : (serverHasKey ? "后端 Key" : "")
+      };
+    }
+
     function updateKeyStatus() {
-      const hasKey = Boolean(els.apiKey.value.trim());
+      const keyStatus = getProviderKeyStatus();
+      const hasKey = keyStatus.hasKey;
       const provider = providerDefaults[els.aiProvider.value] || providerDefaults.deepseek;
       const text = hasKey ? `${provider.label} 已配置` : "AI 未配置";
       const className = hasKey ? "badge green" : "badge amber";
@@ -1194,7 +1215,7 @@
       els.keyInlineStatus.className = className;
       els.settingsKeyBadge.className = className;
       els.sideAiMode.textContent = text;
-      els.keyInlineStatus.textContent = hasKey ? "Key 已连接" : "未连接 Key";
+      els.keyInlineStatus.textContent = hasKey ? `${keyStatus.source} 已连接` : "未连接 Key";
       els.settingsKeyBadge.textContent = text;
     }
 
@@ -1213,6 +1234,45 @@
 
     function getContentDirection() {
       return els.contentDirection.value.trim() || "小红书种草";
+    }
+
+    function getActiveAccount() {
+      if (!state.accounts.length) return null;
+      let activeAccount = state.accounts.find((account) => account.id === state.activeAccountId);
+      if (!activeAccount) {
+        activeAccount = state.accounts[0];
+        state.activeAccountId = activeAccount.id;
+        saveAccounts();
+      }
+      return activeAccount;
+    }
+
+    function syncPublishAccountSelect() {
+      if (!state.accounts.length) {
+        els.publishAccountSelect.innerHTML = '<option value="">请选择发布账号</option>';
+        els.publishAccountSelect.value = "";
+        els.currentAccountBadge.textContent = "当前任务尚未选择发布账号";
+        return;
+      }
+      const activeAccount = getActiveAccount();
+      els.publishAccountSelect.innerHTML = [
+        '<option value="">请选择发布账号</option>',
+        ...state.accounts.map((account) => (
+          `<option value="${account.id}">${escapeHtml(account.name)}</option>`
+        ))
+      ].join("");
+      els.publishAccountSelect.value = activeAccount ? String(activeAccount.id) : "";
+      els.currentAccountBadge.textContent = activeAccount
+        ? `当前任务将发布到：${activeAccount.name}`
+        : "当前任务尚未选择发布账号";
+    }
+
+    function setActiveAccount(accountId, message = "") {
+      const nextAccount = state.accounts.find((account) => account.id === accountId);
+      state.activeAccountId = nextAccount ? nextAccount.id : 0;
+      saveAccounts();
+      renderAccounts();
+      if (message) showToast(message);
     }
 
     function addAccount() {
@@ -1242,6 +1302,7 @@
 
     function renderAccounts() {
       els.accountCountBadge.textContent = `账号 ${state.accounts.length}`;
+      syncPublishAccountSelect();
       if (!state.accounts.length) {
         els.accountRows.innerHTML = '<div class="empty">暂无账号，请先新增需要发布的小红书账号。</div>';
         return;
@@ -1498,7 +1559,12 @@
         showToast("请先生成解析结果");
         return;
       }
-      const activeAccount = state.accounts.find((account) => account.id === state.activeAccountId);
+      const activeAccount = getActiveAccount();
+      if (!activeAccount) {
+        showToast("请先新增并选择发布账号");
+        setActiveSection("settings");
+        return;
+      }
       const task = {
         id: Date.now(),
         title: els.resultTitle.value.trim() || "未命名任务",
@@ -1575,6 +1641,17 @@
       els.sideTaskCount.textContent = `任务 ${state.tasks.length}`;
     }
 
+    async function checkAiStatus() {
+      try {
+        const response = await fetch("/api/config/ai-status");
+        const body = await response.json();
+        state.aiStatus = body.success ? body.data : { provider: "deepseek", hasKey: false, source: "none" };
+      } catch {
+        state.aiStatus = { provider: "deepseek", hasKey: false, source: "none" };
+      }
+      updateKeyStatus();
+    }
+
     async function checkServer() {
       try {
         const response = await fetch("/api/health");
@@ -1582,10 +1659,13 @@
         els.serverStatus.textContent = body.success ? "后端已连接" : "后端异常";
         els.serverStatus.style.background = body.success ? "#eef8f6" : "#fff1f3";
         els.serverStatus.style.color = body.success ? "#148f86" : "#c83447";
+        if (body.success) await checkAiStatus();
       } catch {
         els.serverStatus.textContent = "后端未启动";
         els.serverStatus.style.background = "#fff1f3";
         els.serverStatus.style.color = "#c83447";
+        state.aiStatus = { provider: "deepseek", hasKey: false, source: "none" };
+        updateKeyStatus();
       }
     }
 
@@ -1647,6 +1727,9 @@
     els.contentDirection.addEventListener("change", saveWorkspaceSettings);
     els.tone.addEventListener("change", saveWorkspaceSettings);
     els.publishContentType.addEventListener("change", saveWorkspaceSettings);
+    els.publishAccountSelect.addEventListener("change", () => {
+      setActiveAccount(Number(els.publishAccountSelect.value || "0"), "发布账号已切换");
+    });
     els.modelName.addEventListener("change", saveWorkspaceSettings);
     els.apiEndpoint.addEventListener("change", saveWorkspaceSettings);
     els.analyzeBtn.addEventListener("click", analyze);
@@ -1702,10 +1785,7 @@
       const activeButton = event.target.closest("[data-active-account]");
       const deleteButton = event.target.closest("[data-delete-account]");
       if (activeButton) {
-        state.activeAccountId = Number(activeButton.getAttribute("data-active-account"));
-        saveAccounts();
-        renderAccounts();
-        showToast("当前账号已切换");
+        setActiveAccount(Number(activeButton.getAttribute("data-active-account")), "当前账号已切换");
       }
       if (deleteButton) {
         const id = Number(deleteButton.getAttribute("data-delete-account"));
@@ -1719,7 +1799,9 @@
       }
     });
     els.testConfigBtn.addEventListener("click", () => {
-      const mode = els.apiKey.value.trim() ? `${providerDefaults[els.aiProvider.value].label} Key 已填写` : "当前未填写 Key";
+      const keyStatus = getProviderKeyStatus();
+      const provider = providerDefaults[els.aiProvider.value] || providerDefaults.deepseek;
+      const mode = keyStatus.hasKey ? `${provider.label} ${keyStatus.source} 已连接` : "当前未连接 Key";
       showToast(`${mode}，后端服务状态见右上角`);
     });
 
