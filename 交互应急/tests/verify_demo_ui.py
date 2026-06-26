@@ -111,7 +111,8 @@ def test_karries_visual_language_is_applied_without_reference_fake_data():
 
     assert "KARRIES" in html
     assert "禾一斯" in html
-    assert "assets/karries-logo-cropped.jpg" in html
+    assert "assets/karries-monogram.png" in html
+    assert 'class="brand-avatar"' in html
     assert "--brand-dark: #693913" in html
     assert "--panel: rgba(255, 253, 249" in html
     assert "sk-karries-demo-key" not in html

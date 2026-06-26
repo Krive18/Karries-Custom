@@ -748,15 +748,15 @@
     }
 
     .brand-logo {
-      width: 66px;
-      height: 66px;
+      width: 50px;
+      height: 74px;
       flex: 0 0 auto;
-      border-radius: 18px;
-      object-fit: cover;
+      object-fit: contain;
       object-position: center;
-      border: 1px solid #eadccf;
-      background: #fff8ee;
-      box-shadow: var(--shadow-soft);
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      filter: drop-shadow(0 8px 14px rgba(94, 56, 22, 0.10));
     }
 
     .brand-text strong {
@@ -858,6 +858,31 @@
     .topbar {
       min-height: 98px;
       margin-bottom: 22px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-avatar {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 253, 249, 0.86);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    .brand-avatar img {
+      width: 26px;
+      height: 38px;
+      object-fit: contain;
+      display: block;
     }
 
     .eyebrow {
@@ -1134,8 +1159,8 @@
       }
 
       .brand-logo {
-        width: 64px;
-        height: 64px;
+        width: 50px;
+        height: 72px;
       }
     }
   </style>
@@ -1144,7 +1169,7 @@
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <img class="brand-logo" src="assets/karries-logo-cropped.jpg" alt="KARRIES 禾一斯">
+        <img class="brand-logo" src="assets/karries-monogram.png" alt="KARRIES 禾一斯标识">
         <div class="brand-text">
           <strong>KARRIES</strong>
           <span>禾一斯</span>
@@ -1187,7 +1212,12 @@
           <h2 id="pageTitle">素材智能解析</h2>
           <p id="pageDesc">上传本地图片或视频，生成小红书标题、正文、标签和素材洞察。</p>
         </div>
-        <div id="serverStatus" class="status-pill">后端连接中</div>
+        <div class="top-actions">
+          <div id="serverStatus" class="status-pill">后端连接中</div>
+          <div class="brand-avatar" aria-hidden="true">
+            <img src="assets/karries-monogram.png" alt="">
+          </div>
+        </div>
       </header>
 
       <section id="section-creation" class="workspace-section active">
