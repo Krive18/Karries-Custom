@@ -7,18 +7,21 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #f6f7f8;
+      --bg: #f5f7f8;
       --surface: #ffffff;
-      --surface-soft: #f0f4f7;
-      --line: #dde3e8;
-      --text: #1d2430;
-      --muted: #667085;
+      --surface-soft: #f1f5f7;
+      --line: #dce4ea;
+      --text: #17202c;
+      --muted: #657385;
       --red: #e94d5f;
-      --red-deep: #c83447;
-      --teal: #148f86;
-      --amber: #b06b00;
+      --red-dark: #bf3042;
+      --teal: #138f86;
+      --blue: #2f6fc9;
+      --amber: #a86600;
       --green: #247a4d;
-      --shadow: 0 12px 30px rgba(26, 32, 44, 0.08);
+      --sidebar: #101820;
+      --sidebar-soft: #172331;
+      --shadow: 0 14px 34px rgba(21, 32, 43, 0.08);
       --radius: 8px;
     }
 
@@ -50,143 +53,124 @@
 
     button:disabled {
       cursor: not-allowed;
-      opacity: 0.55;
+      opacity: 0.6;
     }
 
     .app {
       min-height: 100vh;
       display: grid;
-      grid-template-columns: 320px minmax(0, 1fr);
+      grid-template-columns: 300px minmax(0, 1fr);
     }
 
-    aside {
+    .sidebar {
       position: sticky;
       top: 0;
       height: 100vh;
       overflow-y: auto;
-      background: #111827;
-      color: #f7f8fb;
-      padding: 22px;
+      background: var(--sidebar);
+      color: #f8fafc;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 24px;
+      gap: 11px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .brand-mark {
-      width: 34px;
-      height: 34px;
+      width: 36px;
+      height: 36px;
       border-radius: 8px;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, #e94d5f, #ffb25f);
+      background: linear-gradient(135deg, #e94d5f, #ffad60);
       color: #fff;
       font-weight: 800;
+      flex: 0 0 auto;
     }
 
     .brand h1 {
-      font-size: 18px;
-      line-height: 1.25;
       margin: 0;
+      font-size: 17px;
+      line-height: 1.25;
     }
 
     .brand p {
-      margin: 3px 0 0;
-      color: #aeb8c6;
+      margin: 4px 0 0;
+      color: #aeb8c7;
       font-size: 12px;
     }
 
-    .field {
-      margin-bottom: 14px;
-    }
-
-    .field label {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 7px;
-      color: #d9e0ea;
-      font-size: 13px;
-    }
-
-    .field input,
-    .field textarea,
-    .field select {
-      width: 100%;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-      padding: 10px 11px;
-      outline: none;
-    }
-
-    .field textarea {
-      min-height: 84px;
-      resize: vertical;
-    }
-
-    .field input::placeholder,
-    .field textarea::placeholder {
-      color: #8390a0;
-    }
-
-    .field select option {
-      color: #111827;
-    }
-
-    .hint {
-      color: #99a6b8;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    .side-actions {
+    .nav-stack {
       display: grid;
       gap: 10px;
-      margin-top: 18px;
     }
 
-    .btn {
-      min-height: 40px;
+    .nav-card {
+      width: 100%;
+      text-align: left;
+      color: #d7e0ea;
+      background: rgba(255, 255, 255, 0.055);
+      border: 1px solid rgba(255, 255, 255, 0.09);
       border-radius: var(--radius);
-      padding: 10px 14px;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      padding: 12px;
+      display: grid;
+      gap: 5px;
+      transition: 0.16s ease;
     }
 
-    .btn-primary {
-      background: var(--red);
-      color: #fff;
-      box-shadow: 0 8px 18px rgba(233, 77, 95, 0.25);
+    .nav-card:hover {
+      background: rgba(255, 255, 255, 0.09);
     }
 
-    .btn-primary:hover {
-      background: var(--red-deep);
-    }
-
-    .btn-dark {
-      background: rgba(255, 255, 255, 0.12);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-    }
-
-    .btn-ghost {
-      background: var(--surface-soft);
+    .nav-card.active {
+      background: #fff;
       color: var(--text);
-      border: 1px solid var(--line);
+      border-color: #fff;
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
     }
 
-    .btn-teal {
-      background: var(--teal);
-      color: #fff;
+    .nav-kicker {
+      font-size: 11px;
+      color: #90a0b4;
+      font-weight: 700;
+    }
+
+    .nav-card.active .nav-kicker {
+      color: var(--red);
+    }
+
+    .nav-card strong {
+      font-size: 16px;
+    }
+
+    .nav-card small {
+      line-height: 1.45;
+      color: inherit;
+      opacity: 0.78;
+    }
+
+    .sidebar-status {
+      margin-top: auto;
+      border-radius: var(--radius);
+      background: var(--sidebar-soft);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 13px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .sidebar-status p {
+      margin: 0;
+      color: #bac5d3;
+      font-size: 12px;
+      line-height: 1.55;
     }
 
     main {
@@ -198,14 +182,21 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 18px;
+      gap: 16px;
       margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      margin: 0 0 5px;
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .topbar h2 {
       margin: 0;
       font-size: 24px;
-      line-height: 1.2;
+      line-height: 1.22;
     }
 
     .topbar p {
@@ -214,18 +205,57 @@
       line-height: 1.55;
     }
 
-    .status-pill {
+    .status-pill,
+    .badge {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      min-height: 34px;
-      padding: 7px 12px;
+      min-height: 28px;
       border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status-pill {
+      min-height: 34px;
       background: #eef8f6;
       color: var(--teal);
-      font-weight: 700;
-      white-space: nowrap;
       border: 1px solid #cdeae6;
+    }
+
+    .badge {
+      background: #eef2f6;
+      color: #334155;
+      border: 1px solid transparent;
+    }
+
+    .badge.red {
+      background: #fff1f3;
+      color: var(--red-dark);
+    }
+
+    .badge.green {
+      background: #eef8f1;
+      color: var(--green);
+    }
+
+    .badge.amber {
+      background: #fff6e7;
+      color: var(--amber);
+    }
+
+    .badge.blue {
+      background: #eef4ff;
+      color: var(--blue);
+    }
+
+    .workspace-section {
+      display: none;
+    }
+
+    .workspace-section.active {
+      display: block;
     }
 
     .grid {
@@ -233,6 +263,10 @@
       grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
       gap: 18px;
       align-items: start;
+    }
+
+    .grid.settings-grid {
+      grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
     }
 
     .panel {
@@ -248,7 +282,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 16px 18px;
+      padding: 15px 17px;
       border-bottom: 1px solid var(--line);
     }
 
@@ -258,24 +292,126 @@
     }
 
     .panel-body {
-      padding: 18px;
+      padding: 17px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      padding: 10px 11px;
+      outline: none;
+    }
+
+    .field textarea {
+      min-height: 96px;
+      resize: vertical;
+      line-height: 1.65;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      min-height: 40px;
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(233, 77, 95, 0.22);
+    }
+
+    .btn-primary:hover {
+      background: var(--red-dark);
+    }
+
+    .btn-teal {
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .btn-ghost {
+      background: var(--surface-soft);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .small-btn {
+      min-height: 32px;
+      border-radius: var(--radius);
+      padding: 7px 10px;
+      background: #eef2f6;
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .small-btn.danger {
+      color: var(--red-dark);
+      background: #fff1f3;
+      border-color: #ffd3da;
     }
 
     .upload-zone {
-      min-height: 180px;
-      border: 1.5px dashed #b8c4cf;
+      min-height: 178px;
+      border: 1.5px dashed #b6c4d0;
       border-radius: var(--radius);
-      background: #fafbfc;
+      background: #fbfcfd;
       display: grid;
       place-items: center;
       text-align: center;
-      padding: 28px;
+      padding: 26px;
       transition: 0.16s ease;
     }
 
     .upload-zone.dragover {
       border-color: var(--red);
-      background: #fff3f5;
+      background: #fff4f6;
     }
 
     .upload-zone strong {
@@ -289,11 +425,18 @@
       line-height: 1.6;
     }
 
+    .badge-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
     .material-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
       gap: 12px;
-      margin-top: 16px;
+      margin-top: 15px;
     }
 
     .material-card {
@@ -347,41 +490,15 @@
       line-height: 1.5;
     }
 
-    .mini-actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    .small-btn {
-      min-height: 32px;
-      border-radius: var(--radius);
-      padding: 7px 10px;
-      background: #eef1f4;
-      color: var(--text);
-      border: 1px solid var(--line);
-      font-size: 13px;
-      font-weight: 700;
-    }
-
-    .small-btn.danger {
-      color: var(--red-deep);
-      background: #fff1f3;
-      border-color: #ffd1d8;
-    }
-
-    .result-stack {
+    .result-edit {
       display: grid;
-      gap: 14px;
+      gap: 7px;
     }
 
     .result-edit label {
-      display: block;
       color: var(--muted);
       font-size: 12px;
-      margin-bottom: 6px;
-      font-weight: 700;
+      font-weight: 800;
     }
 
     .result-edit input,
@@ -396,43 +513,9 @@
     }
 
     .result-edit textarea {
-      min-height: 190px;
+      min-height: 180px;
       resize: vertical;
       line-height: 1.7;
-    }
-
-    .badge-line {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      min-height: 26px;
-      border-radius: 999px;
-      padding: 5px 10px;
-      background: #f1f5f9;
-      color: #334155;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .badge.red {
-      background: #fff1f3;
-      color: var(--red-deep);
-    }
-
-    .badge.green {
-      background: #eef8f1;
-      color: var(--green);
-    }
-
-    .badge.amber {
-      background: #fff6e7;
-      color: var(--amber);
     }
 
     .analysis-list {
@@ -457,8 +540,35 @@
       background: #fbfcfd;
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 18px;
+      padding: 17px;
       line-height: 1.7;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 7px;
+      font-size: 24px;
     }
 
     .task-table {
@@ -479,6 +589,20 @@
       color: var(--muted);
       font-size: 12px;
       background: #fafbfc;
+    }
+
+    .config-card {
+      border: 1px solid var(--line);
+      background: #fbfcfd;
+      border-radius: var(--radius);
+      padding: 13px;
+      display: grid;
+      gap: 9px;
+    }
+
+    .config-card h4 {
+      margin: 0;
+      font-size: 14px;
     }
 
     .toast {
@@ -516,39 +640,43 @@
       }
     }
 
-    @media (max-width: 1100px) {
+    @media (max-width: 1160px) {
       .app {
         grid-template-columns: 1fr;
       }
 
-      aside {
+      .sidebar {
         position: relative;
         height: auto;
       }
 
-      .grid {
+      .grid,
+      .grid.settings-grid {
         grid-template-columns: 1fr;
+      }
+
+      .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 680px) {
       main {
         padding: 14px;
       }
 
-      .topbar {
-        flex-direction: column;
-      }
-
+      .topbar,
       .panel-head {
-        align-items: flex-start;
         flex-direction: column;
+        align-items: flex-start;
       }
 
-      .mini-actions {
-        width: 100%;
+      .two-col,
+      .metric-grid {
+        grid-template-columns: 1fr;
       }
 
+      .actions,
       .small-btn,
       .btn {
         width: 100%;
@@ -558,155 +686,279 @@
 </head>
 <body>
   <div class="app">
-    <aside>
+    <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">XHS</div>
         <div>
           <h1>小红书智能发布演示台</h1>
-          <p>素材解析、AI 文案、定时任务预览</p>
+          <p>内容创作到定时发布</p>
         </div>
       </div>
 
-      <div class="field">
-        <label for="apiKey">DeepSeek Key <span class="hint">本机演示</span></label>
-        <input id="apiKey" type="password" placeholder="sk-...">
-      </div>
+      <nav class="nav-stack" aria-label="业务模块">
+        <button class="nav-card active" type="button" data-section="creation">
+          <span class="nav-kicker">模块一</span>
+          <strong>智能创作</strong>
+          <small>素材解析 / 文案生成 / 人工确认</small>
+        </button>
+        <button class="nav-card" type="button" data-section="schedule">
+          <span class="nav-kicker">模块二</span>
+          <strong>定时发布</strong>
+          <small>任务预览 / 状态流转 / 发布记录</small>
+        </button>
+        <button class="nav-card" type="button" data-section="settings">
+          <span class="nav-kicker">模块三</span>
+          <strong>系统配置</strong>
+          <small>DeepSeek Key / 模型风格 / 账号预留</small>
+        </button>
+      </nav>
 
-      <div class="field">
-        <label for="modelName">模型</label>
-        <input id="modelName" type="text" value="deepseek-v4-flash">
+      <div class="sidebar-status">
+        <div class="badge-line">
+          <span id="sideAiMode" class="badge amber">演示模式</span>
+          <span id="sideTaskCount" class="badge">任务 0</span>
+        </div>
+        <p>当前 Demo 不会真实发布到小红书账号。客户可先体验素材解析、文案生成和任务流转。</p>
+        <button id="sideAnalyzeBtn" class="small-btn" type="button">解析当前素材</button>
       </div>
-
-      <div class="field">
-        <label for="style">内容方向</label>
-        <select id="style">
-          <option>小红书种草</option>
-          <option>探店打卡</option>
-          <option>产品卖点提炼</option>
-          <option>旅游攻略</option>
-          <option>品牌活动预热</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="tone">文案语气</label>
-        <select id="tone">
-          <option>自然真诚</option>
-          <option>专业可信</option>
-          <option>轻松活泼</option>
-          <option>高级简洁</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="publishTime">计划发布时间</label>
-        <input id="publishTime" type="datetime-local">
-      </div>
-
-      <div class="field">
-        <label for="extraPrompt">补充要求</label>
-        <textarea id="extraPrompt" placeholder="例如：突出新品、强调门店体验、语气更生活化"></textarea>
-      </div>
-
-      <div class="side-actions">
-        <button id="saveKeyBtn" class="btn btn-dark" type="button">保存 Key</button>
-        <button id="demoDataBtn" class="btn btn-dark" type="button">生成测试数据</button>
-        <button id="analyzeBtn" class="btn btn-primary" type="button">AI 智能解析</button>
-      </div>
-      <p class="hint" style="margin-top: 14px;">Key 只用于本机 Demo 请求；没有 Key 时仍会生成可展示结果。</p>
     </aside>
 
     <main>
-      <div class="topbar">
+      <header class="topbar">
         <div>
-          <h2>素材到小红书发布任务</h2>
-          <p>上传本地图片或视频，生成解析摘要、小红书标题、正文、标签和定时发布任务预览。</p>
+          <p id="moduleEyebrow" class="eyebrow">智能创作</p>
+          <h2 id="pageTitle">素材智能解析</h2>
+          <p id="pageDesc">上传本地图片或视频，生成小红书标题、正文、标签和素材洞察。</p>
         </div>
         <div id="serverStatus" class="status-pill">后端连接中</div>
-      </div>
+      </header>
 
-      <div class="grid">
+      <section id="section-creation" class="workspace-section active">
+        <div class="grid">
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>本地素材</h3>
+                <div class="actions">
+                  <button id="pickFileBtn" class="small-btn" type="button">选择图片/视频</button>
+                  <button id="demoDataBtn" class="small-btn" type="button">生成测试数据</button>
+                  <button id="clearMaterialsBtn" class="small-btn danger" type="button">清空素材</button>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div id="uploadZone" class="upload-zone">
+                  <div>
+                    <strong>拖入图片或视频</strong>
+                    <span>支持 JPG、PNG、WEBP、MP4、MOV、WEBM 等常见素材</span>
+                  </div>
+                </div>
+                <input id="fileInput" type="file" accept="image/*,video/*" multiple hidden>
+                <div id="materialStats" class="badge-line" style="margin-top: 14px;"></div>
+                <div id="materialGrid" class="material-grid"></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>创作参数</h3>
+                <div class="badge-line">
+                  <span id="keyInlineStatus" class="badge amber">未连接 Key</span>
+                </div>
+              </div>
+              <div class="panel-body stack">
+                <div class="two-col">
+                  <div class="field">
+                    <label for="style">内容方向</label>
+                    <select id="style">
+                      <option>小红书种草</option>
+                      <option>探店打卡</option>
+                      <option>产品卖点提炼</option>
+                      <option>旅游攻略</option>
+                      <option>品牌活动预热</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="tone">文案语气</label>
+                    <select id="tone">
+                      <option>自然真诚</option>
+                      <option>专业可信</option>
+                      <option>轻松活泼</option>
+                      <option>高级简洁</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="two-col">
+                  <div class="field">
+                    <label for="publishTime">计划发布时间</label>
+                    <input id="publishTime" type="datetime-local">
+                  </div>
+                  <div class="field">
+                    <label for="modelName">模型</label>
+                    <input id="modelName" type="text" value="deepseek-v4-flash">
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="extraPrompt">补充要求</label>
+                  <textarea id="extraPrompt" placeholder="例如：突出新品、强调门店体验、语气更生活化"></textarea>
+                </div>
+                <div class="actions">
+                  <button id="analyzeBtn" class="btn btn-primary" type="button">AI 智能解析</button>
+                  <button id="copyTextBtn" class="btn btn-ghost" type="button">复制文案</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>AI 解析结果</h3>
+              <div id="providerBadges" class="badge-line"></div>
+            </div>
+            <div class="panel-body stack">
+              <div id="emptyResult" class="empty">上传素材后点击 AI 智能解析，这里会显示可编辑的小红书文案和解析结论。</div>
+              <div id="resultContent" class="stack" style="display: none;">
+                <div class="result-edit">
+                  <label for="resultTitle">标题</label>
+                  <input id="resultTitle" maxlength="20">
+                </div>
+                <div class="result-edit">
+                  <label for="resultBody">正文</label>
+                  <textarea id="resultBody"></textarea>
+                </div>
+                <div class="result-edit">
+                  <label for="resultTags">标签</label>
+                  <input id="resultTags" placeholder="用空格或逗号分隔">
+                </div>
+                <div class="badge-line" id="summaryLine"></div>
+                <div>
+                  <h3 style="font-size: 14px; margin: 0 0 10px;">素材洞察</h3>
+                  <ul id="insightList" class="analysis-list"></ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 14px; margin: 0 0 10px;">发布检查</h3>
+                  <ul id="checkList" class="analysis-list"></ul>
+                </div>
+                <div class="actions">
+                  <button id="saveTaskBtn" class="btn btn-teal" type="button">保存演示任务</button>
+                  <button id="goScheduleBtn" class="btn btn-ghost" type="button">查看发布任务</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="section-schedule" class="workspace-section">
+        <div class="metric-grid">
+          <div class="metric"><span>素材数量</span><strong id="metricMaterialCount">0</strong></div>
+          <div class="metric"><span>待发布</span><strong id="metricPendingCount">0</strong></div>
+          <div class="metric"><span>已提交</span><strong id="metricSubmittedCount">0</strong></div>
+          <div class="metric"><span>最近计划</span><strong id="metricNextTime" style="font-size: 16px;">待定</strong></div>
+        </div>
+
         <section class="panel">
           <div class="panel-head">
-            <h3>本地素材</h3>
-            <div class="mini-actions">
-              <button id="pickFileBtn" class="small-btn" type="button">选择图片/视频</button>
-              <button id="clearMaterialsBtn" class="small-btn danger" type="button">清空素材</button>
+            <h3>定时发布任务预览</h3>
+            <div class="actions">
+              <button id="createFromScheduleBtn" class="small-btn" type="button">回到智能创作</button>
+              <button id="clearTasksBtn" class="small-btn danger" type="button">清空任务</button>
             </div>
+          </div>
+          <div class="panel-body" style="padding: 0;">
+            <table class="task-table">
+              <thead>
+                <tr>
+                  <th>标题</th>
+                  <th>素材</th>
+                  <th>发布时间</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="taskRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" style="margin-top: 18px;">
+          <div class="panel-head">
+            <h3>发布记录</h3>
+            <div class="badge-line"><span class="badge blue">Demo 日志</span></div>
           </div>
           <div class="panel-body">
-            <div id="uploadZone" class="upload-zone">
-              <div>
-                <strong>拖入图片或视频</strong>
-                <span>支持 JPG、PNG、WEBP、MP4、MOV、WEBM 等常见素材</span>
-              </div>
-            </div>
-            <input id="fileInput" type="file" accept="image/*,video/*" multiple hidden>
-            <div id="materialStats" class="badge-line" style="margin-top: 14px;"></div>
-            <div id="materialGrid" class="material-grid"></div>
+            <ul id="publishLogList" class="analysis-list"></ul>
           </div>
         </section>
+      </section>
 
-        <section class="panel">
-          <div class="panel-head">
-            <h3>AI 解析结果</h3>
-            <div id="providerBadges" class="badge-line"></div>
-          </div>
-          <div class="panel-body result-stack">
-            <div id="emptyResult" class="empty">上传素材后点击 AI 智能解析，这里会显示可编辑的小红书文案和解析结论。</div>
-            <div id="resultContent" class="result-stack" style="display: none;">
-              <div class="result-edit">
-                <label for="resultTitle">标题</label>
-                <input id="resultTitle" maxlength="20">
+      <section id="section-settings" class="workspace-section">
+        <div class="grid settings-grid">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>AI Key 设置</h3>
+              <div class="badge-line"><span id="settingsKeyBadge" class="badge amber">演示模式</span></div>
+            </div>
+            <div class="panel-body stack">
+              <div class="field">
+                <label for="apiKey">DeepSeek Key</label>
+                <input id="apiKey" type="password" placeholder="sk-...">
               </div>
-              <div class="result-edit">
-                <label for="resultBody">正文</label>
-                <textarea id="resultBody"></textarea>
+              <div class="field">
+                <label for="deepseekEndpoint">接口地址</label>
+                <input id="deepseekEndpoint" type="text" value="https://api.deepseek.com/chat/completions" disabled>
               </div>
-              <div class="result-edit">
-                <label for="resultTags">标签</label>
-                <input id="resultTags" placeholder="用逗号分隔">
+              <div class="actions">
+                <button id="saveKeyBtn" class="btn btn-primary" type="button">保存 Key</button>
+                <button id="clearKeyBtn" class="btn btn-ghost" type="button">清除 Key</button>
               </div>
-              <div>
-                <div class="badge-line" id="summaryLine"></div>
+              <p class="hint">Key 只保存在本机浏览器 localStorage，用于这版客户演示。</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>模型与账号</h3>
+              <div class="badge-line"><span id="settingsSavedAt" class="badge">未保存</span></div>
+            </div>
+            <div class="panel-body stack">
+              <div class="two-col">
+                <div class="field">
+                  <label for="accountName">小红书账号名称</label>
+                  <input id="accountName" type="text" placeholder="例如：品牌运营号">
+                </div>
+                <div class="field">
+                  <label for="xhsLoginMode">登录方式</label>
+                  <select id="xhsLoginMode">
+                    <option>浏览器扫码登录</option>
+                    <option>沿用本机登录状态</option>
+                    <option>后续客户部署配置</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <h3 style="font-size: 14px; margin: 0 0 10px;">素材洞察</h3>
-                <ul id="insightList" class="analysis-list"></ul>
+              <div class="two-col">
+                <div class="field">
+                  <label for="defaultTitlePrefix">默认标题前缀</label>
+                  <input id="defaultTitlePrefix" type="text" placeholder="例如：新品上新">
+                </div>
+                <div class="field">
+                  <label for="defaultTag">默认标签</label>
+                  <input id="defaultTag" type="text" placeholder="例如：小红书运营">
+                </div>
               </div>
-              <div>
-                <h3 style="font-size: 14px; margin: 0 0 10px;">发布检查</h3>
-                <ul id="checkList" class="analysis-list"></ul>
+              <div class="config-card">
+                <h4>部署预留</h4>
+                <div class="badge-line">
+                  <span class="badge green">Windows 绿色版</span>
+                  <span class="badge">SQLite 本地数据</span>
+                  <span class="badge">浏览器自动化</span>
+                </div>
               </div>
-              <div class="mini-actions">
-                <button id="saveTaskBtn" class="btn btn-teal" type="button">保存演示任务</button>
-                <button id="copyTextBtn" class="btn btn-ghost" type="button">复制文案</button>
+              <div class="actions">
+                <button id="saveSettingsBtn" class="btn btn-teal" type="button">保存配置</button>
+                <button id="testConfigBtn" class="btn btn-ghost" type="button">测试配置</button>
               </div>
             </div>
-          </div>
-        </section>
-      </div>
-
-      <section class="panel" style="margin-top: 18px;">
-        <div class="panel-head">
-          <h3>定时发布任务预览</h3>
-          <div class="mini-actions">
-            <button id="clearTasksBtn" class="small-btn danger" type="button">清空任务</button>
-          </div>
-        </div>
-        <div class="panel-body" style="padding: 0;">
-          <table class="task-table">
-            <thead>
-              <tr>
-                <th>标题</th>
-                <th>素材</th>
-                <th>发布时间</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="taskRows"></tbody>
-          </table>
+          </section>
         </div>
       </section>
     </main>
@@ -715,13 +967,37 @@
   <div id="toast" class="toast"></div>
 
   <script>
+    const sectionMeta = {
+      creation: {
+        eyebrow: "智能创作",
+        title: "素材智能解析",
+        desc: "上传本地图片或视频，生成小红书标题、正文、标签和素材洞察。"
+      },
+      schedule: {
+        eyebrow: "定时发布",
+        title: "任务队列与发布记录",
+        desc: "查看待发布任务、模拟提交状态，并让客户看到完整发布工作流。"
+      },
+      settings: {
+        eyebrow: "系统配置",
+        title: "AI、模型与账号配置",
+        desc: "配置 DeepSeek Key、模型偏好、小红书账号和后续部署预留项。"
+      }
+    };
+
     const state = {
       materials: [],
       result: null,
-      tasks: JSON.parse(localStorage.getItem("xhs_demo_tasks") || "[]")
+      tasks: JSON.parse(localStorage.getItem("xhs_demo_tasks") || "[]"),
+      logs: JSON.parse(localStorage.getItem("xhs_demo_logs") || "[]")
     };
 
     const els = {
+      navCards: document.querySelectorAll(".nav-card"),
+      sections: document.querySelectorAll(".workspace-section"),
+      moduleEyebrow: document.getElementById("moduleEyebrow"),
+      pageTitle: document.getElementById("pageTitle"),
+      pageDesc: document.getElementById("pageDesc"),
       apiKey: document.getElementById("apiKey"),
       modelName: document.getElementById("modelName"),
       style: document.getElementById("style"),
@@ -729,8 +1005,19 @@
       publishTime: document.getElementById("publishTime"),
       extraPrompt: document.getElementById("extraPrompt"),
       saveKeyBtn: document.getElementById("saveKeyBtn"),
+      clearKeyBtn: document.getElementById("clearKeyBtn"),
+      saveSettingsBtn: document.getElementById("saveSettingsBtn"),
+      testConfigBtn: document.getElementById("testConfigBtn"),
+      accountName: document.getElementById("accountName"),
+      xhsLoginMode: document.getElementById("xhsLoginMode"),
+      defaultTitlePrefix: document.getElementById("defaultTitlePrefix"),
+      defaultTag: document.getElementById("defaultTag"),
+      settingsSavedAt: document.getElementById("settingsSavedAt"),
       demoDataBtn: document.getElementById("demoDataBtn"),
       analyzeBtn: document.getElementById("analyzeBtn"),
+      sideAnalyzeBtn: document.getElementById("sideAnalyzeBtn"),
+      goScheduleBtn: document.getElementById("goScheduleBtn"),
+      createFromScheduleBtn: document.getElementById("createFromScheduleBtn"),
       uploadZone: document.getElementById("uploadZone"),
       fileInput: document.getElementById("fileInput"),
       pickFileBtn: document.getElementById("pickFileBtn"),
@@ -739,6 +1026,10 @@
       materialStats: document.getElementById("materialStats"),
       serverStatus: document.getElementById("serverStatus"),
       providerBadges: document.getElementById("providerBadges"),
+      sideAiMode: document.getElementById("sideAiMode"),
+      sideTaskCount: document.getElementById("sideTaskCount"),
+      keyInlineStatus: document.getElementById("keyInlineStatus"),
+      settingsKeyBadge: document.getElementById("settingsKeyBadge"),
       emptyResult: document.getElementById("emptyResult"),
       resultContent: document.getElementById("resultContent"),
       resultTitle: document.getElementById("resultTitle"),
@@ -751,8 +1042,27 @@
       copyTextBtn: document.getElementById("copyTextBtn"),
       clearTasksBtn: document.getElementById("clearTasksBtn"),
       taskRows: document.getElementById("taskRows"),
+      metricMaterialCount: document.getElementById("metricMaterialCount"),
+      metricPendingCount: document.getElementById("metricPendingCount"),
+      metricSubmittedCount: document.getElementById("metricSubmittedCount"),
+      metricNextTime: document.getElementById("metricNextTime"),
+      publishLogList: document.getElementById("publishLogList"),
       toast: document.getElementById("toast")
     };
+
+    function setActiveSection(sectionName) {
+      const meta = sectionMeta[sectionName] || sectionMeta.creation;
+      els.navCards.forEach((card) => {
+        card.classList.toggle("active", card.dataset.section === sectionName);
+      });
+      els.sections.forEach((section) => {
+        section.classList.toggle("active", section.id === `section-${sectionName}`);
+      });
+      els.moduleEyebrow.textContent = meta.eyebrow;
+      els.pageTitle.textContent = meta.title;
+      els.pageDesc.textContent = meta.desc;
+      renderDashboard();
+    }
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -797,6 +1107,32 @@
 
     function saveTasks() {
       localStorage.setItem("xhs_demo_tasks", JSON.stringify(state.tasks));
+    }
+
+    function saveLogs() {
+      localStorage.setItem("xhs_demo_logs", JSON.stringify(state.logs.slice(0, 30)));
+    }
+
+    function addLog(message) {
+      state.logs.unshift({
+        id: Date.now(),
+        time: new Date().toLocaleString(),
+        message
+      });
+      saveLogs();
+      renderLogs();
+    }
+
+    function updateKeyStatus() {
+      const hasKey = Boolean(els.apiKey.value.trim());
+      const text = hasKey ? "DeepSeek 已配置" : "演示模式";
+      const className = hasKey ? "badge green" : "badge amber";
+      els.sideAiMode.className = className;
+      els.keyInlineStatus.className = className;
+      els.settingsKeyBadge.className = className;
+      els.sideAiMode.textContent = text;
+      els.keyInlineStatus.textContent = hasKey ? "Key 已连接" : "未连接 Key";
+      els.settingsKeyBadge.textContent = text;
     }
 
     function materialForApi(material) {
@@ -958,6 +1294,7 @@
         }
       ];
       renderMaterials();
+      addLog("已生成 3 个测试素材");
       showToast("测试素材已生成");
     }
 
@@ -971,6 +1308,7 @@
       `;
       if (!state.materials.length) {
         els.materialGrid.innerHTML = "";
+        renderDashboard();
         return;
       }
       els.materialGrid.innerHTML = state.materials.map((item) => {
@@ -987,13 +1325,14 @@
               <strong>${escapeHtml(item.name)}</strong>
               <p>${escapeHtml(sizeText)}</p>
               <p>${escapeHtml(item.notes || "")}</p>
-              <div class="mini-actions">
+              <div class="actions">
                 <button class="small-btn danger" type="button" data-remove="${escapeHtml(item.id)}">移除</button>
               </div>
             </div>
           </article>
         `;
       }).join("");
+      renderDashboard();
     }
 
     function renderResult(result) {
@@ -1032,6 +1371,7 @@
       }
       const originalText = els.analyzeBtn.innerHTML;
       els.analyzeBtn.disabled = true;
+      els.sideAnalyzeBtn.disabled = true;
       els.analyzeBtn.innerHTML = '<span class="loading"></span> 正在解析';
       try {
         const payload = {
@@ -1053,11 +1393,13 @@
           throw new Error(body.error?.message || "解析失败");
         }
         renderResult(body.data);
+        addLog(`AI 已生成文案：${body.data.title || "未命名内容"}`);
         showToast("解析结果已生成");
       } catch (error) {
         showToast(error.message || "解析失败");
       } finally {
         els.analyzeBtn.disabled = false;
+        els.sideAnalyzeBtn.disabled = false;
         els.analyzeBtn.innerHTML = originalText;
       }
     }
@@ -1079,11 +1421,17 @@
       state.tasks.unshift(task);
       saveTasks();
       renderTasks();
+      renderDashboard();
+      addLog(`已保存定时发布任务：${task.title}`);
       showToast("演示任务已保存");
     }
 
     async function copyText() {
       const text = `${els.resultTitle.value}\n\n${els.resultBody.value}\n\n${els.resultTags.value}`;
+      if (!text.trim()) {
+        showToast("暂无可复制文案");
+        return;
+      }
       try {
         await navigator.clipboard.writeText(text);
         showToast("文案已复制");
@@ -1095,6 +1443,7 @@
     function renderTasks() {
       if (!state.tasks.length) {
         els.taskRows.innerHTML = '<tr><td colspan="5" style="padding: 20px; color: #667085;">暂无演示任务</td></tr>';
+        renderDashboard();
         return;
       }
       els.taskRows.innerHTML = state.tasks.map((task) => `
@@ -1109,6 +1458,28 @@
           </td>
         </tr>
       `).join("");
+      renderDashboard();
+    }
+
+    function renderLogs() {
+      if (!state.logs.length) {
+        els.publishLogList.innerHTML = "<li>暂无发布记录</li>";
+        return;
+      }
+      els.publishLogList.innerHTML = state.logs.slice(0, 12).map((item) => (
+        `<li><strong>${escapeHtml(item.time)}</strong><br>${escapeHtml(item.message)}</li>`
+      )).join("");
+    }
+
+    function renderDashboard() {
+      const pendingCount = state.tasks.filter((task) => task.status !== "已提交").length;
+      const submittedCount = state.tasks.filter((task) => task.status === "已提交").length;
+      const nextTask = state.tasks.find((task) => task.status !== "已提交");
+      els.metricMaterialCount.textContent = state.materials.length;
+      els.metricPendingCount.textContent = pendingCount;
+      els.metricSubmittedCount.textContent = submittedCount;
+      els.metricNextTime.textContent = nextTask?.publishTime || "待定";
+      els.sideTaskCount.textContent = `任务 ${state.tasks.length}`;
     }
 
     async function checkServer() {
@@ -1125,6 +1496,33 @@
       }
     }
 
+    function saveSettings() {
+      localStorage.setItem("xhs_demo_settings", JSON.stringify({
+        modelName: els.modelName.value.trim(),
+        style: els.style.value,
+        tone: els.tone.value,
+        accountName: els.accountName.value.trim(),
+        xhsLoginMode: els.xhsLoginMode.value,
+        defaultTitlePrefix: els.defaultTitlePrefix.value.trim(),
+        defaultTag: els.defaultTag.value.trim()
+      }));
+      els.settingsSavedAt.textContent = new Date().toLocaleTimeString();
+      addLog("系统配置已保存");
+      showToast("配置已保存");
+    }
+
+    function loadSettings() {
+      const saved = JSON.parse(localStorage.getItem("xhs_demo_settings") || "{}");
+      if (saved.modelName) els.modelName.value = saved.modelName;
+      if (saved.style) els.style.value = saved.style;
+      if (saved.tone) els.tone.value = saved.tone;
+      if (saved.accountName) els.accountName.value = saved.accountName;
+      if (saved.xhsLoginMode) els.xhsLoginMode.value = saved.xhsLoginMode;
+      if (saved.defaultTitlePrefix) els.defaultTitlePrefix.value = saved.defaultTitlePrefix;
+      if (saved.defaultTag) els.defaultTag.value = saved.defaultTag;
+    }
+
+    els.navCards.forEach((card) => card.addEventListener("click", () => setActiveSection(card.dataset.section)));
     els.pickFileBtn.addEventListener("click", () => els.fileInput.click());
     els.fileInput.addEventListener("change", (event) => addFiles(event.target.files));
     els.uploadZone.addEventListener("click", () => els.fileInput.click());
@@ -1152,12 +1550,19 @@
     });
     els.demoDataBtn.addEventListener("click", demoMaterials);
     els.analyzeBtn.addEventListener("click", analyze);
+    els.sideAnalyzeBtn.addEventListener("click", () => {
+      setActiveSection("creation");
+      analyze();
+    });
     els.saveTaskBtn.addEventListener("click", saveTask);
     els.copyTextBtn.addEventListener("click", copyText);
+    els.goScheduleBtn.addEventListener("click", () => setActiveSection("schedule"));
+    els.createFromScheduleBtn.addEventListener("click", () => setActiveSection("creation"));
     els.clearTasksBtn.addEventListener("click", () => {
       state.tasks = [];
       saveTasks();
       renderTasks();
+      addLog("任务队列已清空");
       showToast("任务已清空");
     });
     els.taskRows.addEventListener("click", (event) => {
@@ -1165,9 +1570,11 @@
       const remove = event.target.closest("[data-delete]");
       if (submit) {
         const id = Number(submit.getAttribute("data-submit"));
-        state.tasks = state.tasks.map((task) => task.id === id ? { ...task, status: "已提交" } : task);
+        const task = state.tasks.find((item) => item.id === id);
+        state.tasks = state.tasks.map((item) => item.id === id ? { ...item, status: "已提交" } : item);
         saveTasks();
         renderTasks();
+        addLog(`已模拟提交发布任务：${task?.title || "未命名任务"}`);
         showToast("已模拟提交发布任务");
       }
       if (remove) {
@@ -1179,13 +1586,31 @@
     });
     els.saveKeyBtn.addEventListener("click", () => {
       localStorage.setItem("xhs_demo_deepseek_key", els.apiKey.value.trim());
+      updateKeyStatus();
+      addLog("DeepSeek Key 配置已更新");
       showToast("Key 已保存到本机浏览器");
     });
+    els.clearKeyBtn.addEventListener("click", () => {
+      els.apiKey.value = "";
+      localStorage.removeItem("xhs_demo_deepseek_key");
+      updateKeyStatus();
+      showToast("Key 已清除");
+    });
+    els.apiKey.addEventListener("input", updateKeyStatus);
+    els.saveSettingsBtn.addEventListener("click", saveSettings);
+    els.testConfigBtn.addEventListener("click", () => {
+      const mode = els.apiKey.value.trim() ? "DeepSeek Key 已填写" : "当前为本地演示模式";
+      showToast(`${mode}，后端服务状态见右上角`);
+    });
 
+    loadSettings();
     els.apiKey.value = localStorage.getItem("xhs_demo_deepseek_key") || "";
     els.publishTime.value = defaultPublishTime();
+    updateKeyStatus();
     renderMaterials();
     renderTasks();
+    renderLogs();
+    renderDashboard();
     checkServer();
   </script>
 </body>
