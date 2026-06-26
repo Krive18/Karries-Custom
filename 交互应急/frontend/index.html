@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>小红书智能发布工作台</title>
+  <title>KARRIES 禾一斯 · 小红书智能发布工作台</title>
   <style>
     :root {
       color-scheme: light;
@@ -688,16 +688,467 @@
         width: 100%;
       }
     }
+
+    :root {
+      --bg: #fbf7f0;
+      --bg-2: #f7efe5;
+      --panel: rgba(255, 253, 249, 0.92);
+      --panel-solid: #fffdfa;
+      --panel-warm: #fff7ec;
+      --surface: var(--panel);
+      --surface-soft: #fff7ec;
+      --text: #3a2415;
+      --text-2: #6f5a4a;
+      --muted: #8f7c6d;
+      --line: #eadfd3;
+      --line-soft: #f2e8dc;
+      --brand: #9a5b22;
+      --brand-dark: #693913;
+      --brand-light: #c9904c;
+      --red: #9a5b22;
+      --red-dark: #693913;
+      --teal: #5ca568;
+      --blue: #7b6a58;
+      --amber: #b8782e;
+      --green: #3f8a4d;
+      --sidebar: rgba(255, 250, 244, 0.9);
+      --sidebar-soft: rgba(255, 253, 249, 0.78);
+      --shadow: 0 18px 45px rgba(94, 56, 22, 0.08);
+      --shadow-soft: 0 8px 24px rgba(94, 56, 22, 0.06);
+      --radius: 18px;
+      --ease: cubic-bezier(.2, .8, .2, 1);
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 78% 4%, rgba(219, 188, 151, 0.24), transparent 30%),
+        linear-gradient(135deg, #fffaf4 0%, #fbf7f0 46%, #f6efe7 100%);
+      font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
+    }
+
+    .app {
+      grid-template-columns: 282px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      padding: 26px 18px 22px;
+      gap: 16px;
+      border-right-color: rgba(234, 223, 211, 0.9);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 248, 239, 0.72)),
+        radial-gradient(circle at 18% 0%, rgba(201, 144, 76, 0.10), transparent 28%);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand {
+      gap: 14px;
+      padding: 4px 6px 24px;
+      border-bottom: 0;
+      align-items: center;
+    }
+
+    .brand-logo {
+      width: 66px;
+      height: 66px;
+      flex: 0 0 auto;
+      border-radius: 18px;
+      object-fit: cover;
+      object-position: center;
+      border: 1px solid #eadccf;
+      background: #fff8ee;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .brand-text strong {
+      display: block;
+      font-family: Georgia, "Times New Roman", serif;
+      letter-spacing: 0.08em;
+      font-size: 23px;
+      line-height: 1.05;
+      color: var(--brand-dark);
+    }
+
+    .brand-text span {
+      display: block;
+      margin-top: 4px;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--brand-dark);
+    }
+
+    .brand-text p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .nav-stack {
+      gap: 10px;
+      padding: 0;
+    }
+
+    .nav-card {
+      min-height: 58px;
+      gap: 14px;
+      padding: 15px 16px;
+      border-radius: 18px;
+      color: var(--brand-dark);
+      transition: 0.24s var(--ease);
+    }
+
+    .nav-card:hover {
+      background: rgba(255, 248, 239, 0.78);
+      transform: translateX(2px);
+    }
+
+    .nav-card.active {
+      background: linear-gradient(135deg, #f5e6d4, #fff5e8);
+      border-color: rgba(184, 120, 46, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(184, 120, 46, 0.10), 0 12px 28px rgba(154, 91, 34, 0.10);
+      color: var(--brand);
+    }
+
+    .nav-kicker {
+      width: 9px;
+      height: 9px;
+      background: #decab5;
+    }
+
+    .nav-card.active .nav-kicker {
+      background: var(--brand);
+    }
+
+    .nav-card strong {
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .sidebar-status {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 253, 249, 0.78);
+      box-shadow: var(--shadow-soft);
+      padding: 14px;
+    }
+
+    main {
+      padding: 34px 38px 38px;
+      position: relative;
+    }
+
+    main::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 282px;
+      right: 0;
+      height: 180px;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(255, 252, 248, 0.82), rgba(255, 252, 248, 0));
+      z-index: 0;
+    }
+
+    .topbar,
+    .workspace-section {
+      position: relative;
+      z-index: 1;
+    }
+
+    .topbar {
+      min-height: 98px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--brand-light);
+      letter-spacing: 0.04em;
+    }
+
+    .topbar h2 {
+      font-family: Georgia, "PingFang SC", serif;
+      font-size: 34px;
+      line-height: 1.15;
+      color: var(--text);
+    }
+
+    .topbar p {
+      margin-top: 12px;
+      color: var(--text-2);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .status-pill,
+    .badge {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      font-weight: 800;
+    }
+
+    .status-pill {
+      min-height: 34px;
+      background: #eaf6eb;
+      color: #357a40;
+      border-color: rgba(92, 165, 104, 0.20);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .badge {
+      background: #f7f1ea;
+      color: #8b6a50;
+      border-color: rgba(184, 120, 46, 0.12);
+    }
+
+    .badge.green {
+      background: #eaf6eb;
+      color: #3a8546;
+      border-color: rgba(92, 165, 104, 0.20);
+    }
+
+    .badge.amber {
+      background: #fff2dd;
+      color: #bc7424;
+      border-color: rgba(201, 144, 76, 0.20);
+    }
+
+    .badge.red {
+      background: #fff7f5;
+      color: #c4514c;
+      border-color: rgba(217, 99, 90, 0.28);
+    }
+
+    .grid {
+      grid-template-columns: minmax(560px, 1.18fr) minmax(420px, 0.92fr);
+      gap: 24px;
+    }
+
+    .grid.settings-grid {
+      grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr);
+    }
+
+    .stack {
+      gap: 16px;
+    }
+
+    .panel,
+    .metric {
+      background: var(--panel);
+      border-color: rgba(232, 218, 205, 0.94);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      padding: 20px 24px 18px;
+      border-bottom-color: var(--line-soft);
+    }
+
+    .panel-head h3 {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .panel-body {
+      padding: 22px 24px 24px;
+    }
+
+    .upload-zone {
+      min-height: 212px;
+      border-color: #d6b896;
+      border-radius: 17px;
+      background:
+        radial-gradient(circle at 50% 35%, rgba(203, 144, 76, 0.08), transparent 18%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 248, 239, 0.82));
+      color: var(--brand-dark);
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--brand);
+      background: #fff5e8;
+    }
+
+    .upload-zone strong {
+      font-size: 17px;
+    }
+
+    .upload-zone span,
+    .hint {
+      color: var(--text-2);
+    }
+
+    .field label,
+    .result-edit label {
+      color: var(--text-2);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .field input,
+    .field textarea,
+    .field select,
+    .result-edit input,
+    .result-edit textarea {
+      min-height: 48px;
+      border-color: var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+      transition: 0.2s var(--ease);
+    }
+
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus,
+    .result-edit input:focus,
+    .result-edit textarea:focus {
+      border-color: rgba(184, 120, 46, 0.55);
+      box-shadow: 0 0 0 4px rgba(184, 120, 46, 0.10);
+      background: #fff;
+    }
+
+    .btn,
+    .small-btn {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font-weight: 800;
+      transition: 0.22s var(--ease);
+      box-shadow: 0 6px 16px rgba(103, 57, 19, 0.04);
+    }
+
+    .btn:hover,
+    .small-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(103, 57, 19, 0.09);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #a56729, #8c4f1c);
+      color: #fff;
+      border-color: rgba(154, 91, 34, 0.72);
+      box-shadow: 0 16px 30px rgba(154, 91, 34, 0.20);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #9a5b22, #693913);
+    }
+
+    .btn-teal {
+      background: #5ca568;
+      color: #fff;
+      border-color: rgba(92, 165, 104, 0.22);
+    }
+
+    .btn-ghost,
+    .small-btn {
+      background: rgba(255, 253, 249, 0.96);
+      color: var(--brand-dark);
+    }
+
+    .small-btn.danger {
+      color: #cc514c;
+      background: #fff7f5;
+      border-color: rgba(217, 99, 90, 0.28);
+    }
+
+    .material-card,
+    .config-card,
+    .empty,
+    .analysis-list li {
+      border-color: var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.66);
+    }
+
+    .thumb {
+      border-bottom: 1px solid var(--line-soft);
+      background: #f5ece2;
+    }
+
+    .placeholder-thumb {
+      background: linear-gradient(135deg, #d7b88f, #7b5c40);
+    }
+
+    .task-table th {
+      background: rgba(255, 248, 239, 0.66);
+      color: #927b67;
+    }
+
+    .task-table th,
+    .task-table td {
+      border-bottom-color: var(--line-soft);
+    }
+
+    .metric strong {
+      color: var(--brand-dark);
+    }
+
+    .toast {
+      border-radius: 14px;
+      background: #3a2415;
+      box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 1160px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      main::before {
+        left: 0;
+      }
+
+      .sidebar {
+        position: relative;
+        height: auto;
+      }
+
+      .grid,
+      .grid.settings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      main {
+        padding: 28px 18px;
+      }
+
+      .topbar,
+      .panel-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .two-col,
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .actions,
+      .small-btn,
+      .btn {
+        width: 100%;
+      }
+
+      .brand-logo {
+        width: 64px;
+        height: 64px;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
       <div class="brand">
-        <div class="brand-mark">XHS</div>
-        <div>
-          <h1>小红书智能发布工作台</h1>
-          <p>内容创作到定时发布</p>
+        <img class="brand-logo" src="assets/karries-logo-cropped.jpg" alt="KARRIES 禾一斯">
+        <div class="brand-text">
+          <strong>KARRIES</strong>
+          <span>禾一斯</span>
+          <p>小红书智能发布工作台</p>
         </div>
       </div>
 

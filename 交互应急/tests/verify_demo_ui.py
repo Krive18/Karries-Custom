@@ -92,8 +92,30 @@ def test_backend_exposes_ai_status_without_secret():
     assert "sk-" not in server
 
 
+def test_backend_serves_frontend_assets():
+    server = SERVER_PY.read_text(encoding="utf-8")
+
+    assert 'self.path.startswith("/assets/")' in server
+    assert "FRONTEND_DIR / relative_asset" in server
+
+
 def test_secret_key_is_not_hardcoded():
     html = INDEX_HTML.read_text(encoding="utf-8")
 
     assert 'value="sk-' not in html
     assert 'localStorage.setItem("xhs_workspace_ai_key", "sk-' not in html
+
+
+def test_karries_visual_language_is_applied_without_reference_fake_data():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "KARRIES" in html
+    assert "禾一斯" in html
+    assert "assets/karries-logo-cropped.jpg" in html
+    assert "--brand-dark: #693913" in html
+    assert "--panel: rgba(255, 253, 249" in html
+    assert "sk-karries-demo-key" not in html
+    assert "请在实际项目中接入" not in html
+    assert "今日份治愈小片段" not in html
+    assert "今日的治愈小片段" not in html
+    assert "生活里的小确幸" not in html

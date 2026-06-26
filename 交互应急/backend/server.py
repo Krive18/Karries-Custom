@@ -8,6 +8,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -252,6 +253,16 @@ class WorkspaceHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path in {"/", "/index.html"}:
             self.serve_file(FRONTEND_DIR / "index.html")
+            return
+        if self.path.startswith("/assets/"):
+            relative_asset = urllib.parse.unquote(self.path.lstrip("/"))
+            asset_path = (FRONTEND_DIR / relative_asset).resolve()
+            try:
+                asset_path.relative_to(FRONTEND_DIR.resolve())
+            except ValueError:
+                self.send_error(403, "Forbidden")
+                return
+            self.serve_file(asset_path)
             return
         if self.path == "/api/health":
             json_response(self, 200, ok({"status": "ok", "time": int(time.time())}))
