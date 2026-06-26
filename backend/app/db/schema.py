@@ -28,7 +28,8 @@ create table if not exists publish_task (
     last_error varchar(1000) not null default '',
     submitted_time integer not null default 0,
     create_time integer not null,
-    update_time integer not null
+    update_time integer not null,
+    foreign key(account_id) references account(id)
 );
 
 create index if not exists idx_publish_task_status
@@ -46,7 +47,8 @@ create table if not exists publish_log (
     log_level varchar(20) not null,
     log_message varchar(2000) not null,
     screenshot_path varchar(500) not null default '',
-    create_time integer not null
+    create_time integer not null,
+    foreign key(task_id) references publish_task(id)
 );
 
 create index if not exists idx_publish_log_task_id
