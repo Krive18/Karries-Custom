@@ -550,6 +550,80 @@
       line-height: 1.7;
     }
 
+    .result-empty-card {
+      min-height: 456px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 34px 24px;
+      background:
+        radial-gradient(circle at 50% 34%, rgba(201, 144, 76, 0.10), transparent 28%),
+        rgba(255, 255, 255, 0.58);
+    }
+
+    .empty-illustration {
+      width: min(260px, 68vw);
+      margin: 0 auto 16px;
+      opacity: 0.32;
+      filter: sepia(0.25);
+    }
+
+    .empty-illustration img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .result-empty-card strong {
+      display: block;
+      color: var(--text);
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .result-empty-card p {
+      max-width: 380px;
+      margin: 0 auto;
+      color: var(--text-2);
+      line-height: 1.7;
+    }
+
+    .empty-feature-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 26px;
+    }
+
+    .empty-feature {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 10px;
+      background: rgba(255, 253, 249, 0.76);
+      color: #9a6b38;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 8px 18px rgba(94, 56, 22, 0.04);
+    }
+
+    .empty-feature span {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: #e1ad71;
+      color: #fff;
+      font-size: 12px;
+      font-family: Georgia, serif;
+      line-height: 1;
+    }
+
     .metric-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1320,7 +1394,21 @@
               <div id="providerBadges" class="badge-line"></div>
             </div>
             <div class="panel-body stack">
-              <div id="emptyResult" class="empty">上传素材后点击 AI 智能解析，这里会显示可编辑的小红书文案和解析结论。</div>
+              <div id="emptyResult" class="empty result-empty-card">
+                <div>
+                  <div class="empty-illustration">
+                    <img src="assets/karries-angel-mark.png" alt="KARRIES 禾一斯 AI 解析等待图">
+                  </div>
+                  <strong>上传素材后点击「AI 智能解析」</strong>
+                  <p>这里将展示 AI 解析生成的标题、正文、标签和素材洞察。</p>
+                  <div class="empty-feature-row" aria-label="AI 解析能力">
+                    <div class="empty-feature"><span>T</span>智能标题生成</div>
+                    <div class="empty-feature"><span>W</span>正文内容创作</div>
+                    <div class="empty-feature"><span>#</span>标签推荐</div>
+                    <div class="empty-feature"><span>S</span>素材摘要</div>
+                  </div>
+                </div>
+              </div>
               <div id="resultContent" class="stack" style="display: none;">
                 <div class="result-edit">
                   <label for="resultTitle">标题</label>

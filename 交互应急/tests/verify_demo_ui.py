@@ -120,3 +120,14 @@ def test_karries_visual_language_is_applied_without_reference_fake_data():
     assert "今日份治愈小片段" not in html
     assert "今日的治愈小片段" not in html
     assert "生活里的小确幸" not in html
+
+
+def test_ai_empty_state_uses_karries_brand_illustration():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "result-empty-card" in html
+    assert "assets/karries-angel-mark.png" in html
+    assert "智能标题生成" in html
+    assert "正文内容创作" in html
+    assert "标签推荐" in html
+    assert "素材摘要" in html
