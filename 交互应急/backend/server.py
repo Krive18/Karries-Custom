@@ -73,6 +73,7 @@ def build_fallback_copy(payload: dict[str, Any], provider_error: str = "") -> di
     materials = payload.get("materials") or []
     style = str(payload.get("style") or "小红书种草")
     tone = str(payload.get("tone") or "自然真诚")
+    publish_content_type = str(payload.get("publishContentType") or "图文笔记")
     publish_time = str(payload.get("publishTime") or "待定")
     names = [str(item.get("name") or "") for item in materials]
     has_video = any(str(item.get("kind")) == "video" for item in materials)
@@ -104,11 +105,11 @@ def build_fallback_copy(payload: dict[str, Any], provider_error: str = "") -> di
         tags.append("好物分享")
 
     result = {
-        "provider": "local-demo",
+        "provider": "local",
         "title": title,
         "body": "\n\n".join(body_lines),
         "tags": normalize_tags(tags),
-        "summary": f"已基于{scene}生成演示版小红书文案，可直接展示标题、正文、标签和发布任务。",
+        "summary": f"已基于{scene}生成{publish_content_type}文案，可直接确认标题、正文、标签和发布任务。",
         "mediaInsights": insights,
         "scheduleSuggestion": publish_time if publish_time else "建议选择用户活跃时段发布",
         "publishChecklist": [
@@ -118,8 +119,8 @@ def build_fallback_copy(payload: dict[str, Any], provider_error: str = "") -> di
             "确认发布时间晚于当前时间",
         ],
         "riskTips": [
-            "Demo 阶段不直接发布到真实账号",
-            "未输入 DeepSeek Key 时使用本地演示生成",
+            "发布前请人工确认图片顺序、标题和标签",
+            "未配置模型 Key 时将使用本地规则生成基础文案",
         ],
     }
     if provider_error:
@@ -155,7 +156,7 @@ def build_deepseek_prompt(payload: dict[str, Any]) -> list[dict[str, str]]:
             "role": "system",
             "content": (
                 "你是小红书内容运营助手。请只输出合法 json，不能输出 markdown。"
-                "根据本地素材的文件名、类型、尺寸、时长、主色和用户补充信息，生成适合客户演示的小红书文案。"
+                "根据本地素材的文件名、类型、尺寸、时长、主色和用户补充信息，生成适合发布的小红书文案。"
                 "返回字段必须包含 title, body, tags, summary, mediaInsights, scheduleSuggestion, publishChecklist, riskTips。"
                 "title 不能超过 20 个中文字符，tags 最多 10 个。"
             ),
@@ -183,11 +184,13 @@ def parse_deepseek_json(content: str) -> dict[str, Any]:
 
 
 def call_deepseek(payload: dict[str, Any]) -> dict[str, Any]:
+    provider = str(payload.get("provider") or "deepseek").strip()
     api_key = str(payload.get("apiKey") or "").strip()
     model = str(payload.get("model") or DEFAULT_MODEL).strip() or DEFAULT_MODEL
-    if not api_key:
+    if not api_key or provider != "deepseek":
         return build_fallback_copy(payload)
 
+    endpoint = str(payload.get("endpoint") or DEEPSEEK_URL).strip() or DEEPSEEK_URL
     request_body = {
         "model": model,
         "messages": build_deepseek_prompt(payload),
@@ -197,7 +200,7 @@ def call_deepseek(payload: dict[str, Any]) -> dict[str, Any]:
         "stream": False,
     }
     req = urllib.request.Request(
-        DEEPSEEK_URL,
+        endpoint,
         data=json.dumps(request_body, ensure_ascii=False).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
@@ -224,7 +227,7 @@ def call_deepseek(payload: dict[str, Any]) -> dict[str, Any]:
         return build_fallback_copy(payload, provider_error=str(exc))
 
 
-class DemoHandler(SimpleHTTPRequestHandler):
+class WorkspaceHandler(SimpleHTTPRequestHandler):
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
@@ -261,7 +264,7 @@ class DemoHandler(SimpleHTTPRequestHandler):
             json_response(self, 200, ok(result))
         except json.JSONDecodeError:
             json_response(self, 400, fail("bad_json", "请求内容不是合法 JSON"))
-        except Exception as exc:  # noqa: BLE001 - demo server should report friendly errors.
+        except Exception as exc:  # noqa: BLE001 - local server should report friendly errors.
             json_response(self, 500, fail("server_error", str(exc)))
 
     def serve_file(self, path: Path) -> None:
@@ -281,13 +284,13 @@ class DemoHandler(SimpleHTTPRequestHandler):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Xiaohongshu emergency interactive demo server")
+    parser = argparse.ArgumentParser(description="Xiaohongshu local interactive workspace server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8787, type=int)
     args = parser.parse_args()
 
-    server = ThreadingHTTPServer((args.host, args.port), DemoHandler)
-    print(f"Demo server running at http://{args.host}:{args.port}")
+    server = ThreadingHTTPServer((args.host, args.port), WorkspaceHandler)
+    print(f"Workspace server running at http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop.")
     server.serve_forever()
 

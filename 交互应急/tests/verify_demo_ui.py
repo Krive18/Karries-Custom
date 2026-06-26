@@ -30,7 +30,6 @@ def test_core_demo_controls_remain_available():
 
     for element_id in [
         "apiKey",
-        "demoDataBtn",
         "analyzeBtn",
         "fileInput",
         "resultTitle",
@@ -38,3 +37,24 @@ def test_core_demo_controls_remain_available():
         "taskRows",
     ]:
         assert f'id="{element_id}"' in html
+
+
+def test_customer_facing_copy_has_no_internal_demo_language():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    for forbidden in ["演示模式", "当前 Demo", "Demo", "测试数据", "部署预留", "演示任务"]:
+        assert forbidden not in html
+
+
+def test_customer_flow_has_required_business_controls():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="aiProvider"' in html
+    assert "DeepSeek" in html
+    assert "GPT" in html
+    assert "豆包" in html
+    assert "Gemini" in html
+    assert 'id="publishContentType"' in html
+    assert "图文笔记" in html
+    assert 'id="customContentDirection"' in html
+    assert "小红书种草" in html

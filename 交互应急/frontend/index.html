@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>小红书智能发布演示台</title>
+  <title>小红书智能发布工作台</title>
   <style>
     :root {
       color-scheme: light;
@@ -13,14 +13,16 @@
       --line: #dce4ea;
       --text: #17202c;
       --muted: #657385;
+      --orange: #f97316;
+      --orange-dark: #ea580c;
       --red: #e94d5f;
       --red-dark: #bf3042;
       --teal: #138f86;
       --blue: #2f6fc9;
       --amber: #a86600;
       --green: #247a4d;
-      --sidebar: #101820;
-      --sidebar-soft: #172331;
+      --sidebar: #f8fafc;
+      --sidebar-soft: #ffffff;
       --shadow: 0 14px 34px rgba(21, 32, 43, 0.08);
       --radius: 8px;
     }
@@ -59,7 +61,7 @@
     .app {
       min-height: 100vh;
       display: grid;
-      grid-template-columns: 300px minmax(0, 1fr);
+      grid-template-columns: 256px minmax(0, 1fr);
     }
 
     .sidebar {
@@ -68,8 +70,9 @@
       height: 100vh;
       overflow-y: auto;
       background: var(--sidebar);
-      color: #f8fafc;
-      padding: 20px;
+      color: var(--text);
+      border-right: 1px solid var(--line);
+      padding: 0;
       display: flex;
       flex-direction: column;
       gap: 18px;
@@ -79,8 +82,8 @@
       display: flex;
       align-items: center;
       gap: 11px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
     }
 
     .brand-mark {
@@ -89,7 +92,7 @@
       border-radius: 8px;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, #e94d5f, #ffad60);
+      background: var(--orange);
       color: #fff;
       font-weight: 800;
       flex: 0 0 auto;
@@ -103,72 +106,75 @@
 
     .brand p {
       margin: 4px 0 0;
-      color: #aeb8c7;
+      color: var(--muted);
       font-size: 12px;
     }
 
     .nav-stack {
       display: grid;
-      gap: 10px;
+      gap: 4px;
+      padding: 12px;
     }
 
     .nav-card {
       width: 100%;
       text-align: left;
-      color: #d7e0ea;
-      background: rgba(255, 255, 255, 0.055);
-      border: 1px solid rgba(255, 255, 255, 0.09);
-      border-radius: var(--radius);
-      padding: 12px;
-      display: grid;
-      gap: 5px;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       transition: 0.16s ease;
     }
 
     .nav-card:hover {
-      background: rgba(255, 255, 255, 0.09);
+      background: #fff;
+      color: var(--text);
     }
 
     .nav-card.active {
       background: #fff;
       color: var(--text);
-      border-color: #fff;
-      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.2);
+      border-color: var(--line);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
     }
 
     .nav-kicker {
-      font-size: 11px;
-      color: #90a0b4;
-      font-weight: 700;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #cbd5e1;
+      flex: 0 0 auto;
     }
 
     .nav-card.active .nav-kicker {
-      color: var(--red);
+      background: var(--orange);
     }
 
     .nav-card strong {
-      font-size: 16px;
+      font-size: 14px;
+      font-weight: 700;
     }
 
     .nav-card small {
-      line-height: 1.45;
-      color: inherit;
-      opacity: 0.78;
+      display: none;
     }
 
     .sidebar-status {
       margin-top: auto;
-      border-radius: var(--radius);
       background: var(--sidebar-soft);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 13px;
+      border-top: 1px solid var(--line);
+      padding: 14px;
       display: grid;
       gap: 9px;
     }
 
     .sidebar-status p {
       margin: 0;
-      color: #bac5d3;
+      color: var(--muted);
       font-size: 12px;
       line-height: 1.55;
     }
@@ -188,7 +194,7 @@
 
     .eyebrow {
       margin: 0 0 5px;
-      color: var(--red);
+      color: var(--orange-dark);
       font-size: 12px;
       font-weight: 800;
     }
@@ -690,35 +696,35 @@
       <div class="brand">
         <div class="brand-mark">XHS</div>
         <div>
-          <h1>小红书智能发布演示台</h1>
+          <h1>小红书智能发布工作台</h1>
           <p>内容创作到定时发布</p>
         </div>
       </div>
 
       <nav class="nav-stack" aria-label="业务模块">
         <button class="nav-card active" type="button" data-section="creation">
-          <span class="nav-kicker">模块一</span>
+          <span class="nav-kicker"></span>
           <strong>智能创作</strong>
           <small>素材解析 / 文案生成 / 人工确认</small>
         </button>
         <button class="nav-card" type="button" data-section="schedule">
-          <span class="nav-kicker">模块二</span>
+          <span class="nav-kicker"></span>
           <strong>定时发布</strong>
           <small>任务预览 / 状态流转 / 发布记录</small>
         </button>
         <button class="nav-card" type="button" data-section="settings">
-          <span class="nav-kicker">模块三</span>
+          <span class="nav-kicker"></span>
           <strong>系统配置</strong>
-          <small>DeepSeek Key / 模型风格 / 账号预留</small>
+          <small>模型服务 / 内容风格 / 账号配置</small>
         </button>
       </nav>
 
       <div class="sidebar-status">
         <div class="badge-line">
-          <span id="sideAiMode" class="badge amber">演示模式</span>
+          <span id="sideAiMode" class="badge amber">AI 未配置</span>
           <span id="sideTaskCount" class="badge">任务 0</span>
         </div>
-        <p>当前 Demo 不会真实发布到小红书账号。客户可先体验素材解析、文案生成和任务流转。</p>
+        <p>上传素材后可进行智能解析，生成文案并加入图文定时发布任务。</p>
         <button id="sideAnalyzeBtn" class="small-btn" type="button">解析当前素材</button>
       </div>
     </aside>
@@ -741,7 +747,6 @@
                 <h3>本地素材</h3>
                 <div class="actions">
                   <button id="pickFileBtn" class="small-btn" type="button">选择图片/视频</button>
-                  <button id="demoDataBtn" class="small-btn" type="button">生成测试数据</button>
                   <button id="clearMaterialsBtn" class="small-btn danger" type="button">清空素材</button>
                 </div>
               </div>
@@ -771,12 +776,15 @@
                     <label for="style">内容方向</label>
                     <select id="style">
                       <option>小红书种草</option>
-                      <option>探店打卡</option>
-                      <option>产品卖点提炼</option>
-                      <option>旅游攻略</option>
-                      <option>品牌活动预热</option>
+                      <option>自定义</option>
                     </select>
                   </div>
+                  <div class="field">
+                    <label for="customContentDirection">自定义方向</label>
+                    <input id="customContentDirection" type="text" placeholder="例如：新品发布、门店活动、课程招生">
+                  </div>
+                </div>
+                <div class="two-col">
                   <div class="field">
                     <label for="tone">文案语气</label>
                     <select id="tone">
@@ -789,8 +797,26 @@
                 </div>
                 <div class="two-col">
                   <div class="field">
+                    <label for="publishContentType">发布内容类型</label>
+                    <select id="publishContentType">
+                      <option>图文笔记</option>
+                      <option>视频笔记</option>
+                    </select>
+                  </div>
+                  <div class="field">
                     <label for="publishTime">计划发布时间</label>
                     <input id="publishTime" type="datetime-local">
+                  </div>
+                </div>
+                <div class="two-col">
+                  <div class="field">
+                    <label for="aiProvider">AI 服务商</label>
+                    <select id="aiProvider">
+                      <option value="deepseek">DeepSeek</option>
+                      <option value="openai">GPT</option>
+                      <option value="doubao">豆包</option>
+                      <option value="gemini">Gemini</option>
+                    </select>
                   </div>
                   <div class="field">
                     <label for="modelName">模型</label>
@@ -839,7 +865,7 @@
                   <ul id="checkList" class="analysis-list"></ul>
                 </div>
                 <div class="actions">
-                  <button id="saveTaskBtn" class="btn btn-teal" type="button">保存演示任务</button>
+                  <button id="saveTaskBtn" class="btn btn-teal" type="button">加入图文定时发布</button>
                   <button id="goScheduleBtn" class="btn btn-ghost" type="button">查看发布任务</button>
                 </div>
               </div>
@@ -869,6 +895,7 @@
               <thead>
                 <tr>
                   <th>标题</th>
+                  <th>发布类型</th>
                   <th>素材</th>
                   <th>发布时间</th>
                   <th>状态</th>
@@ -883,7 +910,7 @@
         <section class="panel" style="margin-top: 18px;">
           <div class="panel-head">
             <h3>发布记录</h3>
-            <div class="badge-line"><span class="badge blue">Demo 日志</span></div>
+            <div class="badge-line"><span class="badge blue">任务日志</span></div>
           </div>
           <div class="panel-body">
             <ul id="publishLogList" class="analysis-list"></ul>
@@ -895,23 +922,32 @@
         <div class="grid settings-grid">
           <section class="panel">
             <div class="panel-head">
-              <h3>AI Key 设置</h3>
-              <div class="badge-line"><span id="settingsKeyBadge" class="badge amber">演示模式</span></div>
+              <h3>模型服务设置</h3>
+              <div class="badge-line"><span id="settingsKeyBadge" class="badge amber">AI 未配置</span></div>
             </div>
             <div class="panel-body stack">
               <div class="field">
-                <label for="apiKey">DeepSeek Key</label>
+                <label for="settingsAiProvider">AI 服务商</label>
+                <select id="settingsAiProvider">
+                  <option value="deepseek">DeepSeek</option>
+                  <option value="openai">GPT</option>
+                  <option value="doubao">豆包</option>
+                  <option value="gemini">Gemini</option>
+                </select>
+              </div>
+              <div class="field">
+                <label id="apiKeyLabel" for="apiKey">API Key</label>
                 <input id="apiKey" type="password" placeholder="sk-...">
               </div>
               <div class="field">
-                <label for="deepseekEndpoint">接口地址</label>
-                <input id="deepseekEndpoint" type="text" value="https://api.deepseek.com/chat/completions" disabled>
+                <label for="apiEndpoint">接口地址</label>
+                <input id="apiEndpoint" type="text" value="https://api.deepseek.com/chat/completions">
               </div>
               <div class="actions">
                 <button id="saveKeyBtn" class="btn btn-primary" type="button">保存 Key</button>
                 <button id="clearKeyBtn" class="btn btn-ghost" type="button">清除 Key</button>
               </div>
-              <p class="hint">Key 只保存在本机浏览器 localStorage，用于这版客户演示。</p>
+              <p class="hint">密钥仅保存在本机浏览器，用于连接所选模型服务。</p>
             </div>
           </section>
 
@@ -931,7 +967,7 @@
                   <select id="xhsLoginMode">
                     <option>浏览器扫码登录</option>
                     <option>沿用本机登录状态</option>
-                    <option>后续客户部署配置</option>
+                    <option>手动确认登录状态</option>
                   </select>
                 </div>
               </div>
@@ -945,17 +981,9 @@
                   <input id="defaultTag" type="text" placeholder="例如：小红书运营">
                 </div>
               </div>
-              <div class="config-card">
-                <h4>部署预留</h4>
-                <div class="badge-line">
-                  <span class="badge green">Windows 绿色版</span>
-                  <span class="badge">SQLite 本地数据</span>
-                  <span class="badge">浏览器自动化</span>
-                </div>
-              </div>
               <div class="actions">
                 <button id="saveSettingsBtn" class="btn btn-teal" type="button">保存配置</button>
-                <button id="testConfigBtn" class="btn btn-ghost" type="button">测试配置</button>
+                <button id="testConfigBtn" class="btn btn-ghost" type="button">检查配置</button>
               </div>
             </div>
           </section>
@@ -976,20 +1004,47 @@
       schedule: {
         eyebrow: "定时发布",
         title: "任务队列与发布记录",
-        desc: "查看待发布任务、模拟提交状态，并让客户看到完整发布工作流。"
+        desc: "查看图文笔记任务、发布时间、素材数量和发布状态。"
       },
       settings: {
         eyebrow: "系统配置",
-        title: "AI、模型与账号配置",
-        desc: "配置 DeepSeek Key、模型偏好、小红书账号和后续部署预留项。"
+        title: "模型服务与账号设置",
+        desc: "配置 AI 服务商、模型、接口地址、小红书账号和内容默认项。"
+      }
+    };
+
+    const providerDefaults = {
+      deepseek: {
+        label: "DeepSeek",
+        model: "deepseek-v4-flash",
+        endpoint: "https://api.deepseek.com/chat/completions",
+        placeholder: "sk-..."
+      },
+      openai: {
+        label: "GPT",
+        model: "gpt-4o-mini",
+        endpoint: "https://api.openai.com/v1/chat/completions",
+        placeholder: "sk-..."
+      },
+      doubao: {
+        label: "豆包",
+        model: "doubao-seed-1-6",
+        endpoint: "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+        placeholder: "请输入豆包 API Key"
+      },
+      gemini: {
+        label: "Gemini",
+        model: "gemini-2.5-flash",
+        endpoint: "https://generativelanguage.googleapis.com/v1beta/models",
+        placeholder: "请输入 Gemini API Key"
       }
     };
 
     const state = {
       materials: [],
       result: null,
-      tasks: JSON.parse(localStorage.getItem("xhs_demo_tasks") || "[]"),
-      logs: JSON.parse(localStorage.getItem("xhs_demo_logs") || "[]")
+      tasks: JSON.parse(localStorage.getItem("xhs_workspace_tasks") || "[]"),
+      logs: JSON.parse(localStorage.getItem("xhs_workspace_logs") || "[]")
     };
 
     const els = {
@@ -998,7 +1053,13 @@
       moduleEyebrow: document.getElementById("moduleEyebrow"),
       pageTitle: document.getElementById("pageTitle"),
       pageDesc: document.getElementById("pageDesc"),
+      aiProvider: document.getElementById("aiProvider"),
+      settingsAiProvider: document.getElementById("settingsAiProvider"),
+      publishContentType: document.getElementById("publishContentType"),
+      customContentDirection: document.getElementById("customContentDirection"),
       apiKey: document.getElementById("apiKey"),
+      apiKeyLabel: document.getElementById("apiKeyLabel"),
+      apiEndpoint: document.getElementById("apiEndpoint"),
       modelName: document.getElementById("modelName"),
       style: document.getElementById("style"),
       tone: document.getElementById("tone"),
@@ -1013,7 +1074,6 @@
       defaultTitlePrefix: document.getElementById("defaultTitlePrefix"),
       defaultTag: document.getElementById("defaultTag"),
       settingsSavedAt: document.getElementById("settingsSavedAt"),
-      demoDataBtn: document.getElementById("demoDataBtn"),
       analyzeBtn: document.getElementById("analyzeBtn"),
       sideAnalyzeBtn: document.getElementById("sideAnalyzeBtn"),
       goScheduleBtn: document.getElementById("goScheduleBtn"),
@@ -1106,11 +1166,11 @@
     }
 
     function saveTasks() {
-      localStorage.setItem("xhs_demo_tasks", JSON.stringify(state.tasks));
+      localStorage.setItem("xhs_workspace_tasks", JSON.stringify(state.tasks));
     }
 
     function saveLogs() {
-      localStorage.setItem("xhs_demo_logs", JSON.stringify(state.logs.slice(0, 30)));
+      localStorage.setItem("xhs_workspace_logs", JSON.stringify(state.logs.slice(0, 30)));
     }
 
     function addLog(message) {
@@ -1125,7 +1185,8 @@
 
     function updateKeyStatus() {
       const hasKey = Boolean(els.apiKey.value.trim());
-      const text = hasKey ? "DeepSeek 已配置" : "演示模式";
+      const provider = providerDefaults[els.aiProvider.value] || providerDefaults.deepseek;
+      const text = hasKey ? `${provider.label} 已配置` : "AI 未配置";
       const className = hasKey ? "badge green" : "badge amber";
       els.sideAiMode.className = className;
       els.keyInlineStatus.className = className;
@@ -1133,6 +1194,24 @@
       els.sideAiMode.textContent = text;
       els.keyInlineStatus.textContent = hasKey ? "Key 已连接" : "未连接 Key";
       els.settingsKeyBadge.textContent = text;
+    }
+
+    function syncProviderControls(providerName, shouldApplyDefaults = true) {
+      const provider = providerDefaults[providerName] || providerDefaults.deepseek;
+      els.aiProvider.value = providerName;
+      els.settingsAiProvider.value = providerName;
+      els.apiKeyLabel.textContent = `${provider.label} API Key`;
+      els.apiKey.placeholder = provider.placeholder;
+      if (shouldApplyDefaults) {
+        els.modelName.value = provider.model;
+        els.apiEndpoint.value = provider.endpoint;
+      }
+      updateKeyStatus();
+    }
+
+    function getContentDirection() {
+      const custom = els.customContentDirection.value.trim();
+      return els.style.value === "自定义" && custom ? custom : "小红书种草";
     }
 
     function materialForApi(material) {
@@ -1253,51 +1332,6 @@
       showToast(`已加入 ${selected.length} 个素材`);
     }
 
-    function demoMaterials() {
-      state.materials = [
-        {
-          id: "demo-1",
-          name: "新品包装主图.jpg",
-          kind: "image",
-          type: "image/jpeg",
-          size: 2380000,
-          sizeLabel: "2.3 MB",
-          width: 1080,
-          height: 1440,
-          dominantColor: "#d95a67",
-          notes: "演示素材：竖版主图，适合小红书封面"
-        },
-        {
-          id: "demo-2",
-          name: "门店体验短视频.mp4",
-          kind: "video",
-          type: "video/mp4",
-          size: 18500000,
-          sizeLabel: "17.6 MB",
-          width: 1080,
-          height: 1920,
-          duration: 26,
-          dominantColor: "#2f9387",
-          notes: "演示素材：竖版视频，可提炼场景和节奏"
-        },
-        {
-          id: "demo-3",
-          name: "细节对比图.png",
-          kind: "image",
-          type: "image/png",
-          size: 1460000,
-          sizeLabel: "1.4 MB",
-          width: 1440,
-          height: 1080,
-          dominantColor: "#c88b2f",
-          notes: "演示素材：横版细节图，适合补充卖点"
-        }
-      ];
-      renderMaterials();
-      addLog("已生成 3 个测试素材");
-      showToast("测试素材已生成");
-    }
-
     function renderMaterials() {
       const imageCount = state.materials.filter((item) => item.kind === "image").length;
       const videoCount = state.materials.filter((item) => item.kind === "video").length;
@@ -1342,7 +1376,8 @@
       els.resultTitle.value = result.title || "";
       els.resultBody.value = result.body || "";
       els.resultTags.value = (result.tags || []).map((tag) => `#${tag}`).join(" ");
-      const providerText = result.provider === "deepseek" ? "DeepSeek 实时生成" : "本地演示生成";
+      const selectedProvider = providerDefaults[els.aiProvider.value] || providerDefaults.deepseek;
+      const providerText = result.provider === "deepseek" ? `${selectedProvider.label} 生成` : "AI 生成";
       els.providerBadges.innerHTML = `
         <span class="badge ${result.provider === "deepseek" ? "green" : "amber"}">${providerText}</span>
         ${result.rawModel ? `<span class="badge">${escapeHtml(result.rawModel)}</span>` : ""}
@@ -1355,7 +1390,7 @@
       els.insightList.innerHTML = listItems(result.mediaInsights);
       els.checkList.innerHTML = listItems([...(result.publishChecklist || []), ...(result.riskTips || [])]);
       if (result.providerError) {
-        showToast(`DeepSeek 调用失败，已返回本地演示结果：${result.providerError.slice(0, 80)}`);
+        showToast(`${selectedProvider.label} 调用失败，已生成基础文案：${result.providerError.slice(0, 80)}`);
       }
     }
 
@@ -1366,7 +1401,7 @@
 
     async function analyze() {
       if (!state.materials.length) {
-        showToast("请先上传素材或生成测试数据");
+        showToast("请先上传图片或视频素材");
         return;
       }
       const originalText = els.analyzeBtn.innerHTML;
@@ -1375,10 +1410,13 @@
       els.analyzeBtn.innerHTML = '<span class="loading"></span> 正在解析';
       try {
         const payload = {
+          provider: els.aiProvider.value,
           apiKey: els.apiKey.value.trim(),
           model: els.modelName.value.trim(),
-          style: els.style.value,
+          endpoint: els.apiEndpoint.value.trim(),
+          style: getContentDirection(),
           tone: els.tone.value,
+          publishContentType: els.publishContentType.value,
           publishTime: els.publishTime.value,
           extraPrompt: els.extraPrompt.value.trim(),
           materials: state.materials.map(materialForApi)
@@ -1414,6 +1452,7 @@
         title: els.resultTitle.value.trim() || "未命名任务",
         body: els.resultBody.value.trim(),
         tags: els.resultTags.value.trim(),
+        contentType: els.publishContentType.value,
         materialCount: state.materials.length,
         publishTime: els.publishTime.value || "待定",
         status: "待发布"
@@ -1423,7 +1462,7 @@
       renderTasks();
       renderDashboard();
       addLog(`已保存定时发布任务：${task.title}`);
-      showToast("演示任务已保存");
+      showToast("发布任务已保存");
     }
 
     async function copyText() {
@@ -1442,18 +1481,19 @@
 
     function renderTasks() {
       if (!state.tasks.length) {
-        els.taskRows.innerHTML = '<tr><td colspan="5" style="padding: 20px; color: #667085;">暂无演示任务</td></tr>';
+        els.taskRows.innerHTML = '<tr><td colspan="6" style="padding: 20px; color: #667085;">暂无发布任务</td></tr>';
         renderDashboard();
         return;
       }
       els.taskRows.innerHTML = state.tasks.map((task) => `
         <tr>
           <td><strong>${escapeHtml(task.title)}</strong><br><span style="color:#667085;">${escapeHtml(String(task.tags || ""))}</span></td>
+          <td>${escapeHtml(task.contentType || "图文笔记")}</td>
           <td>${task.materialCount} 个素材</td>
           <td>${escapeHtml(task.publishTime || "待定")}</td>
           <td><span class="badge ${task.status === "已提交" ? "green" : "amber"}">${escapeHtml(task.status)}</span></td>
           <td>
-            <button class="small-btn" type="button" data-submit="${task.id}">模拟发布</button>
+            <button class="small-btn" type="button" data-submit="${task.id}">提交发布</button>
             <button class="small-btn danger" type="button" data-delete="${task.id}">删除</button>
           </td>
         </tr>
@@ -1497,10 +1537,14 @@
     }
 
     function saveSettings() {
-      localStorage.setItem("xhs_demo_settings", JSON.stringify({
+      localStorage.setItem("xhs_workspace_settings", JSON.stringify({
+        aiProvider: els.aiProvider.value,
+        apiEndpoint: els.apiEndpoint.value.trim(),
         modelName: els.modelName.value.trim(),
         style: els.style.value,
+        customContentDirection: els.customContentDirection.value.trim(),
         tone: els.tone.value,
+        publishContentType: els.publishContentType.value,
         accountName: els.accountName.value.trim(),
         xhsLoginMode: els.xhsLoginMode.value,
         defaultTitlePrefix: els.defaultTitlePrefix.value.trim(),
@@ -1512,10 +1556,14 @@
     }
 
     function loadSettings() {
-      const saved = JSON.parse(localStorage.getItem("xhs_demo_settings") || "{}");
+      const saved = JSON.parse(localStorage.getItem("xhs_workspace_settings") || "{}");
+      if (saved.aiProvider) syncProviderControls(saved.aiProvider, false);
+      if (saved.apiEndpoint) els.apiEndpoint.value = saved.apiEndpoint;
       if (saved.modelName) els.modelName.value = saved.modelName;
       if (saved.style) els.style.value = saved.style;
+      if (saved.customContentDirection) els.customContentDirection.value = saved.customContentDirection;
       if (saved.tone) els.tone.value = saved.tone;
+      if (saved.publishContentType) els.publishContentType.value = saved.publishContentType;
       if (saved.accountName) els.accountName.value = saved.accountName;
       if (saved.xhsLoginMode) els.xhsLoginMode.value = saved.xhsLoginMode;
       if (saved.defaultTitlePrefix) els.defaultTitlePrefix.value = saved.defaultTitlePrefix;
@@ -1548,7 +1596,8 @@
       renderMaterials();
       showToast("素材已清空");
     });
-    els.demoDataBtn.addEventListener("click", demoMaterials);
+    els.aiProvider.addEventListener("change", () => syncProviderControls(els.aiProvider.value));
+    els.settingsAiProvider.addEventListener("change", () => syncProviderControls(els.settingsAiProvider.value));
     els.analyzeBtn.addEventListener("click", analyze);
     els.sideAnalyzeBtn.addEventListener("click", () => {
       setActiveSection("creation");
@@ -1574,8 +1623,8 @@
         state.tasks = state.tasks.map((item) => item.id === id ? { ...item, status: "已提交" } : item);
         saveTasks();
         renderTasks();
-        addLog(`已模拟提交发布任务：${task?.title || "未命名任务"}`);
-        showToast("已模拟提交发布任务");
+        addLog(`已提交发布任务：${task?.title || "未命名任务"}`);
+        showToast("已提交发布任务");
       }
       if (remove) {
         const id = Number(remove.getAttribute("data-delete"));
@@ -1585,26 +1634,27 @@
       }
     });
     els.saveKeyBtn.addEventListener("click", () => {
-      localStorage.setItem("xhs_demo_deepseek_key", els.apiKey.value.trim());
+      localStorage.setItem("xhs_workspace_ai_key", els.apiKey.value.trim());
       updateKeyStatus();
-      addLog("DeepSeek Key 配置已更新");
+      addLog(`${providerDefaults[els.aiProvider.value].label} Key 配置已更新`);
       showToast("Key 已保存到本机浏览器");
     });
     els.clearKeyBtn.addEventListener("click", () => {
       els.apiKey.value = "";
-      localStorage.removeItem("xhs_demo_deepseek_key");
+      localStorage.removeItem("xhs_workspace_ai_key");
       updateKeyStatus();
       showToast("Key 已清除");
     });
     els.apiKey.addEventListener("input", updateKeyStatus);
     els.saveSettingsBtn.addEventListener("click", saveSettings);
     els.testConfigBtn.addEventListener("click", () => {
-      const mode = els.apiKey.value.trim() ? "DeepSeek Key 已填写" : "当前为本地演示模式";
+      const mode = els.apiKey.value.trim() ? `${providerDefaults[els.aiProvider.value].label} Key 已填写` : "当前未填写 Key";
       showToast(`${mode}，后端服务状态见右上角`);
     });
 
+    syncProviderControls("deepseek");
     loadSettings();
-    els.apiKey.value = localStorage.getItem("xhs_demo_deepseek_key") || "";
+    els.apiKey.value = localStorage.getItem("xhs_workspace_ai_key") || "";
     els.publishTime.value = defaultPublishTime();
     updateKeyStatus();
     renderMaterials();
