@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+
 from pydantic import BaseModel
 
 
@@ -12,7 +14,7 @@ class AppConfig(BaseModel):
 
 def default_config() -> AppConfig:
     app_root = Path(__file__).resolve().parents[3]
-    data_dir = app_root / "data"
+    data_dir = Path(os.environ.get("XHS_PUBLISHER_DATA_DIR", app_root / "data"))
     log_dir = app_root / "logs"
     runtime_dir = app_root / "runtime"
     return AppConfig(
