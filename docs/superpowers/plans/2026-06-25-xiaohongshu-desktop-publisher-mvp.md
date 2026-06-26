@@ -12,7 +12,9 @@
 
 ## Scope Check
 
-The approved spec spans backend, desktop UI, browser automation, packaging, and deployment. Keep this as one MVP plan because each task builds toward one vertical product: a local desktop tool that can create, validate, persist, and submit Xiaohongshu image-note tasks. Execute tasks in order. Do not start video publishing, AI copy generation, authorization, Mac packaging, or MySQL implementation in this plan.
+The approved spec spans backend, desktop UI, browser automation, AI image copy generation, packaging, and deployment. Keep this as one MVP plan because each task builds toward one vertical product: a local desktop tool that can create, validate, persist, generate Xiaohongshu copy from images, and submit Xiaohongshu image-note tasks. Execute tasks in order. Do not start video publishing, authorization, Mac packaging, or MySQL implementation in this plan.
+
+**Updated first-version AI requirement:** The first Windows version must include a DeepSeek-ready image copy generation flow. The UI should allow a DeepSeek API key to be saved later, and the backend should expose an AI adapter boundary plus a deterministic fallback/mock provider while the real key is not yet configured. The workflow is: selected image paths -> AI image analysis/copy generation -> title/body/tags returned for human confirmation -> task save/submit. Video parsing remains a later extension and should only be reserved through naming such as material analysis, not implemented in this plan.
 
 The source design is `docs/superpowers/specs/小红书图文定时发布桌面工具设计方案.md`.
 
@@ -1045,6 +1047,172 @@ git add backend/app/schemas/task.py backend/app/services/task_service.py backend
 git commit -m "feat: validate image note tasks"
 ```
 
+## Task 5A: DeepSeek Image Copy Generation
+
+**Files:**
+- Create: `backend/app/schemas/ai.py`
+- Create: `backend/app/services/ai_copy_service.py`
+- Create: `backend/app/integrations/deepseek.py`
+- Create: `backend/tests/test_ai_copy_service.py`
+
+This task adds the first-version AI copy generation boundary. The user will provide the real DeepSeek API key later, so implementation must support key configuration but also work without a key using a deterministic local fallback. Do not call the real DeepSeek network API in tests.
+
+- [ ] **Step 1: Write AI copy tests**
+
+Create `backend/tests/test_ai_copy_service.py`:
+
+```python
+from pathlib import Path
+
+import pytest
+
+from app.schemas.ai import ImageCopyRequest
+from app.services.ai_copy_service import generate_image_copy
+
+
+def test_generate_image_copy_requires_existing_image(tmp_path):
+    payload = ImageCopyRequest(image_paths=[str(tmp_path / "missing.png")])
+
+    with pytest.raises(ValueError, match="图片不存在"):
+        generate_image_copy(payload)
+
+
+def test_generate_image_copy_returns_title_body_and_tags_without_key(tmp_path, monkeypatch):
+    image = tmp_path / "product.png"
+    image.write_bytes(b"png")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    result = generate_image_copy(ImageCopyRequest(image_paths=[str(image)]))
+
+    assert result.title
+    assert result.body
+    assert result.tags
+    assert len(result.title) <= 20
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run:
+
+```powershell
+Push-Location backend
+python -m pytest tests/test_ai_copy_service.py -q
+Pop-Location
+```
+
+Expected: FAIL because AI schemas and service do not exist.
+
+- [ ] **Step 3: Add AI schemas**
+
+Create `backend/app/schemas/ai.py`:
+
+```python
+from pydantic import BaseModel, Field
+
+
+class ImageCopyRequest(BaseModel):
+    image_paths: list[str] = Field(default_factory=list)
+    style: str = Field(default="小红书种草")
+    extra_prompt: str = Field(default="")
+
+
+class ImageCopyResult(BaseModel):
+    title: str
+    body: str
+    tags: list[str]
+```
+
+- [ ] **Step 4: Add DeepSeek adapter boundary**
+
+Create `backend/app/integrations/deepseek.py`:
+
+```python
+from pathlib import Path
+
+from app.schemas.ai import ImageCopyResult
+
+
+class DeepSeekImageCopyClient:
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key
+
+    def generate_from_images(
+        self,
+        image_paths: list[Path],
+        style: str,
+        extra_prompt: str = "",
+    ) -> ImageCopyResult:
+        if not self.api_key:
+            return fallback_image_copy(image_paths, style)
+        raise NotImplementedError("DeepSeek API key is configured later; network integration is not enabled yet")
+
+
+def fallback_image_copy(image_paths: list[Path], style: str) -> ImageCopyResult:
+    image_count = len(image_paths)
+    title = "小红书图文灵感"
+    body = (
+        f"已选择 {image_count} 张图片，可根据画面内容整理成一篇{style}风格的小红书笔记。"
+        "请在发布前补充产品、地点、价格、活动等真实信息。"
+    )
+    return ImageCopyResult(title=title[:20], body=body, tags=["小红书", "图文笔记", "灵感"])
+```
+
+- [ ] **Step 5: Add AI copy service**
+
+Create `backend/app/services/ai_copy_service.py`:
+
+```python
+import os
+from pathlib import Path
+
+from app.integrations.deepseek import DeepSeekImageCopyClient
+from app.schemas.ai import ImageCopyRequest, ImageCopyResult
+
+SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+
+
+def generate_image_copy(payload: ImageCopyRequest) -> ImageCopyResult:
+    image_paths = _validate_image_paths(payload.image_paths)
+    client = DeepSeekImageCopyClient(api_key=os.getenv("DEEPSEEK_API_KEY", ""))
+    return client.generate_from_images(image_paths, payload.style, payload.extra_prompt)
+
+
+def _validate_image_paths(raw_paths: list[str]) -> list[Path]:
+    if not raw_paths:
+        raise ValueError("至少选择 1 张图片")
+    paths: list[Path] = []
+    for raw_path in raw_paths:
+        path = Path(raw_path)
+        if not path.exists():
+            raise ValueError(f"图片不存在: {raw_path}")
+        if path.suffix.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
+            raise ValueError(f"不支持的图片格式: {path.suffix}")
+        paths.append(path)
+    return paths
+```
+
+- [ ] **Step 6: Run AI tests and all backend tests**
+
+Run:
+
+```powershell
+Push-Location backend
+python -m pytest tests/test_ai_copy_service.py -q
+python -m pytest -q
+Pop-Location
+```
+
+Expected: PASS.
+
+- [ ] **Step 7: Commit AI copy generation**
+
+Run:
+
+```powershell
+git add backend/app/schemas/ai.py backend/app/services/ai_copy_service.py backend/app/integrations/deepseek.py backend/tests/test_ai_copy_service.py
+git commit -m "feat: add deepseek image copy boundary"
+```
+
 ## Task 6: FastAPI Task and Account APIs
 
 **Files:**
@@ -1271,6 +1439,104 @@ Run:
 ```powershell
 git add backend/app/api backend/app/main.py backend/app/core/config.py backend/tests/test_api_tasks.py
 git commit -m "feat: add account and task apis"
+```
+
+## Task 6A: FastAPI AI Copy API
+
+**Files:**
+- Create: `backend/app/api/ai.py`
+- Modify: `backend/app/main.py`
+- Create: `backend/tests/test_api_ai.py`
+
+- [ ] **Step 1: Write AI API test**
+
+Create `backend/tests/test_api_ai.py`:
+
+```python
+from fastapi.testclient import TestClient
+
+from app.main import create_app
+
+
+def test_generate_image_copy_api_returns_copy(tmp_path, monkeypatch):
+    monkeypatch.setenv("XHS_PUBLISHER_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    image = tmp_path / "a.png"
+    image.write_bytes(b"png")
+    client = TestClient(create_app())
+
+    response = client.post("/api/ai/image-copy", json={"image_paths": [str(image)]})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    assert body["data"]["title"]
+    assert body["data"]["body"]
+    assert body["data"]["tags"]
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run:
+
+```powershell
+Push-Location backend
+python -m pytest tests/test_api_ai.py -q
+Pop-Location
+```
+
+Expected: FAIL because AI route is not registered.
+
+- [ ] **Step 3: Add AI API route**
+
+Create `backend/app/api/ai.py`:
+
+```python
+from fastapi import APIRouter, HTTPException
+
+from app.core.responses import fail, ok
+from app.schemas.ai import ImageCopyRequest
+from app.services.ai_copy_service import generate_image_copy
+
+router = APIRouter(prefix="/api/ai", tags=["ai"])
+
+
+@router.post("/image-copy")
+def image_copy(payload: ImageCopyRequest) -> dict:
+    try:
+        return ok(generate_image_copy(payload).model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=fail("VALIDATION_ERROR", str(exc)))
+```
+
+Modify `backend/app/main.py`:
+
+```python
+from app.api import accounts, ai, tasks
+...
+app.include_router(ai.router)
+```
+
+- [ ] **Step 4: Run AI API tests and all backend tests**
+
+Run:
+
+```powershell
+Push-Location backend
+python -m pytest tests/test_api_ai.py -q
+python -m pytest -q
+Pop-Location
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit AI API**
+
+Run:
+
+```powershell
+git add backend/app/api/ai.py backend/app/main.py backend/tests/test_api_ai.py
+git commit -m "feat: add ai copy api"
 ```
 
 ## Task 7: Xiaohongshu Integration Adapter
@@ -1936,6 +2202,12 @@ export type PublishTask = {
   status: number;
   last_error: string;
 };
+
+export type ImageCopyResult = {
+  title: string;
+  body: string;
+  tags: string[];
+};
 ```
 
 - [ ] **Step 2: Add API client**
@@ -1943,7 +2215,7 @@ export type PublishTask = {
 Create `apps/desktop/src/renderer/api/client.ts`:
 
 ```ts
-import type { Account, ApiResponse, PublishTask } from "../types";
+import type { Account, ApiResponse, ImageCopyResult, PublishTask } from "../types";
 
 const API_BASE = "http://127.0.0.1:8765";
 
@@ -1964,6 +2236,8 @@ export const api = {
   listTasks: () => request<PublishTask[]>("/api/tasks"),
   createTask: (payload: unknown) =>
     request<PublishTask>("/api/tasks", { method: "POST", body: JSON.stringify(payload) }),
+  generateImageCopy: (payload: unknown) =>
+    request<ImageCopyResult>("/api/ai/image-copy", { method: "POST", body: JSON.stringify(payload) }),
   checkRuntime: () => request<Record<string, unknown>>("/api/runtime/check")
 };
 ```
@@ -2070,11 +2344,14 @@ export function TaskEditorPage() {
       <label>正文<textarea rows={8} /></label>
       <label>标签<input placeholder="旅行,亲子游" /></label>
       <button>选择图片</button>
+      <button>AI 生成文案</button>
       <button>保存草稿</button>
     </div>
   );
 }
 ```
+
+The first version must expose the AI copy workflow in the task editor. The page can start with simple local state and a manual image path input if native file selection is not wired yet, but there must be a visible `AI 生成文案` action that calls `api.generateImageCopy`, then fills title, body, and tags for human confirmation.
 
 Create `apps/desktop/src/renderer/pages/AccountPage.tsx`:
 
@@ -2523,6 +2800,7 @@ Spec coverage:
 - Electron + Python backend is covered by Tasks 2, 10, 11, and 12.
 - SQLite and comment constraints are covered by Task 3.
 - Manual task creation and validation are covered by Tasks 4, 5, 6, and 11.
+- DeepSeek-ready image copy generation is covered by Tasks 5A, 6A, and 11.
 - Multi-account support is covered by Tasks 4 and 6.
 - Platform scheduled publish through visible browser is covered by Tasks 7 and 8.
 - Runtime detection and browser component handling are covered by Task 9.
@@ -2531,4 +2809,5 @@ Spec coverage:
 
 Intentional exclusions:
 
-- Video publishing, AI copy generation, authorization, local timer publishing, Mac packaging, and MySQL implementation are not included in this MVP plan.
+- Video publishing, video parsing, authorization, local timer publishing, Mac packaging, and MySQL implementation are not included in this MVP plan.
+- Real DeepSeek network calls are prepared behind an adapter boundary but may remain disabled until the user provides a key and approves live API integration. The first version must still provide the UI/API flow and deterministic fallback copy generation without a key.
