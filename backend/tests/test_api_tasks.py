@@ -1,4 +1,5 @@
 import time
+from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 
@@ -94,3 +95,79 @@ def test_create_task_returns_unified_error_for_missing_account(tmp_path, monkeyp
     assert payload["success"] is False
     assert payload["data"] is None
     assert payload["error"]["code"] == "DATABASE_CONSTRAINT"
+
+
+def test_submit_task_api_marks_task_submitted(tmp_path, monkeypatch):
+    monkeypatch.setenv("XHS_PUBLISHER_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("app.workers.publish_worker.submit_note", AsyncMock(return_value=None))
+    client = TestClient(create_app())
+
+    account_response = client.post(
+        "/api/accounts",
+        json={"account_name": "brand_a", "cookie_path": "accounts/brand_a.json"},
+    )
+    account_id = account_response.json()["data"]["id"]
+    image_path = tmp_path / "note.png"
+    image_path.write_bytes(b"image")
+    task_response = client.post(
+        "/api/tasks",
+        json={
+            "account_id": account_id,
+            "task_title": "Travel plan",
+            "task_body": "Body text",
+            "tags": ["travel"],
+            "image_paths": [str(image_path)],
+            "schedule_time": int(time.time()) + 2 * 3600 + 60,
+        },
+    )
+    task_id = task_response.json()["data"]["id"]
+
+    submit_response = client.post(f"/api/tasks/{task_id}/submit")
+
+    assert submit_response.status_code == 200
+    payload = submit_response.json()
+    assert payload["success"] is True
+    assert payload["data"]["status"] == 5
+    assert payload["data"]["submitted_time"] > 0
+
+
+def test_submit_task_api_returns_publish_failed_for_platform_value_error(tmp_path, monkeypatch):
+    monkeypatch.setenv("XHS_PUBLISHER_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(
+        "app.workers.publish_worker.submit_note",
+        AsyncMock(side_effect=ValueError("定时时间过近")),
+    )
+    client = TestClient(create_app())
+
+    account_response = client.post(
+        "/api/accounts",
+        json={"account_name": "brand_a", "cookie_path": "accounts/brand_a.json"},
+    )
+    account_id = account_response.json()["data"]["id"]
+    image_path = tmp_path / "note.png"
+    image_path.write_bytes(b"image")
+    task_response = client.post(
+        "/api/tasks",
+        json={
+            "account_id": account_id,
+            "task_title": "Travel plan",
+            "task_body": "Body text",
+            "tags": ["travel"],
+            "image_paths": [str(image_path)],
+            "schedule_time": int(time.time()) + 2 * 3600 + 60,
+        },
+    )
+    task_id = task_response.json()["data"]["id"]
+
+    submit_response = client.post(f"/api/tasks/{task_id}/submit")
+
+    assert submit_response.status_code == 500
+    submit_payload = submit_response.json()
+    assert submit_payload["success"] is False
+    assert submit_payload["error"]["code"] == "PUBLISH_FAILED"
+    assert "定时时间过近" in submit_payload["error"]["message"]
+
+    tasks_response = client.get("/api/tasks")
+    task_payload = tasks_response.json()["data"][0]
+    assert task_payload["status"] == 6
+    assert "定时时间过近" in task_payload["last_error"]
