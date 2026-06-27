@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.accounts import router as accounts_router
 from app.api.ai import router as ai_router
+from app.api.runtime import router as runtime_router
 from app.api.tasks import router as tasks_router
 from app.core.config import default_config
 from app.core.responses import fail, ok
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
 
     app.include_router(ai_router)
     app.include_router(accounts_router)
+    app.include_router(runtime_router)
     app.include_router(tasks_router)
 
     @app.get("/api/health")

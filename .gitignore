@@ -13,6 +13,6 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 logs/
-runtime/
+/runtime/
 .superpowers/
 external/social-auto-upload-xiaohongshu/**/__pycache__/
