@@ -15,9 +15,14 @@ function Invoke-NativeCommand {
     }
 }
 
+$PythonPath = Join-Path "$PSScriptRoot\.." ".venv\Scripts\python.exe"
+if (-not (Test-Path -LiteralPath $PythonPath)) {
+    $PythonPath = "python"
+}
+
 Push-Location "$PSScriptRoot\..\backend"
 try {
-    Invoke-NativeCommand python -m pytest -q
+    Invoke-NativeCommand $PythonPath -m pytest -q
 }
 finally {
     Pop-Location
@@ -25,7 +30,9 @@ finally {
 
 Push-Location "$PSScriptRoot\..\apps\desktop"
 try {
-    Invoke-NativeCommand npm run build
+    Invoke-NativeCommand npm.cmd test
+    Invoke-NativeCommand npm.cmd run typecheck
+    Invoke-NativeCommand npm.cmd run build
 }
 finally {
     Pop-Location
