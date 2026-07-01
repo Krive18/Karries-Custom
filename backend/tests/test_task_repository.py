@@ -1,26 +1,16 @@
 import json
-import sqlite3
 
 import pytest
 
-from app.db.connection import connect
-from app.db.migrations import migrate
+from app.db.errors import DatabaseConstraintError
 from app.repositories.account_repository import AccountRepository
 from app.repositories.log_repository import LogRepository
 from app.repositories.task_repository import TaskRepository
 
 
-def migrated_connection(tmp_path):
-    conn = sqlite3.connect(tmp_path / "publisher.db")
-    conn.row_factory = sqlite3.Row
-    migrate(conn)
-    return conn
-
-
-def test_task_repository_creates_and_reads_task(tmp_path):
-    conn = migrated_connection(tmp_path)
-    accounts = AccountRepository(conn)
-    tasks = TaskRepository(conn)
+def test_task_repository_creates_and_reads_task(mysql_conn):
+    accounts = AccountRepository(mysql_conn)
+    tasks = TaskRepository(mysql_conn)
 
     account_id = accounts.create("brand_a", "accounts/brand_a.json")
     task_id = tasks.create(
@@ -40,9 +30,8 @@ def test_task_repository_creates_and_reads_task(tmp_path):
     assert json.loads(row["image_path_text"]) == ["D:/images/1.png"]
 
 
-def test_account_repository_lists_newest_first_and_updates_status(tmp_path):
-    conn = migrated_connection(tmp_path)
-    accounts = AccountRepository(conn)
+def test_account_repository_lists_newest_first_and_updates_status(mysql_conn):
+    accounts = AccountRepository(mysql_conn)
 
     first_id = accounts.create("品牌一", "accounts/brand_1.json")
     second_id = accounts.create("品牌二", "accounts/brand_2.json")
@@ -64,10 +53,9 @@ def test_account_repository_lists_newest_first_and_updates_status(tmp_path):
     assert updated["update_time"] > 0
 
 
-def test_task_repository_lists_newest_first_and_persists_status_error(tmp_path):
-    conn = migrated_connection(tmp_path)
-    accounts = AccountRepository(conn)
-    tasks = TaskRepository(conn)
+def test_task_repository_lists_newest_first_and_persists_status_error(mysql_conn):
+    accounts = AccountRepository(mysql_conn)
+    tasks = TaskRepository(mysql_conn)
 
     account_id = accounts.create("品牌一", "accounts/brand_1.json")
     first_id = tasks.create(
@@ -99,11 +87,10 @@ def test_task_repository_lists_newest_first_and_persists_status_error(tmp_path):
     assert updated["last_error"] == "失败原因"
 
 
-def test_log_repository_appends_and_lists_logs_oldest_first(tmp_path):
-    conn = migrated_connection(tmp_path)
-    accounts = AccountRepository(conn)
-    tasks = TaskRepository(conn)
-    logs = LogRepository(conn)
+def test_log_repository_appends_and_lists_logs_oldest_first(mysql_conn):
+    accounts = AccountRepository(mysql_conn)
+    tasks = TaskRepository(mysql_conn)
+    logs = LogRepository(mysql_conn)
 
     account_id = accounts.create("品牌一", "accounts/brand_1.json")
     task_id = tasks.create(
@@ -127,12 +114,10 @@ def test_log_repository_appends_and_lists_logs_oldest_first(tmp_path):
     ]
 
 
-def test_task_repository_enforces_account_foreign_key(tmp_path):
-    conn = connect(tmp_path / "publisher.db")
-    migrate(conn)
-    tasks = TaskRepository(conn)
+def test_task_repository_rejects_missing_account(mysql_conn):
+    tasks = TaskRepository(mysql_conn)
 
-    with pytest.raises(sqlite3.IntegrityError):
+    with pytest.raises(DatabaseConstraintError, match="account_id does not exist: 999"):
         tasks.create(
             account_id=999,
             task_title="无账号任务",
@@ -141,3 +126,10 @@ def test_task_repository_enforces_account_foreign_key(tmp_path):
             image_paths=["D:/images/1.png"],
             schedule_time=1782460800,
         )
+
+
+def test_log_repository_rejects_missing_task(mysql_conn):
+    logs = LogRepository(mysql_conn)
+
+    with pytest.raises(DatabaseConstraintError, match="task_id does not exist: 999"):
+        logs.append(999, "INFO", "孤立日志")
