@@ -1,6 +1,3 @@
-from fastapi.testclient import TestClient
-
-from app.main import create_app
 from app.runtime.browser_runtime import mark_browser_installed
 from app.services.runtime_service import check_runtime
 
@@ -22,11 +19,9 @@ def test_runtime_check_reports_browser_installed_after_marker_created(tmp_path):
     assert result["browser_installed"] is True
 
 
-def test_runtime_api_check_and_install_browser(tmp_path, monkeypatch):
-    monkeypatch.setenv("XHS_PUBLISHER_DATA_DIR", str(tmp_path / "data"))
-    app = create_app()
-    app.state.config.runtime_dir = tmp_path / "runtime"
-    client = TestClient(app)
+def test_runtime_api_check_and_install_browser(tmp_path, app_client_without_db):
+    client = app_client_without_db
+    client.app.state.config.runtime_dir = tmp_path / "runtime"
 
     check_response = client.get("/api/runtime/check")
     install_response = client.post("/api/runtime/install-browser")

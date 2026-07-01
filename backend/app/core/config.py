@@ -19,7 +19,6 @@ class AppConfig(BaseModel):
     data_dir: Path
     log_dir: Path
     runtime_dir: Path
-    database_path: Path
     mysql: MysqlConfig
 
 
@@ -33,7 +32,6 @@ def default_config() -> AppConfig:
         data_dir=data_dir,
         log_dir=log_dir,
         runtime_dir=runtime_dir,
-        database_path=data_dir / "publisher.db",
         mysql=MysqlConfig(
             host=os.environ.get("MYSQL_HOST", "127.0.0.1"),
             port=int(os.environ.get("MYSQL_PORT", "3306")),

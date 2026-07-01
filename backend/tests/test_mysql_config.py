@@ -19,7 +19,7 @@ def test_default_config_uses_mysql_defaults(monkeypatch):
 
     config = default_config()
 
-    assert config.database_path == config.data_dir / "publisher.db"
+    assert not hasattr(config, "database_path")
     assert config.mysql.host == "127.0.0.1"
     assert config.mysql.port == 3306
     assert config.mysql.database == "xhs_publisher"

@@ -3,6 +3,7 @@ import os
 import sys
 
 import pytest
+from fastapi.testclient import TestClient
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -11,9 +12,44 @@ if str(ROOT) not in sys.path:
 from app.core.config import MysqlConfig
 from app.db.connection import connect
 from app.db.migrations import migrate
+from app.main import create_app
 
 
 MYSQL_TABLES = ("publish_log", "publish_task", "account", "app_setting")
+
+
+class SharedMysqlConnection:
+    def __init__(self, conn):
+        self.conn = conn
+        self.closed_by_app = False
+
+    def cursor(self):
+        return self.conn.cursor()
+
+    def commit(self):
+        return self.conn.commit()
+
+    def rollback(self):
+        return self.conn.rollback()
+
+    def close(self):
+        self.closed_by_app = True
+
+    @property
+    def open(self):
+        return self.conn.open
+
+
+class FakeLifespanConnection:
+    def __init__(self):
+        self.closed = False
+        self.rolled_back = False
+
+    def close(self):
+        self.closed = True
+
+    def rollback(self):
+        self.rolled_back = True
 
 
 def mysql_test_config() -> MysqlConfig:
@@ -58,3 +94,26 @@ def mysql_conn():
             clean_mysql(conn)
         finally:
             conn.close()
+
+
+@pytest.fixture
+def mysql_app_client(monkeypatch, mysql_conn):
+    shared_conn = SharedMysqlConnection(mysql_conn)
+    monkeypatch.setattr("app.main.connect", lambda _config: shared_conn)
+
+    with TestClient(create_app()) as client:
+        yield client
+
+    assert shared_conn.closed_by_app is True
+
+
+@pytest.fixture
+def app_client_without_db(monkeypatch):
+    fake_conn = FakeLifespanConnection()
+    monkeypatch.setattr("app.main.connect", lambda _config: fake_conn)
+    monkeypatch.setattr("app.main.migrate", lambda _conn: None)
+
+    with TestClient(create_app()) as client:
+        yield client
+
+    assert fake_conn.closed is True
