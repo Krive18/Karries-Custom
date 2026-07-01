@@ -1,5 +1,4 @@
 import json
-import sqlite3
 import time
 
 from app.integrations.xiaohongshu import build_note_payload, submit_note
@@ -13,7 +12,7 @@ class PublishResourceNotFoundError(ValueError):
 
 
 class PublishWorker:
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn):
         self.conn = conn
         self.accounts = AccountRepository(conn)
         self.tasks = TaskRepository(conn)
@@ -41,14 +40,15 @@ class PublishWorker:
             )
             await submit_note(payload)
             now = int(time.time())
-            self.conn.execute(
-                """
-                update publish_task
-                set status = 5, submitted_time = ?, update_time = ?
-                where id = ?
-                """,
-                (now, now, task_id),
-            )
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    update publish_task
+                    set status = 5, submitted_time = %s, update_time = %s
+                    where id = %s
+                    """,
+                    (now, now, task_id),
+                )
             self.conn.commit()
             self.logs.append(task_id, "INFO", "提交成功，已进入小红书平台定时发布")
         except Exception as exc:

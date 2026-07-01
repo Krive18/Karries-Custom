@@ -1,27 +1,62 @@
 from fastapi.testclient import TestClient
-import pytest
-import sqlite3
 
 from app.main import create_app
 
 
-def test_health_endpoint_returns_success():
-    client = TestClient(create_app())
+class FakeConnection:
+    def __init__(self):
+        self.closed = False
+        self.rolled_back = False
 
-    response = client.get("/api/health")
+    def close(self):
+        self.closed = True
+
+    def rollback(self):
+        self.rolled_back = True
+
+
+def test_health_endpoint_returns_success(monkeypatch):
+    fake_conn = FakeConnection()
+    monkeypatch.setattr("app.main.connect", lambda _config: fake_conn)
+    monkeypatch.setattr("app.main.migrate", lambda _conn: None)
+
+    with TestClient(create_app()) as client:
+        response = client.get("/api/health")
 
     assert response.status_code == 200
     assert response.json() == {"success": True, "data": {"status": "ok"}, "error": None}
+    assert fake_conn.closed is True
 
 
-def test_app_closes_database_connection_on_shutdown(tmp_path, monkeypatch):
-    monkeypatch.setenv("XHS_PUBLISHER_DATA_DIR", str(tmp_path))
+def test_app_closes_database_connection_on_shutdown(monkeypatch):
+    fake_conn = FakeConnection()
+    monkeypatch.setattr("app.main.connect", lambda _config: fake_conn)
+    monkeypatch.setattr("app.main.migrate", lambda _conn: None)
+
     app = create_app()
-    conn = app.state.conn
 
     with TestClient(app) as client:
         response = client.get("/api/health")
         assert response.status_code == 200
 
-    with pytest.raises(sqlite3.ProgrammingError):
-        conn.execute("select 1")
+    assert fake_conn.closed is True
+
+
+def test_app_closes_database_connection_when_migration_fails(monkeypatch):
+    fake_conn = FakeConnection()
+
+    def fail_migrate(_conn):
+        raise RuntimeError("migration failed")
+
+    monkeypatch.setattr("app.main.connect", lambda _config: fake_conn)
+    monkeypatch.setattr("app.main.migrate", fail_migrate)
+
+    try:
+        with TestClient(create_app()):
+            pass
+    except RuntimeError as exc:
+        assert str(exc) == "migration failed"
+    else:
+        raise AssertionError("migration failure should bubble up")
+
+    assert fake_conn.closed is True
