@@ -1,10 +1,17 @@
-import sqlite3
-from pathlib import Path
+import pymysql
+
+from app.core.config import MysqlConfig
 
 
-def connect(database_path: Path) -> sqlite3.Connection:
-    database_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(database_path)
-    conn.row_factory = sqlite3.Row
-    conn.execute("pragma foreign_keys = on")
-    return conn
+def connect(config: MysqlConfig):
+    return pymysql.connect(
+        host=config.host,
+        port=config.port,
+        database=config.database,
+        user=config.user,
+        password=config.password,
+        charset=config.charset,
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False,
+        connect_timeout=config.connect_timeout,
+    )
