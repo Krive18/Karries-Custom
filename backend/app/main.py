@@ -11,6 +11,7 @@ from app.api.ai import router as ai_router
 from app.api.runtime import router as runtime_router
 from app.api.settings import router as settings_router
 from app.api.tasks import router as tasks_router
+from app.api.xhs_accounts import router as xhs_accounts_router
 from app.core.config import default_config
 from app.core.responses import fail, ok
 from app.db.connection import connect
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(runtime_router)
     app.include_router(settings_router)
     app.include_router(tasks_router)
+    app.include_router(xhs_accounts_router)
 
     @app.get("/api/health")
     def health() -> dict:
