@@ -1,8 +1,9 @@
 import json
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.core.dependencies import get_db_connection
 from app.core.responses import fail, ok
 from app.repositories.task_repository import TaskRepository
 from app.schemas.task import TaskCreate
@@ -31,7 +32,7 @@ def task_to_dict(row) -> dict:
 
 
 @router.post("")
-def create_task(request: Request, payload: TaskCreate):
+def create_task(payload: TaskCreate, conn=Depends(get_db_connection)):
     try:
         validate_task_create(payload)
     except ValueError as exc:
@@ -40,7 +41,7 @@ def create_task(request: Request, payload: TaskCreate):
             content=fail("VALIDATION_ERROR", str(exc)),
         )
 
-    repo = TaskRepository(request.app.state.conn)
+    repo = TaskRepository(conn)
     task_id = repo.create(
         account_id=payload.account_id,
         task_title=payload.task_title,
@@ -54,14 +55,14 @@ def create_task(request: Request, payload: TaskCreate):
 
 
 @router.get("")
-def list_tasks(request: Request) -> dict:
-    repo = TaskRepository(request.app.state.conn)
+def list_tasks(conn=Depends(get_db_connection)) -> dict:
+    repo = TaskRepository(conn)
     return ok([task_to_dict(row) for row in repo.list_all()])
 
 
 @router.post("/{task_id}/submit")
-async def submit_task(task_id: int, request: Request) -> dict:
-    worker = PublishWorker(request.app.state.conn)
+async def submit_task(task_id: int, conn=Depends(get_db_connection)) -> dict:
+    worker = PublishWorker(conn)
     try:
         await worker.submit(task_id)
     except PublishResourceNotFoundError as exc:
@@ -75,6 +76,6 @@ async def submit_task(task_id: int, request: Request) -> dict:
             content=fail("PUBLISH_FAILED", str(exc)),
         )
 
-    repo = TaskRepository(request.app.state.conn)
+    repo = TaskRepository(conn)
     row = repo.get(task_id)
     return ok(task_to_dict(row))

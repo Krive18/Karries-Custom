@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 import pymysql
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -26,15 +26,18 @@ def create_app() -> FastAPI:
         conn = connect(config.mysql)
         try:
             migrate(conn)
-            _app.state.conn = conn
+        finally:
+            conn.close()
+
+        try:
             yield
         finally:
             _app.state.conn = None
-            conn.close()
 
     app = FastAPI(title="Xiaohongshu Publisher Backend", lifespan=lifespan)
     app.state.config = config
     app.state.conn = None
+    app.state.connect_db = lambda: connect(config.mysql)
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(_request, _exc):
@@ -46,12 +49,25 @@ def create_app() -> FastAPI:
     @app.exception_handler(pymysql.err.IntegrityError)
     @app.exception_handler(DatabaseConstraintError)
     async def database_constraint_exception_handler(request, exc):
-        conn = getattr(request.app.state, "conn", None)
+        conn = getattr(request.state, "db_conn", None)
         if conn is not None:
             conn.rollback()
         return JSONResponse(
             status_code=400,
             content=fail("DATABASE_CONSTRAINT", str(exc)),
+        )
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(_request: Request, exc: HTTPException):
+        if exc.status_code == 401:
+            code = "UNAUTHORIZED"
+        elif exc.status_code == 403:
+            code = "FORBIDDEN"
+        else:
+            code = "HTTP_ERROR"
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=fail(code, str(exc.detail)),
         )
 
     app.include_router(auth_router)

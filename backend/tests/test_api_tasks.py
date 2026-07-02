@@ -98,7 +98,7 @@ def test_create_account_returns_unified_error_for_duplicate_name(tmp_path, monke
         assert second_payload["success"] is False
         assert second_payload["data"] is None
         assert second_payload["error"]["code"] == "DATABASE_CONSTRAINT"
-        assert client.app.state.conn.open is True
+        assert mysql_conn.open is True
 
 
 def test_create_task_returns_unified_error_for_missing_account(tmp_path, monkeypatch, mysql_conn):

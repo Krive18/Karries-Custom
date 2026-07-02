@@ -1,8 +1,9 @@
 import os
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.core.dependencies import get_db_connection
 from app.core.responses import fail, ok
 from app.integrations.deepseek import DeepSeekImageCopyClient
 from app.integrations.vision import OpenAICompatibleVisionClient
@@ -16,9 +17,9 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
 @router.post("/image-copy")
-def create_image_copy(payload: ImageCopyRequest, request: Request) -> dict:
+def create_image_copy(payload: ImageCopyRequest, conn=Depends(get_db_connection)) -> dict:
     try:
-        settings_repo = SettingRepository(request.app.state.conn)
+        settings_repo = SettingRepository(conn)
         settings = get_ai_settings_view(settings_repo)
         vision_client = None
         vision_key = get_ai_setting_key(settings_repo, "vision")

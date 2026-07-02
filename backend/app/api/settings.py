@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
+from app.core.dependencies import get_db_connection
 from app.core.responses import fail, ok
 from app.repositories.setting_repository import SettingRepository
 from app.schemas.settings import AI_SETTING_SLOTS, AISettingUpdate
@@ -20,18 +21,18 @@ def _validate_slot(slot: str):
 
 
 @router.get("/ai")
-def get_ai_settings(request: Request) -> dict:
-    repo = SettingRepository(request.app.state.conn)
+def get_ai_settings(conn=Depends(get_db_connection)) -> dict:
+    repo = SettingRepository(conn)
     return ok(get_ai_settings_view(repo).model_dump())
 
 
 @router.put("/ai/{slot}")
-def save_ai_setting(slot: str, payload: AISettingUpdate, request: Request):
+def save_ai_setting(slot: str, payload: AISettingUpdate, conn=Depends(get_db_connection)):
     invalid = _validate_slot(slot)
     if invalid is not None:
         return invalid
 
-    repo = SettingRepository(request.app.state.conn)
+    repo = SettingRepository(conn)
     repo.set(setting_key(slot, "provider"), payload.provider)
     if payload.api_key:
         repo.set(setting_key(slot, "api_key"), payload.api_key)
@@ -42,11 +43,11 @@ def save_ai_setting(slot: str, payload: AISettingUpdate, request: Request):
 
 
 @router.delete("/ai/{slot}/key")
-def clear_ai_setting_key(slot: str, request: Request):
+def clear_ai_setting_key(slot: str, conn=Depends(get_db_connection)):
     invalid = _validate_slot(slot)
     if invalid is not None:
         return invalid
 
-    repo = SettingRepository(request.app.state.conn)
+    repo = SettingRepository(conn)
     repo.delete(setting_key(slot, "api_key"))
     return ok(get_ai_settings_view(repo).model_dump())

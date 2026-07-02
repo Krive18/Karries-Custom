@@ -1,3 +1,5 @@
+import pytest
+
 from app.core.config import default_config
 
 
@@ -10,6 +12,9 @@ def clear_mysql_env(monkeypatch):
         "MYSQL_PASSWORD",
         "MYSQL_CHARSET",
         "MYSQL_CONNECT_TIMEOUT",
+        "XHS_ENV",
+        "APP_ENV",
+        "XHS_AUTH_TOKEN_SECRET",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -27,6 +32,7 @@ def test_default_config_uses_mysql_defaults(monkeypatch):
     assert config.mysql.password == ""
     assert config.mysql.charset == "utf8mb4"
     assert config.mysql.connect_timeout == 5
+    assert config.environment == "development"
 
 
 def test_default_config_reads_mysql_environment(monkeypatch):
@@ -47,3 +53,22 @@ def test_default_config_reads_mysql_environment(monkeypatch):
     assert config.mysql.password == "secret"
     assert config.mysql.charset == "utf8mb4"
     assert config.mysql.connect_timeout == 9
+
+
+def test_default_config_requires_auth_secret_outside_development(monkeypatch):
+    clear_mysql_env(monkeypatch)
+    monkeypatch.setenv("XHS_ENV", "production")
+
+    with pytest.raises(ValueError, match="XHS_AUTH_TOKEN_SECRET"):
+        default_config()
+
+
+def test_default_config_allows_custom_auth_secret_in_production(monkeypatch):
+    clear_mysql_env(monkeypatch)
+    monkeypatch.setenv("XHS_ENV", "production")
+    monkeypatch.setenv("XHS_AUTH_TOKEN_SECRET", "production-secret")
+
+    config = default_config()
+
+    assert config.environment == "production"
+    assert config.auth.token_secret == "production-secret"

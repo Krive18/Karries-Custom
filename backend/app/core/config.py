@@ -20,6 +20,7 @@ class AuthConfig(BaseModel):
 
 
 class AppConfig(BaseModel):
+    environment: str
     app_root: Path
     data_dir: Path
     log_dir: Path
@@ -33,7 +34,13 @@ def default_config() -> AppConfig:
     data_dir = Path(os.environ.get("XHS_PUBLISHER_DATA_DIR", app_root / "data"))
     log_dir = app_root / "logs"
     runtime_dir = app_root / "runtime"
+    environment = os.environ.get("XHS_ENV", os.environ.get("APP_ENV", "development")).lower()
+    token_secret = os.environ.get("XHS_AUTH_TOKEN_SECRET", "dev-insecure-change-me")
+    if environment not in {"development", "dev", "local", "test"} and token_secret == "dev-insecure-change-me":
+        raise ValueError("XHS_AUTH_TOKEN_SECRET must be set outside development and test")
+
     return AppConfig(
+        environment=environment,
         app_root=app_root,
         data_dir=data_dir,
         log_dir=log_dir,
@@ -48,7 +55,7 @@ def default_config() -> AppConfig:
             connect_timeout=int(os.environ.get("MYSQL_CONNECT_TIMEOUT", "5")),
         ),
         auth=AuthConfig(
-            token_secret=os.environ.get("XHS_AUTH_TOKEN_SECRET", "dev-insecure-change-me"),
+            token_secret=token_secret,
             access_token_seconds=int(os.environ.get("XHS_ACCESS_TOKEN_SECONDS", "86400")),
         ),
     )
