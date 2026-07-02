@@ -15,7 +15,25 @@ from app.db.migrations import migrate
 from app.main import create_app
 
 
-MYSQL_TABLES = ("publish_log", "publish_task", "account", "app_setting")
+MYSQL_TABLES = (
+    "matrix_publish_item",
+    "matrix_publish_plan",
+    "material_file",
+    "product_material_package",
+    "product",
+    "xhs_account_profile",
+    "xhs_account",
+    "recharge_package",
+    "credit_ledger",
+    "credit_wallet",
+    "invite_code",
+    "admin_audit_log",
+    "app_user",
+    "publish_log",
+    "publish_task",
+    "account",
+    "app_setting",
+)
 
 
 class SharedMysqlConnection:
