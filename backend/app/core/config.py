@@ -14,12 +14,18 @@ class MysqlConfig(BaseModel):
     connect_timeout: int
 
 
+class AuthConfig(BaseModel):
+    token_secret: str
+    access_token_seconds: int
+
+
 class AppConfig(BaseModel):
     app_root: Path
     data_dir: Path
     log_dir: Path
     runtime_dir: Path
     mysql: MysqlConfig
+    auth: AuthConfig
 
 
 def default_config() -> AppConfig:
@@ -40,5 +46,9 @@ def default_config() -> AppConfig:
             password=os.environ.get("MYSQL_PASSWORD", ""),
             charset=os.environ.get("MYSQL_CHARSET", "utf8mb4"),
             connect_timeout=int(os.environ.get("MYSQL_CONNECT_TIMEOUT", "5")),
+        ),
+        auth=AuthConfig(
+            token_secret=os.environ.get("XHS_AUTH_TOKEN_SECRET", "dev-insecure-change-me"),
+            access_token_seconds=int(os.environ.get("XHS_ACCESS_TOKEN_SECONDS", "86400")),
         ),
     )
