@@ -23,30 +23,34 @@ class XHSAccountRepository:
 
     def create(self, user_id: int, payload: XHSAccountCreate) -> int:
         now = int(time.time())
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                """
-                insert into xhs_account (
-                    user_id, display_name, account_group, status, daily_limit,
-                    min_interval_minutes, last_publish_time, today_publish_count,
-                    login_state_path, create_time, update_time
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    insert into xhs_account (
+                        user_id, display_name, account_group, status, daily_limit,
+                        min_interval_minutes, last_publish_time, today_publish_count,
+                        login_state_path, create_time, update_time
+                    )
+                    values (%s, %s, %s, 1, %s, %s, 0, 0, '', %s, %s)
+                    """,
+                    (
+                        user_id,
+                        payload.display_name,
+                        payload.account_group,
+                        payload.daily_limit,
+                        payload.min_interval_minutes,
+                        now,
+                        now,
+                    ),
                 )
-                values (%s, %s, %s, 1, %s, %s, 0, 0, '', %s, %s)
-                """,
-                (
-                    user_id,
-                    payload.display_name,
-                    payload.account_group,
-                    payload.daily_limit,
-                    payload.min_interval_minutes,
-                    now,
-                    now,
-                ),
-            )
-            account_id = int(cursor.lastrowid)
-            self._insert_profile(cursor, account_id, payload.profile, now)
-        self.conn.commit()
-        return account_id
+                account_id = int(cursor.lastrowid)
+                self._insert_profile(cursor, account_id, payload.profile, now)
+            self.conn.commit()
+            return account_id
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def list_by_user(self, user_id: int) -> list[dict]:
         with self.conn.cursor() as cursor:
@@ -76,43 +80,47 @@ class XHSAccountRepository:
 
     def update_profile(self, user_id: int, account_id: int, profile: XHSAccountProfile) -> bool:
         now = int(time.time())
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                "select id from xhs_account where id = %s and user_id = %s",
-                (account_id, user_id),
-            )
-            if cursor.fetchone() is None:
-                return False
-
-            cursor.execute(
-                "select id from xhs_account_profile where xhs_account_id = %s",
-                (account_id,),
-            )
-            existing_profile = cursor.fetchone()
-            if existing_profile is None:
-                self._insert_profile(cursor, account_id, profile, now)
-            else:
-                values = profile.model_dump()
+        try:
+            with self.conn.cursor() as cursor:
                 cursor.execute(
-                    """
-                    update xhs_account_profile
-                    set domain_name = %s,
-                        persona = %s,
-                        target_audience = %s,
-                        content_style = %s,
-                        tone = %s,
-                        common_phrases = %s,
-                        forbidden_phrases = %s,
-                        tag_preferences = %s,
-                        word_count_preference = %s,
-                        topic_preferences = %s,
-                        update_time = %s
-                    where xhs_account_id = %s
-                    """,
-                    tuple(values[field] for field in PROFILE_FIELDS) + (now, account_id),
+                    "select id from xhs_account where id = %s and user_id = %s",
+                    (account_id, user_id),
                 )
-        self.conn.commit()
-        return True
+                if cursor.fetchone() is None:
+                    return False
+
+                cursor.execute(
+                    "select id from xhs_account_profile where xhs_account_id = %s",
+                    (account_id,),
+                )
+                existing_profile = cursor.fetchone()
+                if existing_profile is None:
+                    self._insert_profile(cursor, account_id, profile, now)
+                else:
+                    values = profile.model_dump()
+                    cursor.execute(
+                        """
+                        update xhs_account_profile
+                        set domain_name = %s,
+                            persona = %s,
+                            target_audience = %s,
+                            content_style = %s,
+                            tone = %s,
+                            common_phrases = %s,
+                            forbidden_phrases = %s,
+                            tag_preferences = %s,
+                            word_count_preference = %s,
+                            topic_preferences = %s,
+                            update_time = %s
+                        where xhs_account_id = %s
+                        """,
+                        tuple(values[field] for field in PROFILE_FIELDS) + (now, account_id),
+                    )
+            self.conn.commit()
+            return True
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def _insert_profile(self, cursor, account_id: int, profile: XHSAccountProfile, now: int) -> None:
         values = profile.model_dump()

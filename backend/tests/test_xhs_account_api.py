@@ -1,4 +1,61 @@
+import pytest
+from pydantic import ValidationError
+
+from app.repositories.xhs_account_repository import XHSAccountRepository
 from app.repositories.user_repository import UserRepository
+from app.schemas.xhs_account import XHSAccountCreate, XHSAccountProfile, XHSAccountProfileUpdate
+
+
+class FakeXHSCursor:
+    def __init__(self, conn):
+        self.conn = conn
+        self.lastrowid = 0
+        self._row = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, _exc_type, _exc, _traceback):
+        return False
+
+    def execute(self, sql, _params=()):
+        normalized = " ".join(sql.lower().split())
+        self.conn.statements.append(normalized)
+        self._row = None
+        if normalized.startswith("insert into xhs_account "):
+            self.lastrowid = 42
+        elif normalized.startswith("insert into xhs_account_profile"):
+            if self.conn.fail_profile_insert:
+                raise RuntimeError("profile insert failed")
+            self.lastrowid = 43
+        elif normalized.startswith("select id from xhs_account where"):
+            self._row = {"id": 42}
+        elif normalized.startswith("select id from xhs_account_profile"):
+            self._row = {"id": 43}
+        elif normalized.startswith("update xhs_account_profile"):
+            if self.conn.fail_profile_update:
+                raise RuntimeError("profile update failed")
+
+    def fetchone(self):
+        return self._row
+
+
+class FakeXHSConnection:
+    def __init__(self, fail_profile_insert=False, fail_profile_update=False):
+        self.fail_profile_insert = fail_profile_insert
+        self.fail_profile_update = fail_profile_update
+        self.statements = []
+        self.commit_count = 0
+        self.rollback_count = 0
+
+    def cursor(self):
+        return FakeXHSCursor(self)
+
+    def commit(self):
+        self.commit_count += 1
+
+    def rollback(self):
+        self.rollback_count += 1
 
 
 def auth_headers(mysql_conn, mysql_app_client, suffix: str) -> dict[str, str]:
@@ -24,6 +81,45 @@ def auth_headers(mysql_conn, mysql_app_client, suffix: str) -> dict[str, str]:
     assert response.status_code == 200
     token = response.json()["data"]["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def test_xhs_profile_update_rejects_explicit_null_values():
+    with pytest.raises(ValidationError):
+        XHSAccountProfileUpdate(persona=None)
+
+
+def test_xhs_profile_rejects_unreasonable_word_count():
+    with pytest.raises(ValidationError):
+        XHSAccountProfile(word_count_preference=-1)
+
+
+def test_xhs_account_create_rolls_back_when_profile_insert_fails():
+    conn = FakeXHSConnection(fail_profile_insert=True)
+
+    with pytest.raises(RuntimeError, match="profile insert failed"):
+        XHSAccountRepository(conn).create(
+            12,
+            XHSAccountCreate(display_name="Matrix account"),
+        )
+
+    assert conn.commit_count == 0
+    assert conn.rollback_count == 1
+    assert any("insert into xhs_account " in statement for statement in conn.statements)
+    assert any("insert into xhs_account_profile" in statement for statement in conn.statements)
+
+
+def test_xhs_account_update_rolls_back_when_profile_update_fails():
+    conn = FakeXHSConnection(fail_profile_update=True)
+
+    with pytest.raises(RuntimeError, match="profile update failed"):
+        XHSAccountRepository(conn).update_profile(
+            12,
+            42,
+            XHSAccountProfile(persona="updated"),
+        )
+
+    assert conn.commit_count == 0
+    assert conn.rollback_count == 1
 
 
 def test_create_xhs_account_with_profile_and_list(mysql_conn, mysql_app_client):
