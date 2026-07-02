@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.api.accounts import router as accounts_router
+from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
 from app.api.runtime import router as runtime_router
 from app.api.settings import router as settings_router
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
             content=fail("DATABASE_CONSTRAINT", str(exc)),
         )
 
+    app.include_router(auth_router)
     app.include_router(ai_router)
     app.include_router(accounts_router)
     app.include_router(runtime_router)
