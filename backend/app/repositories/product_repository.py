@@ -132,6 +132,27 @@ class ProductRepository:
             )
             return [self._row_to_material_package(row) for row in cursor.fetchall()]
 
+    def get_material_package_for_user(
+        self,
+        user_id: int,
+        product_id: int,
+        package_id: int,
+    ) -> dict | None:
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                select id, user_id, product_id, package_name, package_type,
+                       remark, create_time, update_time
+                from product_material_package
+                where user_id = %s and product_id = %s and id = %s
+                """,
+                (user_id, product_id, package_id),
+            )
+            row = cursor.fetchone()
+        if row is None:
+            return None
+        return self._row_to_material_package(row)
+
     def _ensure_product_for_user(self, cursor, user_id: int, product_id: int) -> None:
         cursor.execute(
             "select id from product where user_id = %s and id = %s",

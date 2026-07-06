@@ -53,11 +53,12 @@ def create_material_package(
     repo = ProductRepository(conn)
     try:
         package_id = repo.create_material_package(user["id"], product_id, payload)
-        packages = repo.list_material_packages(user["id"], product_id)
+        package = repo.get_material_package_for_user(user["id"], product_id, package_id)
     except ValueError:
         return _product_not_found()
 
-    package = next(item for item in packages if item["id"] == package_id)
+    if package is None:
+        return _product_not_found()
     return ok(package)
 
 

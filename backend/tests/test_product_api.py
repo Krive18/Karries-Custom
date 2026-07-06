@@ -1,5 +1,6 @@
 import pytest
 
+from app.api import products as products_api
 from app.repositories.product_repository import ProductRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.product import MaterialPackageCreate
@@ -23,6 +24,21 @@ class FakeProductCursor:
         self._row = None
         if normalized.startswith("select id from product where"):
             self._row = {"id": params[1]} if self.conn.product_exists else None
+        elif normalized.startswith("select id, user_id, product_id"):
+            self._row = (
+                {
+                    "id": params[2],
+                    "user_id": params[0],
+                    "product_id": params[1],
+                    "package_name": "main materials",
+                    "package_type": "image",
+                    "remark": "",
+                    "create_time": 1,
+                    "update_time": 1,
+                }
+                if self.conn.package_exists
+                else None
+            )
         elif normalized.startswith("insert into product_material_package"):
             self.lastrowid = 99
 
@@ -31,8 +47,9 @@ class FakeProductCursor:
 
 
 class FakeProductConnection:
-    def __init__(self, product_exists=True):
+    def __init__(self, product_exists=True, package_exists=True):
         self.product_exists = product_exists
+        self.package_exists = package_exists
         self.statements = []
         self.commit_count = 0
         self.rollback_count = 0
@@ -116,6 +133,39 @@ def test_create_material_package_rolls_back_when_product_missing():
     assert conn.rollback_count == 1
     assert any("select id from product where" in statement for statement in conn.statements)
     assert not any("insert into product_material_package" in statement for statement in conn.statements)
+
+
+def test_get_material_package_for_user_returns_none_when_missing():
+    conn = FakeProductConnection(package_exists=False)
+
+    package = ProductRepository(conn).get_material_package_for_user(12, 7, 99)
+
+    assert package is None
+    assert any("from product_material_package" in statement for statement in conn.statements)
+
+
+def test_create_material_package_returns_404_when_created_package_cannot_be_read(monkeypatch):
+    class FakeRepo:
+        def __init__(self, _conn):
+            pass
+
+        def create_material_package(self, _user_id, _product_id, _payload):
+            return 99
+
+        def get_material_package_for_user(self, _user_id, _product_id, _package_id):
+            return None
+
+    monkeypatch.setattr(products_api, "ProductRepository", FakeRepo)
+
+    response = products_api.create_material_package(
+        7,
+        MaterialPackageCreate(package_name="main materials"),
+        user={"id": 12},
+        conn=object(),
+    )
+
+    assert response.status_code == 404
+    assert b"NOT_FOUND" in response.body
 
 
 def test_create_product_and_list(mysql_conn, mysql_app_client):
