@@ -501,6 +501,32 @@ class MatrixPlanRepository:
             with self.conn.cursor() as cursor:
                 cursor.execute(
                     """
+                    select plan_id
+                    from matrix_publish_item
+                    where id = %s
+                    """,
+                    (item_id,),
+                )
+                item_plan = cursor.fetchone()
+                if item_plan is None:
+                    return self._rollback_result(None)
+
+                plan_id = int(item_plan["plan_id"])
+                cursor.execute(
+                    """
+                    select id
+                    from matrix_publish_plan
+                    where id = %s
+                    for update
+                    """,
+                    (plan_id,),
+                )
+                plan = cursor.fetchone()
+                if plan is None:
+                    return self._rollback_result(None)
+
+                cursor.execute(
+                    """
                     select id, plan_id, status
                     from matrix_publish_item
                     where id = %s
@@ -514,7 +540,6 @@ class MatrixPlanRepository:
                 if int(item["status"]) != 3:
                     return self._rollback_result({"error": "publish item is not submitting"})
 
-                plan_id = int(item["plan_id"])
                 cursor.execute(
                     """
                     update matrix_publish_item
@@ -565,7 +590,9 @@ class MatrixPlanRepository:
             (plan_id,),
         )
         statuses = [int(row["status"]) for row in cursor.fetchall()]
-        if statuses and all(status == 4 for status in statuses):
+        if any(status in {5, 6} for status in statuses):
+            status = 6
+        elif statuses and all(status == 4 for status in statuses):
             status = 5
         else:
             status = 4

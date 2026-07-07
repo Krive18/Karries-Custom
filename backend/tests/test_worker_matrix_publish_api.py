@@ -89,6 +89,55 @@ def create_claimed_worker_item(
     return items[0]["id"], plan_id
 
 
+def create_claimed_worker_items(
+    mysql_conn,
+    mysql_app_client,
+    suffix: str,
+    *,
+    draft_count: int,
+    claim_limit: int,
+    now_time: int = 1_700_000_000,
+) -> tuple[list[dict], int]:
+    mysql_app_client.app.state.config.worker_api_token = "worker-secret"
+    headers = auth_headers(mysql_conn, mysql_app_client, f"worker-result-{suffix}")
+    account_id = create_xhs_account(mysql_app_client, headers, f"worker-result-{suffix}")
+    product_id = create_product(mysql_app_client, headers, f"worker-result-{suffix}")
+    draft_ids = [
+        create_confirmed_draft(
+            mysql_app_client,
+            headers,
+            product_id,
+            account_id,
+            f"worker-result-{suffix}-{index}",
+        )
+        for index in range(draft_count)
+    ]
+    plan_id = create_plan_from_drafts(
+        mysql_app_client,
+        headers,
+        draft_ids,
+        account_id,
+        f"worker-result-{suffix}",
+    )
+    confirm = mysql_app_client.post(f"/api/matrix-plans/{plan_id}/confirm", headers=headers)
+    assert confirm.status_code == 200
+
+    expected_item_count = min(draft_count, claim_limit)
+    items: list[dict] = []
+    while len(items) < expected_item_count:
+        claim_response = mysql_app_client.post(
+            "/api/worker/matrix-publish-items/claim",
+            headers={"X-Worker-Token": "worker-secret"},
+            json={"limit": expected_item_count - len(items), "now_time": now_time},
+        )
+        assert claim_response.status_code == 200
+        claimed_items = claim_response.json()["data"]["items"]
+        assert claimed_items
+        items.extend(claimed_items)
+
+    return items, plan_id
+
+
 def test_worker_claim_due_items_marks_items_submitting(mysql_conn, mysql_app_client):
     mysql_app_client.app.state.config.worker_api_token = "worker-secret"
     headers = auth_headers(mysql_conn, mysql_app_client, "worker-claim")
@@ -267,6 +316,80 @@ def test_worker_manual_takeover_marks_item_and_plan_failed(mysql_conn, mysql_app
         assert item["last_error"] == "login expired"
         cursor.execute("select status from matrix_publish_plan where id = %s", (plan_id,))
         assert cursor.fetchone()["status"] == 6
+
+
+def test_worker_success_after_fail_keeps_plan_failed(mysql_conn, mysql_app_client):
+    items, plan_id = create_claimed_worker_items(
+        mysql_conn,
+        mysql_app_client,
+        "fail-then-success",
+        draft_count=2,
+        claim_limit=2,
+        now_time=1_700_086_400,
+    )
+
+    fail_response = mysql_app_client.post(
+        f"/api/worker/matrix-publish-items/{items[0]['id']}/fail",
+        headers={"X-Worker-Token": "worker-secret"},
+        json={"error_message": "upload failed"},
+    )
+    assert fail_response.status_code == 200
+    assert fail_response.json()["data"]["plan_status"] == 6
+
+    success_response = mysql_app_client.post(
+        f"/api/worker/matrix-publish-items/{items[1]['id']}/success",
+        headers={"X-Worker-Token": "worker-secret"},
+        json={"message": "submitted"},
+    )
+
+    assert success_response.status_code == 200
+    assert success_response.json()["data"]["status"] == 4
+    assert success_response.json()["data"]["plan_status"] == 6
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("select status from matrix_publish_plan where id = %s", (plan_id,))
+        assert cursor.fetchone()["status"] == 6
+        cursor.execute(
+            "select status from matrix_publish_item where plan_id = %s order by id asc",
+            (plan_id,),
+        )
+        assert [row["status"] for row in cursor.fetchall()] == [5, 4]
+
+
+def test_worker_success_after_manual_takeover_keeps_plan_failed(mysql_conn, mysql_app_client):
+    items, plan_id = create_claimed_worker_items(
+        mysql_conn,
+        mysql_app_client,
+        "manual-then-success",
+        draft_count=2,
+        claim_limit=2,
+        now_time=1_700_086_400,
+    )
+
+    manual_response = mysql_app_client.post(
+        f"/api/worker/matrix-publish-items/{items[0]['id']}/manual-takeover",
+        headers={"X-Worker-Token": "worker-secret"},
+        json={"reason": "login expired"},
+    )
+    assert manual_response.status_code == 200
+    assert manual_response.json()["data"]["plan_status"] == 6
+
+    success_response = mysql_app_client.post(
+        f"/api/worker/matrix-publish-items/{items[1]['id']}/success",
+        headers={"X-Worker-Token": "worker-secret"},
+        json={"message": "submitted"},
+    )
+
+    assert success_response.status_code == 200
+    assert success_response.json()["data"]["status"] == 4
+    assert success_response.json()["data"]["plan_status"] == 6
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("select status from matrix_publish_plan where id = %s", (plan_id,))
+        assert cursor.fetchone()["status"] == 6
+        cursor.execute(
+            "select status from matrix_publish_item where plan_id = %s order by id asc",
+            (plan_id,),
+        )
+        assert [row["status"] for row in cursor.fetchall()] == [6, 4]
 
 
 def test_worker_result_returns_not_found_for_missing_item(mysql_conn, mysql_app_client):
