@@ -107,6 +107,60 @@ def list_matrix_plans(
     return ok(repo.list_plans(user["id"]))
 
 
+@router.get("/{plan_id}")
+def get_matrix_plan(
+    plan_id: int,
+    user: dict = Depends(current_user),
+    conn=Depends(get_db_connection),
+) -> dict:
+    repo = MatrixPlanRepository(conn)
+    plan = repo.get_plan_for_user(user["id"], plan_id)
+    if plan is None:
+        return _not_found("matrix plan not found")
+    return ok(plan)
+
+
+@router.get("/{plan_id}/items")
+def list_matrix_plan_items(
+    plan_id: int,
+    user: dict = Depends(current_user),
+    conn=Depends(get_db_connection),
+) -> dict:
+    repo = MatrixPlanRepository(conn)
+    items = repo.list_items_for_plan(user["id"], plan_id)
+    if items is None:
+        return _not_found("matrix plan not found")
+    return ok(items)
+
+
+@router.post("/{plan_id}/confirm")
+def confirm_matrix_plan(
+    plan_id: int,
+    user: dict = Depends(current_user),
+    conn=Depends(get_db_connection),
+) -> dict:
+    result = MatrixPlanRepository(conn).confirm_plan(user["id"], plan_id)
+    if result is None:
+        return _not_found("matrix plan not found")
+    if "error" in result:
+        return _validation_error(result["error"])
+    return ok(result)
+
+
+@router.post("/{plan_id}/cancel")
+def cancel_matrix_plan(
+    plan_id: int,
+    user: dict = Depends(current_user),
+    conn=Depends(get_db_connection),
+) -> dict:
+    result = MatrixPlanRepository(conn).cancel_plan(user["id"], plan_id)
+    if result is None:
+        return _not_found("matrix plan not found")
+    if "error" in result:
+        return _validation_error(result["error"])
+    return ok(result)
+
+
 def _not_found(message: str) -> JSONResponse:
     return JSONResponse(
         status_code=404,

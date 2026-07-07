@@ -171,6 +171,24 @@ class MatrixPlanRepository:
             )
             return [self._row_to_plan(row) for row in cursor.fetchall()]
 
+    def list_items_for_plan(self, user_id: int, plan_id: int) -> list[dict] | None:
+        if self.get_plan_for_user(user_id, plan_id) is None:
+            return None
+
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                select id, plan_id, user_id, xhs_account_id, content_type,
+                       title, body, tag_json, material_json, scheduled_time,
+                       status, last_error, create_time, update_time
+                from matrix_publish_item
+                where user_id = %s and plan_id = %s
+                order by scheduled_time asc, id asc
+                """,
+                (user_id, plan_id),
+            )
+            return [self._row_to_item(row) for row in cursor.fetchall()]
+
     def get_plan_for_user(self, user_id: int, plan_id: int) -> dict | None:
         with self.conn.cursor() as cursor:
             cursor.execute(
@@ -184,6 +202,105 @@ class MatrixPlanRepository:
         if row is None:
             return None
         return self._row_to_plan(row)
+
+    def confirm_plan(self, user_id: int, plan_id: int) -> dict | None:
+        now = int(time.time())
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    "select id, status from matrix_publish_plan where user_id = %s and id = %s for update",
+                    (user_id, plan_id),
+                )
+                plan = cursor.fetchone()
+                if plan is None:
+                    return None
+                if int(plan["status"]) != 2:
+                    return {"error": "plan status does not allow confirmation"}
+
+                cursor.execute(
+                    """
+                    select id, title, body, status
+                    from matrix_publish_item
+                    where user_id = %s and plan_id = %s
+                    for update
+                    """,
+                    (user_id, plan_id),
+                )
+                rows = cursor.fetchall()
+                if not rows:
+                    return {"error": "plan has no publish items"}
+                if any(int(row["status"]) != 1 for row in rows):
+                    return {"error": "publish items are not all pending confirmation"}
+                if any(
+                    not str(row["title"]).strip() or not str(row["body"]).strip()
+                    for row in rows
+                ):
+                    return {"error": "publish item title and body are required"}
+
+                cursor.execute(
+                    "update matrix_publish_plan set status = 3, update_time = %s where id = %s",
+                    (now, plan_id),
+                )
+                cursor.execute(
+                    """
+                    update matrix_publish_item
+                    set status = 2, update_time = %s
+                    where user_id = %s and plan_id = %s and status = 1
+                    """,
+                    (now, user_id, plan_id),
+                )
+                item_count = cursor.rowcount
+            self.conn.commit()
+            return {"id": plan_id, "status": 3, "item_count": item_count}
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def cancel_plan(self, user_id: int, plan_id: int) -> dict | None:
+        now = int(time.time())
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    "select id, status from matrix_publish_plan where user_id = %s and id = %s for update",
+                    (user_id, plan_id),
+                )
+                plan = cursor.fetchone()
+                if plan is None:
+                    return None
+                if int(plan["status"]) not in {1, 2, 3}:
+                    return {"error": "plan status does not allow cancellation"}
+
+                cursor.execute(
+                    """
+                    select id, status
+                    from matrix_publish_item
+                    where user_id = %s and plan_id = %s
+                    for update
+                    """,
+                    (user_id, plan_id),
+                )
+                item_rows = cursor.fetchall()
+                if any(int(row["status"]) == 3 for row in item_rows):
+                    return {"error": "plan has items already submitting"}
+
+                cursor.execute(
+                    "update matrix_publish_plan set status = 7, update_time = %s where id = %s",
+                    (now, plan_id),
+                )
+                cursor.execute(
+                    """
+                    update matrix_publish_item
+                    set status = 7, update_time = %s
+                    where user_id = %s and plan_id = %s and status in (1, 2)
+                    """,
+                    (now, user_id, plan_id),
+                )
+                cancelled_item_count = cursor.rowcount
+            self.conn.commit()
+            return {"id": plan_id, "status": 7, "cancelled_item_count": cancelled_item_count}
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def validate_product_for_user(self, user_id: int, product_id: int) -> bool:
         with self.conn.cursor() as cursor:
@@ -242,6 +359,24 @@ class MatrixPlanRepository:
         plan["item_count"] = int(row["item_count"])
         return plan
 
+    def _row_to_item(self, row: dict) -> dict:
+        return {
+            "id": row["id"],
+            "plan_id": row["plan_id"],
+            "user_id": row["user_id"],
+            "xhs_account_id": row["xhs_account_id"],
+            "content_type": row["content_type"],
+            "title": row["title"],
+            "body": row["body"],
+            "tags": self._load_json_list(row["tag_json"]),
+            "material": self._load_json_dict(row["material_json"]),
+            "scheduled_time": row["scheduled_time"],
+            "status": row["status"],
+            "last_error": row["last_error"],
+            "create_time": row["create_time"],
+            "update_time": row["update_time"],
+        }
+
     def _draft_item_material(self, draft: dict, account_id: int) -> dict:
         material = dict(draft.get("material") or {})
         material["draft_id"] = draft["id"]
@@ -263,3 +398,14 @@ class MatrixPlanRepository:
         if isinstance(parsed, dict):
             return parsed
         return {}
+
+    def _load_json_list(self, raw_value: str) -> list:
+        if not raw_value:
+            return []
+        try:
+            parsed = json.loads(raw_value)
+        except (TypeError, json.JSONDecodeError):
+            return []
+        if isinstance(parsed, list):
+            return parsed
+        return []
