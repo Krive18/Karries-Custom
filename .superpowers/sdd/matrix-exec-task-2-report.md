@@ -43,3 +43,26 @@ Test result:
 
 Concerns:
 - None. Scope stayed within the allowed files.
+
+## 2026-07-07 Reviewer Coverage Follow-up
+
+Status: SUCCESS
+
+Changed files:
+- backend/tests/test_matrix_plan_execution_queue_api.py
+- .superpowers/sdd/matrix-exec-task-2-report.md
+
+Coverage added:
+- Added an explicit confirm regression test for blank `body` so `publish item title and body are required` is now covered independently from blank `title`.
+- Added a `GET /api/matrix-plans/{plan_id}` detail isolation test proving a different user receives `404 NOT_FOUND`.
+
+Notes:
+- This follow-up only adds coverage. The underlying behavior was already present, so no production logic was changed.
+
+Test command:
+```powershell
+$env:MYSQL_TEST_HOST='127.0.0.1'; $env:MYSQL_TEST_PORT='3306'; $env:MYSQL_TEST_DATABASE='xhs_publisher_test'; $env:MYSQL_TEST_USER='root'; $env:MYSQL_TEST_PASSWORD='123456'; .\.venv\Scripts\python -m pytest backend/tests/test_matrix_plan_execution_queue_api.py -q
+```
+
+Test result:
+- PASS (13 passed)

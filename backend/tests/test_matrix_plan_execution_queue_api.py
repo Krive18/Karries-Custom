@@ -251,6 +251,26 @@ def test_get_matrix_plan_returns_plan_detail(mysql_conn, mysql_app_client):
     assert data["scheduling_rule"]["draft_ids"] == [draft_id]
 
 
+def test_get_matrix_plan_returns_404_for_other_user(mysql_conn, mysql_app_client):
+    owner_headers = auth_headers(mysql_conn, mysql_app_client, "detail-owner")
+    other_headers = auth_headers(mysql_conn, mysql_app_client, "detail-other")
+    account_id = create_xhs_account(mysql_app_client, owner_headers, "detail-owner")
+    product_id = create_product(mysql_app_client, owner_headers, "detail-owner")
+    draft_id = create_confirmed_draft(
+        mysql_app_client, owner_headers, product_id, account_id, "detail-owner"
+    )
+    plan_id = create_plan_from_drafts(
+        mysql_app_client, owner_headers, [draft_id], account_id, "detail-owner"
+    )
+
+    response = mysql_app_client.get(f"/api/matrix-plans/{plan_id}", headers=other_headers)
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error"]["code"] == "NOT_FOUND"
+    assert payload["error"]["message"] == "matrix plan not found"
+
+
 def test_get_plan_items_are_sorted_by_schedule_time(mysql_conn, mysql_app_client):
     headers = auth_headers(mysql_conn, mysql_app_client, "sorted")
     account_id = create_xhs_account(mysql_app_client, headers, "sorted")
@@ -334,6 +354,43 @@ def test_confirm_plan_rejects_blank_title_or_body(mysql_conn, mysql_app_client):
     with mysql_conn.cursor() as cursor:
         cursor.execute(
             "update matrix_publish_item set title = %s where plan_id = %s",
+            ("   ", plan_id),
+        )
+    mysql_conn.commit()
+
+    response = mysql_app_client.post(
+        f"/api/matrix-plans/{plan_id}/confirm", headers=headers
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error"]["code"] == "VALIDATION_ERROR"
+    assert payload["error"]["message"] == "publish item title and body are required"
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("select status from matrix_publish_plan where id = %s", (plan_id,))
+        assert cursor.fetchone()["status"] == 2
+        cursor.execute(
+            "select status from matrix_publish_item where plan_id = %s",
+            (plan_id,),
+        )
+        assert cursor.fetchone()["status"] == 1
+
+
+def test_confirm_plan_rejects_blank_body(mysql_conn, mysql_app_client):
+    headers = auth_headers(mysql_conn, mysql_app_client, "blank-body")
+    account_id = create_xhs_account(mysql_app_client, headers, "blank-body")
+    product_id = create_product(mysql_app_client, headers, "blank-body")
+    draft_id = create_confirmed_draft(
+        mysql_app_client, headers, product_id, account_id, "blank-body"
+    )
+    plan_id = create_plan_from_drafts(
+        mysql_app_client, headers, [draft_id], account_id, "blank-body"
+    )
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "update matrix_publish_item set body = %s where plan_id = %s",
             ("   ", plan_id),
         )
     mysql_conn.commit()
