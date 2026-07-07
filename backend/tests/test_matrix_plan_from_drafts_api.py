@@ -1,5 +1,7 @@
 import json
 
+from app.repositories.user_repository import UserRepository
+
 
 def test_matrix_plan_from_drafts_schema_accepts_schedule_aliases():
     from app.schemas.matrix_plan import MatrixPlanFromDraftsCreate
@@ -186,3 +188,162 @@ def test_create_matrix_plan_from_drafts_rejects_unconfirmed_drafts(monkeypatch):
     assert response.status_code == 400
     body = json.loads(response.body)
     assert body["error"]["code"] == "VALIDATION_ERROR"
+
+
+def auth_headers(mysql_conn, mysql_app_client, suffix: str) -> dict[str, str]:
+    invite_code = f"INV-DRAFT-MATRIX-{suffix}"
+    UserRepository(mysql_conn).create_invite_code(
+        invite_code,
+        initial_credits=0,
+        max_uses=1,
+        expires_time=0,
+        remark="draft-matrix-plan-api",
+    )
+
+    response = mysql_app_client.post(
+        "/api/auth/register",
+        json={
+            "login_name": f"draft_matrix_user_{suffix}",
+            "nickname": f"Draft Matrix User {suffix}",
+            "password": "matrix-secret",
+            "invite_code": invite_code,
+        },
+    )
+
+    assert response.status_code == 200
+    token = response.json()["data"]["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def create_product(mysql_app_client, headers: dict[str, str], suffix: str) -> int:
+    response = mysql_app_client.post(
+        "/api/products",
+        headers=headers,
+        json={
+            "product_name": f"Karries serum {suffix}",
+            "brand_name": "KARRIES",
+            "category": "skincare",
+            "selling_point": {"points": ["gentle", "daily routine"]},
+            "ai_material": {"scene": "morning commute", "audience": "office worker"},
+        },
+    )
+
+    assert response.status_code == 200
+    return response.json()["data"]["id"]
+
+
+def create_xhs_account(mysql_app_client, headers: dict[str, str], suffix: str) -> int:
+    response = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=headers,
+        json={
+            "display_name": f"Draft Matrix account {suffix}",
+            "profile": {
+                "persona": "gentle skincare advisor",
+                "target_audience": "office workers",
+                "tone": "natural",
+                "tag_preferences": "[\"#skincare\", \"#routine\"]",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    return response.json()["data"]["id"]
+
+
+def create_confirmed_draft(
+    mysql_app_client, headers: dict[str, str], product_id: int, account_id: int
+) -> int:
+    generate_response = mysql_app_client.post(
+        "/api/content-drafts/product-copy",
+        headers=headers,
+        json={
+            "product_id": product_id,
+            "xhs_account_id": account_id,
+            "extra_requirement": "keep the copy friendly",
+        },
+    )
+    assert generate_response.status_code == 200
+    draft_id = generate_response.json()["data"]["id"]
+
+    update_response = mysql_app_client.patch(
+        f"/api/content-drafts/{draft_id}",
+        headers=headers,
+        json={
+            "title": "Friendly routine note",
+            "body": "Final reviewed copy",
+            "tags": ["#reviewed", "#skincare"],
+            "status": "confirmed",
+        },
+    )
+    assert update_response.status_code == 200
+    return draft_id
+
+
+def test_create_matrix_plan_from_confirmed_drafts_copies_content(
+    mysql_conn, mysql_app_client
+):
+    headers = auth_headers(mysql_conn, mysql_app_client, "copy")
+    account_id = create_xhs_account(mysql_app_client, headers, "copy")
+    product_id = create_product(mysql_app_client, headers, "copy")
+    draft_id = create_confirmed_draft(mysql_app_client, headers, product_id, account_id)
+
+    response = mysql_app_client.post(
+        "/api/matrix-plans/from-drafts",
+        headers=headers,
+        json={
+            "plan_name": "Reviewed content matrix",
+            "draft_ids": [draft_id],
+            "xhs_account_ids": [account_id],
+            "schedule_start_time": 1_700_000_000,
+            "schedule_end_time": 1_700_086_400,
+            "min_interval_minutes": 360,
+        },
+    )
+
+    assert response.status_code == 200
+    created = response.json()["data"]
+    assert created["id"] > 0
+    assert created["item_count"] == 1
+    assert created["draft_count"] == 1
+    assert created["account_count"] == 1
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select source_type, content_type, product_id, status, scheduling_rule_json
+            from matrix_publish_plan
+            where id = %s
+            """,
+            (created["id"],),
+        )
+        plan = cursor.fetchone()
+        cursor.execute(
+            """
+            select xhs_account_id, title, body, tag_json, material_json, status, scheduled_time
+            from matrix_publish_item
+            where plan_id = %s
+            """,
+            (created["id"],),
+        )
+        item = cursor.fetchone()
+
+    assert plan["source_type"] == "content_draft"
+    assert plan["content_type"] == "image_text"
+    assert plan["product_id"] == 0
+    assert plan["status"] == 2
+    rule = json.loads(plan["scheduling_rule_json"])
+    assert rule["draft_ids"] == [draft_id]
+    assert rule["xhs_account_ids"] == [account_id]
+
+    assert item["xhs_account_id"] == account_id
+    assert item["title"] == "Friendly routine note"
+    assert item["body"] == "Final reviewed copy"
+    assert json.loads(item["tag_json"]) == ["#reviewed", "#skincare"]
+    material = json.loads(item["material_json"])
+    assert material["draft_id"] == draft_id
+    assert material["source_content_draft_id"] == draft_id
+    assert material["source_product_id"] == product_id
+    assert material["target_xhs_account_id"] == account_id
+    assert item["status"] == 1
+    assert item["scheduled_time"] == 1_700_000_000
