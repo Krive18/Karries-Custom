@@ -1,7 +1,8 @@
 import json
 import time
+from typing import Any
 
-from app.schemas.matrix_plan import MatrixPlanCreate
+from app.schemas.matrix_plan import MatrixPlanCreate, MatrixPlanFromDraftsCreate
 
 
 PLAN_FIELDS = (
@@ -83,6 +84,77 @@ class MatrixPlanRepository:
                     )
             self.conn.commit()
             return plan_id, len(schedule)
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def create_plan_from_drafts(
+        self,
+        user_id: int,
+        payload: MatrixPlanFromDraftsCreate,
+        drafts: list[dict],
+        draft_schedule: list[tuple[int, int, int]],
+    ) -> tuple[int, int]:
+        now = int(time.time())
+        drafts_by_id = {int(draft["id"]): draft for draft in drafts}
+        scheduling_rule = {
+            "source": "content_draft",
+            "draft_ids": payload.draft_ids,
+            "xhs_account_ids": payload.xhs_account_ids,
+            "items_per_account": len(payload.draft_ids),
+            "min_interval_minutes": payload.min_interval_minutes,
+        }
+
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    insert into matrix_publish_plan (
+                        user_id, plan_name, source_type, content_type, product_id,
+                        status, schedule_start_time, schedule_end_time,
+                        scheduling_rule_json, create_time, update_time
+                    )
+                    values (%s, %s, 'content_draft', 'image_text', 0, 2, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        user_id,
+                        payload.plan_name,
+                        payload.schedule_start_time,
+                        payload.schedule_end_time,
+                        self._dump_json(scheduling_rule),
+                        now,
+                        now,
+                    ),
+                )
+                plan_id = int(cursor.lastrowid)
+                for account_id, draft_id, scheduled_time in draft_schedule:
+                    draft = drafts_by_id[draft_id]
+                    material = self._draft_item_material(draft, account_id)
+                    cursor.execute(
+                        """
+                        insert into matrix_publish_item (
+                            plan_id, user_id, xhs_account_id, content_type,
+                            title, body, tag_json, material_json, scheduled_time,
+                            status, last_error, create_time, update_time
+                        )
+                        values (%s, %s, %s, %s, %s, %s, %s, %s, %s, 1, '', %s, %s)
+                        """,
+                        (
+                            plan_id,
+                            user_id,
+                            account_id,
+                            draft["content_type"],
+                            draft["title"],
+                            draft["body"],
+                            self._dump_json(draft["tags"]),
+                            self._dump_json(material),
+                            scheduled_time,
+                            now,
+                            now,
+                        ),
+                    )
+            self.conn.commit()
+            return plan_id, len(draft_schedule)
         except Exception:
             self.conn.rollback()
             raise
@@ -170,7 +242,15 @@ class MatrixPlanRepository:
         plan["item_count"] = int(row["item_count"])
         return plan
 
-    def _dump_json(self, value: dict) -> str:
+    def _draft_item_material(self, draft: dict, account_id: int) -> dict:
+        material = dict(draft.get("material") or {})
+        material["draft_id"] = draft["id"]
+        material["source_content_draft_id"] = draft["id"]
+        material["source_product_id"] = draft["product_id"]
+        material["target_xhs_account_id"] = account_id
+        return material
+
+    def _dump_json(self, value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
 
     def _load_json_dict(self, raw_value: str) -> dict:

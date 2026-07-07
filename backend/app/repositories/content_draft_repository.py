@@ -69,6 +69,24 @@ class ContentDraftRepository:
             return None
         return self._row_to_draft(row)
 
+    def list_for_user_by_ids(self, user_id: int, draft_ids: list[int]) -> list[dict]:
+        if not draft_ids:
+            return []
+
+        placeholders = ", ".join(["%s"] * len(draft_ids))
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                self._select_sql()
+                + f"""
+                where user_id = %s and id in ({placeholders})
+                """,
+                (user_id, *draft_ids),
+            )
+            rows = cursor.fetchall()
+
+        drafts_by_id = {int(row["id"]): self._row_to_draft(row) for row in rows}
+        return [drafts_by_id[draft_id] for draft_id in draft_ids if draft_id in drafts_by_id]
+
     def list_by_user(
         self,
         user_id: int,
