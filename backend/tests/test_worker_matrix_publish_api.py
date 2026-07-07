@@ -151,6 +151,55 @@ def test_worker_success_marks_item_submitted_and_plan_complete(mysql_conn, mysql
         assert cursor.fetchone()["status"] == 5
 
 
+def test_full_matrix_queue_lifecycle(mysql_conn, mysql_app_client):
+    mysql_app_client.app.state.config.worker_api_token = "worker-secret"
+    headers = auth_headers(mysql_conn, mysql_app_client, "full-life")
+    account_id = create_xhs_account(mysql_app_client, headers, "full-life")
+    product_id = create_product(mysql_app_client, headers, "full-life")
+    draft_id = create_confirmed_draft(
+        mysql_app_client,
+        headers,
+        product_id,
+        account_id,
+        "full-life",
+    )
+    plan_id = create_plan_from_drafts(
+        mysql_app_client,
+        headers,
+        [draft_id],
+        account_id,
+        "full-life",
+    )
+
+    detail = mysql_app_client.get(f"/api/matrix-plans/{plan_id}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["data"]["status"] == 2
+
+    confirm = mysql_app_client.post(f"/api/matrix-plans/{plan_id}/confirm", headers=headers)
+    assert confirm.status_code == 200
+
+    claim = mysql_app_client.post(
+        "/api/worker/matrix-publish-items/claim",
+        headers={"X-Worker-Token": "worker-secret"},
+        json={"limit": 1, "now_time": 1_700_000_000},
+    )
+    assert claim.status_code == 200
+    item_id = claim.json()["data"]["items"][0]["id"]
+
+    success = mysql_app_client.post(
+        f"/api/worker/matrix-publish-items/{item_id}/success",
+        headers={"X-Worker-Token": "worker-secret"},
+        json={"message": "submitted"},
+    )
+    assert success.status_code == 200
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("select status from matrix_publish_plan where id = %s", (plan_id,))
+        assert cursor.fetchone()["status"] == 5
+        cursor.execute("select status from matrix_publish_item where id = %s", (item_id,))
+        assert cursor.fetchone()["status"] == 4
+
+
 def test_worker_success_keeps_plan_running_when_other_items_not_done(mysql_conn, mysql_app_client):
     item_id, plan_id = create_claimed_worker_item(
         mysql_conn,

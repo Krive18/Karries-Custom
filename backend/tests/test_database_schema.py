@@ -357,3 +357,21 @@ def test_migrate_is_idempotent(mysql_conn):
         """,
     )["total"]
     assert after == before
+
+
+def test_matrix_publish_status_comments_include_cancelled_status(mysql_conn):
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select table_name as table_name,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name in ('matrix_publish_plan', 'matrix_publish_item')
+          and column_name = 'status'
+        """,
+    )
+
+    comments = {row["table_name"]: row["column_comment"] for row in rows}
+    assert "7-取消" in comments["matrix_publish_plan"]
+    assert "7-取消" in comments["matrix_publish_item"]
