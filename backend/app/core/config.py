@@ -27,6 +27,7 @@ class AppConfig(BaseModel):
     runtime_dir: Path
     mysql: MysqlConfig
     auth: AuthConfig
+    worker_api_token: str
 
 
 def default_config() -> AppConfig:
@@ -58,4 +59,5 @@ def default_config() -> AppConfig:
             token_secret=token_secret,
             access_token_seconds=int(os.environ.get("XHS_ACCESS_TOKEN_SECONDS", "86400")),
         ),
+        worker_api_token=os.environ.get("WORKER_API_TOKEN", ""),
     )

@@ -72,3 +72,13 @@ def test_default_config_allows_custom_auth_secret_in_production(monkeypatch):
 
     assert config.environment == "production"
     assert config.auth.token_secret == "production-secret"
+
+
+def test_default_config_reads_worker_api_token(monkeypatch):
+    monkeypatch.setenv("WORKER_API_TOKEN", "worker-secret")
+
+    from app.core.config import default_config
+
+    config = default_config()
+
+    assert config.worker_api_token == "worker-secret"

@@ -48,3 +48,77 @@ class MatrixPlanFromDraftsCreate(BaseModel):
     @classmethod
     def normalize_schedule_aliases(cls, data: Any) -> Any:
         return _normalize_schedule_aliases(data)
+
+
+class MatrixPlanActionResult(BaseModel):
+    id: int
+    status: int
+    item_count: int = 0
+    cancelled_item_count: int = 0
+
+
+class MatrixPlanDetail(BaseModel):
+    id: int
+    user_id: int
+    plan_name: str
+    source_type: str
+    content_type: str
+    product_id: int
+    status: int
+    schedule_start_time: int
+    schedule_end_time: int
+    scheduling_rule: dict[str, Any]
+    item_count: int
+    create_time: int
+    update_time: int
+
+
+class MatrixPlanItemDetail(BaseModel):
+    id: int
+    plan_id: int
+    xhs_account_id: int
+    content_type: str
+    title: str
+    body: str
+    tags: list[str]
+    material: dict[str, Any]
+    scheduled_time: int
+    status: int
+    last_error: str
+    create_time: int
+    update_time: int
+
+
+class WorkerClaimRequest(BaseModel):
+    limit: int = Field(default=5, ge=1, le=20)
+    now_time: int | None = Field(default=None, ge=0)
+
+
+class WorkerClaimedItem(BaseModel):
+    id: int
+    plan_id: int
+    user_id: int
+    xhs_account_id: int
+    login_state_path: str
+    content_type: str
+    title: str
+    body: str
+    tags: list[str]
+    material: dict[str, Any]
+    scheduled_time: int
+
+
+class WorkerClaimResponse(BaseModel):
+    items: list[WorkerClaimedItem]
+
+
+class WorkerItemSuccessRequest(BaseModel):
+    message: str = Field(default="", max_length=1000)
+
+
+class WorkerItemFailRequest(BaseModel):
+    error_message: str = Field(min_length=1, max_length=1000)
+
+
+class WorkerItemManualTakeoverRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=1000)

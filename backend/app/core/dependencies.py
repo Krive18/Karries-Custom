@@ -44,4 +44,15 @@ def get_current_user(
     return user
 
 
+def verify_worker_token(
+    request: Request,
+    x_worker_token: str = Header(default="", alias="X-Worker-Token"),
+) -> None:
+    configured_token = request.app.state.config.worker_api_token
+    if not configured_token:
+        raise HTTPException(status_code=503, detail="worker api token is not configured")
+    if not x_worker_token or x_worker_token != configured_token:
+        raise HTTPException(status_code=401, detail="invalid worker token")
+
+
 current_user = get_current_user
