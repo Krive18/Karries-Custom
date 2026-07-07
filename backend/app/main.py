@@ -17,6 +17,7 @@ from app.api.runtime import router as runtime_router
 from app.api.settings import router as settings_router
 from app.api.tasks import router as tasks_router
 from app.api.wallet import router as wallet_router
+from app.api.worker_matrix_publish import router as worker_matrix_publish_router
 from app.api.xhs_accounts import router as xhs_accounts_router
 from app.core.config import default_config
 from app.core.responses import fail, ok
@@ -84,6 +85,8 @@ def create_app() -> FastAPI:
             code = "UNAUTHORIZED"
         elif exc.status_code == 403:
             code = "FORBIDDEN"
+        elif exc.status_code == 503:
+            code = "SERVICE_UNAVAILABLE"
         else:
             code = "HTTP_ERROR"
         return JSONResponse(
@@ -102,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_router)
     app.include_router(tasks_router)
     app.include_router(wallet_router)
+    app.include_router(worker_matrix_publish_router)
     app.include_router(xhs_accounts_router)
 
     @app.get("/api/health")

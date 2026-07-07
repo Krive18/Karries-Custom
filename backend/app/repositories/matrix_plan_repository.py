@@ -312,6 +312,69 @@ class MatrixPlanRepository:
             self.conn.rollback()
             raise
 
+    def claim_due_items(self, limit: int, now_time: int) -> list[dict]:
+        now = int(time.time())
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    select
+                        i.id,
+                        i.plan_id,
+                        i.user_id,
+                        i.xhs_account_id,
+                        a.login_state_path,
+                        i.content_type,
+                        i.title,
+                        i.body,
+                        i.tag_json,
+                        i.material_json,
+                        i.scheduled_time
+                    from matrix_publish_item i
+                    join matrix_publish_plan p on p.id = i.plan_id
+                    join xhs_account a on a.id = i.xhs_account_id and a.user_id = i.user_id
+                    where i.status = 2
+                      and i.scheduled_time <= %s
+                      and p.status in (3, 4)
+                      and a.status = 1
+                    order by i.scheduled_time asc, i.id asc
+                    limit %s
+                    for update skip locked
+                    """,
+                    (now_time, limit),
+                )
+                rows = cursor.fetchall()
+                if not rows:
+                    self.conn.commit()
+                    return []
+
+                item_ids = [int(row["id"]) for row in rows]
+                plan_ids = sorted({int(row["plan_id"]) for row in rows})
+                item_placeholders = ", ".join(["%s"] * len(item_ids))
+                plan_placeholders = ", ".join(["%s"] * len(plan_ids))
+
+                cursor.execute(
+                    f"""
+                    update matrix_publish_item
+                    set status = 3, update_time = %s
+                    where id in ({item_placeholders})
+                    """,
+                    (now, *item_ids),
+                )
+                cursor.execute(
+                    f"""
+                    update matrix_publish_plan
+                    set status = 4, update_time = %s
+                    where id in ({plan_placeholders})
+                    """,
+                    (now, *plan_ids),
+                )
+            self.conn.commit()
+            return [self._row_to_claimed_item(row) for row in rows]
+        except Exception:
+            self.conn.rollback()
+            raise
+
     def validate_product_for_user(self, user_id: int, product_id: int) -> bool:
         with self.conn.cursor() as cursor:
             cursor.execute(
@@ -385,6 +448,21 @@ class MatrixPlanRepository:
             "last_error": row["last_error"],
             "create_time": row["create_time"],
             "update_time": row["update_time"],
+        }
+
+    def _row_to_claimed_item(self, row: dict) -> dict:
+        return {
+            "id": row["id"],
+            "plan_id": row["plan_id"],
+            "user_id": row["user_id"],
+            "xhs_account_id": row["xhs_account_id"],
+            "login_state_path": row["login_state_path"],
+            "content_type": row["content_type"],
+            "title": row["title"],
+            "body": row["body"],
+            "tags": self._load_json_list(row["tag_json"]),
+            "material": self._load_json_dict(row["material_json"]),
+            "scheduled_time": row["scheduled_time"],
         }
 
     def _draft_item_material(self, draft: dict, account_id: int) -> dict:
