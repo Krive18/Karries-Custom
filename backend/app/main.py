@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.api.accounts import router as accounts_router
+from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
 from app.api.matrix_plans import router as matrix_plans_router
@@ -13,6 +14,7 @@ from app.api.products import router as products_router
 from app.api.runtime import router as runtime_router
 from app.api.settings import router as settings_router
 from app.api.tasks import router as tasks_router
+from app.api.wallet import router as wallet_router
 from app.api.xhs_accounts import router as xhs_accounts_router
 from app.core.config import default_config
 from app.core.responses import fail, ok
@@ -74,6 +76,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(auth_router)
+    app.include_router(admin_router)
     app.include_router(ai_router)
     app.include_router(accounts_router)
     app.include_router(matrix_plans_router)
@@ -81,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(runtime_router)
     app.include_router(settings_router)
     app.include_router(tasks_router)
+    app.include_router(wallet_router)
     app.include_router(xhs_accounts_router)
 
     @app.get("/api/health")
