@@ -18,6 +18,7 @@ from app.main import create_app
 MYSQL_TABLES = (
     "matrix_publish_item",
     "matrix_publish_plan",
+    "content_draft",
     "material_file",
     "product_material_package",
     "product",

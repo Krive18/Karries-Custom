@@ -12,6 +12,7 @@ SAAS_FOUNDATION_TABLES = {
     "product",
     "product_material_package",
     "material_file",
+    "content_draft",
     "matrix_publish_plan",
     "matrix_publish_item",
     "admin_audit_log",
@@ -114,7 +115,8 @@ def test_migrate_creates_saas_foundation_tables(mysql_conn):
             'app_user', 'invite_code', 'credit_wallet', 'credit_ledger',
             'recharge_package', 'xhs_account', 'xhs_account_profile',
             'product', 'product_material_package', 'material_file',
-            'matrix_publish_plan', 'matrix_publish_item', 'admin_audit_log'
+            'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
+            'admin_audit_log'
           )
         """,
     )
@@ -138,7 +140,8 @@ def test_migrate_declares_saas_foundation_column_comments_and_not_null(mysql_con
             'app_user', 'invite_code', 'credit_wallet', 'credit_ledger',
             'recharge_package', 'xhs_account', 'xhs_account_profile',
             'product', 'product_material_package', 'material_file',
-            'matrix_publish_plan', 'matrix_publish_item', 'admin_audit_log'
+            'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
+            'admin_audit_log'
           )
         """,
     )
@@ -164,7 +167,8 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
             'app_user', 'invite_code', 'credit_wallet', 'credit_ledger',
             'recharge_package', 'xhs_account', 'xhs_account_profile',
             'product', 'product_material_package', 'material_file',
-            'matrix_publish_plan', 'matrix_publish_item', 'admin_audit_log'
+            'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
+            'admin_audit_log'
           )
         """,
     )
@@ -259,6 +263,26 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
         },
         ("material_file", "idx_material_file_package_id"): {
             "columns": ["package_id"],
+            "non_unique": 1,
+        },
+        ("content_draft", "idx_content_draft_user_id"): {
+            "columns": ["user_id"],
+            "non_unique": 1,
+        },
+        ("content_draft", "idx_content_draft_product_id"): {
+            "columns": ["product_id"],
+            "non_unique": 1,
+        },
+        ("content_draft", "idx_content_draft_xhs_account_id"): {
+            "columns": ["xhs_account_id"],
+            "non_unique": 1,
+        },
+        ("content_draft", "idx_content_draft_status"): {
+            "columns": ["status"],
+            "non_unique": 1,
+        },
+        ("content_draft", "idx_content_draft_user_status_time"): {
+            "columns": ["user_id", "status", "update_time"],
             "non_unique": 1,
         },
         ("matrix_publish_plan", "idx_matrix_publish_plan_user_id"): {

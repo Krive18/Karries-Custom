@@ -232,6 +232,32 @@ SCHEMA_STATEMENTS = [
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='素材文件'
     """,
     """
+    create table if not exists content_draft (
+        id bigint unsigned not null auto_increment comment 'Primary key',
+        user_id bigint unsigned not null comment 'Owner user ID',
+        product_id bigint unsigned not null comment 'Source product ID',
+        xhs_account_id bigint unsigned not null default 0 comment 'Target Xiaohongshu account ID, 0 means not bound',
+        source_type varchar(30) not null default 'product' comment 'Draft source type',
+        content_type varchar(30) not null default 'image_text' comment 'Content type, image_text or video',
+        title varchar(100) not null default '' comment 'Draft title',
+        body text not null comment 'Draft body text',
+        tag_json varchar(1000) not null default '[]' comment 'Tag list JSON',
+        material_json text not null comment 'Material and product context JSON',
+        status tinyint unsigned not null default 1 comment 'Draft status: 1 draft, 2 confirmed, 3 rejected',
+        ai_provider varchar(50) not null default '' comment 'AI provider or local generator',
+        model_name varchar(100) not null default '' comment 'AI model or generator name',
+        prompt_json text not null comment 'Prompt and generation parameter JSON',
+        create_time bigint unsigned not null comment 'Created timestamp',
+        update_time bigint unsigned not null comment 'Updated timestamp',
+        primary key (id),
+        key idx_content_draft_user_id (user_id),
+        key idx_content_draft_product_id (product_id),
+        key idx_content_draft_xhs_account_id (xhs_account_id),
+        key idx_content_draft_status (status),
+        key idx_content_draft_user_status_time (user_id, status, update_time)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='AI generated content draft'
+    """,
+    """
     create table if not exists matrix_publish_plan (
         id bigint unsigned not null auto_increment comment '主键',
         user_id bigint unsigned not null comment '所属用户 ID',
