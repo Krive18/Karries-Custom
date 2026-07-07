@@ -213,9 +213,11 @@ class MatrixPlanRepository:
                 )
                 plan = cursor.fetchone()
                 if plan is None:
-                    return None
+                    return self._rollback_result(None)
                 if int(plan["status"]) != 2:
-                    return {"error": "plan status does not allow confirmation"}
+                    return self._rollback_result(
+                        {"error": "plan status does not allow confirmation"}
+                    )
 
                 cursor.execute(
                     """
@@ -228,14 +230,18 @@ class MatrixPlanRepository:
                 )
                 rows = cursor.fetchall()
                 if not rows:
-                    return {"error": "plan has no publish items"}
+                    return self._rollback_result({"error": "plan has no publish items"})
                 if any(int(row["status"]) != 1 for row in rows):
-                    return {"error": "publish items are not all pending confirmation"}
+                    return self._rollback_result(
+                        {"error": "publish items are not all pending confirmation"}
+                    )
                 if any(
                     not str(row["title"]).strip() or not str(row["body"]).strip()
                     for row in rows
                 ):
-                    return {"error": "publish item title and body are required"}
+                    return self._rollback_result(
+                        {"error": "publish item title and body are required"}
+                    )
 
                 cursor.execute(
                     "update matrix_publish_plan set status = 3, update_time = %s where id = %s",
@@ -266,9 +272,11 @@ class MatrixPlanRepository:
                 )
                 plan = cursor.fetchone()
                 if plan is None:
-                    return None
+                    return self._rollback_result(None)
                 if int(plan["status"]) not in {1, 2, 3}:
-                    return {"error": "plan status does not allow cancellation"}
+                    return self._rollback_result(
+                        {"error": "plan status does not allow cancellation"}
+                    )
 
                 cursor.execute(
                     """
@@ -281,7 +289,9 @@ class MatrixPlanRepository:
                 )
                 item_rows = cursor.fetchall()
                 if any(int(row["status"]) == 3 for row in item_rows):
-                    return {"error": "plan has items already submitting"}
+                    return self._rollback_result(
+                        {"error": "plan has items already submitting"}
+                    )
 
                 cursor.execute(
                     "update matrix_publish_plan set status = 7, update_time = %s where id = %s",
@@ -409,3 +419,7 @@ class MatrixPlanRepository:
         if isinstance(parsed, list):
             return parsed
         return []
+
+    def _rollback_result(self, result):
+        self.conn.rollback()
+        return result
