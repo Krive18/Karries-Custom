@@ -1,3 +1,6 @@
+import json
+
+
 def test_matrix_plan_from_drafts_schema_accepts_schedule_aliases():
     from app.schemas.matrix_plan import MatrixPlanFromDraftsCreate
 
@@ -97,3 +100,89 @@ def test_create_plan_from_drafts_rolls_back_when_item_insert_fails():
     assert conn.rollback_count == 1
     assert any("insert into matrix_publish_plan" in statement for statement in conn.statements)
     assert any("insert into matrix_publish_item" in statement for statement in conn.statements)
+
+
+def test_create_matrix_plan_from_drafts_rejects_duplicate_draft_ids(monkeypatch):
+    from app.api import matrix_plans as matrix_plans_api
+    from app.schemas.matrix_plan import MatrixPlanFromDraftsCreate
+
+    class FakeRepository:
+        def __init__(self, _conn):
+            pass
+
+        def validate_accounts_for_user(self, *_args):
+            raise AssertionError("account validation should not run")
+
+    monkeypatch.setattr(matrix_plans_api, "MatrixPlanRepository", FakeRepository)
+
+    response = matrix_plans_api.create_matrix_plan_from_drafts(
+        payload=MatrixPlanFromDraftsCreate(
+            plan_name="Duplicate drafts",
+            draft_ids=[31, 31],
+            xhs_account_ids=[11],
+            schedule_start_time=1_700_000_000,
+            schedule_end_time=1_700_086_400,
+        ),
+        user={"id": 5},
+        conn=object(),
+    )
+
+    assert response.status_code == 400
+    body = json.loads(response.body)
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_create_matrix_plan_from_drafts_rejects_unconfirmed_drafts(monkeypatch):
+    from app.api import matrix_plans as matrix_plans_api
+    from app.schemas.matrix_plan import MatrixPlanFromDraftsCreate
+
+    class FakeMatrixRepository:
+        def __init__(self, _conn):
+            pass
+
+        def validate_accounts_for_user(self, user_id, account_ids):
+            assert user_id == 5
+            assert account_ids == [11]
+            return True
+
+        def create_plan_from_drafts(self, *_args, **_kwargs):
+            raise AssertionError("plan should not be created from draft status")
+
+    class FakeDraftRepository:
+        def __init__(self, _conn):
+            pass
+
+        def list_for_user_by_ids(self, user_id, draft_ids):
+            assert user_id == 5
+            assert draft_ids == [31]
+            return [
+                {
+                    "id": 31,
+                    "status": "draft",
+                    "product_id": 7,
+                    "content_type": "image_text",
+                    "title": "Draft title",
+                    "body": "Draft body",
+                    "tags": [],
+                    "material": {},
+                }
+            ]
+
+    monkeypatch.setattr(matrix_plans_api, "MatrixPlanRepository", FakeMatrixRepository)
+    monkeypatch.setattr(matrix_plans_api, "ContentDraftRepository", FakeDraftRepository)
+
+    response = matrix_plans_api.create_matrix_plan_from_drafts(
+        payload=MatrixPlanFromDraftsCreate(
+            plan_name="Unconfirmed drafts",
+            draft_ids=[31],
+            xhs_account_ids=[11],
+            schedule_start_time=1_700_000_000,
+            schedule_end_time=1_700_086_400,
+        ),
+        user={"id": 5},
+        conn=object(),
+    )
+
+    assert response.status_code == 400
+    body = json.loads(response.body)
+    assert body["error"]["code"] == "VALIDATION_ERROR"
