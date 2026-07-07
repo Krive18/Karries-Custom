@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import pymysql
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.accounts import router as accounts_router
@@ -43,6 +44,20 @@ def create_app() -> FastAPI:
     app.state.config = config
     app.state.conn = None
     app.state.connect_db = lambda: connect(config.mysql)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://127.0.0.1:3000",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://localhost:5173",
+            "http://127.0.0.1:5175",
+            "http://localhost:5175",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(_request, _exc):
