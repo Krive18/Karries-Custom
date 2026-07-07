@@ -375,6 +375,30 @@ class MatrixPlanRepository:
             self.conn.rollback()
             raise
 
+    def mark_item_success(self, item_id: int, message: str) -> dict | None:
+        return self._mark_worker_item(
+            item_id,
+            target_status=4,
+            last_error=message,
+            plan_failure=False,
+        )
+
+    def mark_item_failed(self, item_id: int, error_message: str) -> dict | None:
+        return self._mark_worker_item(
+            item_id,
+            target_status=5,
+            last_error=error_message,
+            plan_failure=True,
+        )
+
+    def mark_item_manual_takeover(self, item_id: int, reason: str) -> dict | None:
+        return self._mark_worker_item(
+            item_id,
+            target_status=6,
+            last_error=reason,
+            plan_failure=True,
+        )
+
     def validate_product_for_user(self, user_id: int, product_id: int) -> bool:
         with self.conn.cursor() as cursor:
             cursor.execute(
@@ -465,6 +489,63 @@ class MatrixPlanRepository:
             "scheduled_time": row["scheduled_time"],
         }
 
+    def _mark_worker_item(
+        self,
+        item_id: int,
+        target_status: int,
+        last_error: str,
+        plan_failure: bool,
+    ) -> dict | None:
+        now = int(time.time())
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    select id, plan_id, status
+                    from matrix_publish_item
+                    where id = %s
+                    for update
+                    """,
+                    (item_id,),
+                )
+                item = cursor.fetchone()
+                if item is None:
+                    return self._rollback_result(None)
+                if int(item["status"]) != 3:
+                    return self._rollback_result({"error": "publish item is not submitting"})
+
+                plan_id = int(item["plan_id"])
+                cursor.execute(
+                    """
+                    update matrix_publish_item
+                    set status = %s, last_error = %s, update_time = %s
+                    where id = %s
+                    """,
+                    (target_status, last_error, now, item_id),
+                )
+                if plan_failure:
+                    cursor.execute(
+                        """
+                        update matrix_publish_plan
+                        set status = 6, update_time = %s
+                        where id = %s
+                        """,
+                        (now, plan_id),
+                    )
+                    plan_status = 6
+                else:
+                    plan_status = self._refresh_plan_status_locked(cursor, plan_id, now)
+            self.conn.commit()
+            return {
+                "id": item_id,
+                "plan_id": plan_id,
+                "status": target_status,
+                "plan_status": plan_status,
+            }
+        except Exception:
+            self.conn.rollback()
+            raise
+
     def _draft_item_material(self, draft: dict, account_id: int) -> dict:
         material = dict(draft.get("material") or {})
         material["draft_id"] = draft["id"]
@@ -472,6 +553,32 @@ class MatrixPlanRepository:
         material["source_product_id"] = draft["product_id"]
         material["target_xhs_account_id"] = account_id
         return material
+
+    def _refresh_plan_status_locked(self, cursor, plan_id: int, now: int) -> int:
+        cursor.execute(
+            """
+            select status
+            from matrix_publish_item
+            where plan_id = %s and status <> 7
+            for update
+            """,
+            (plan_id,),
+        )
+        statuses = [int(row["status"]) for row in cursor.fetchall()]
+        if statuses and all(status == 4 for status in statuses):
+            status = 5
+        else:
+            status = 4
+
+        cursor.execute(
+            """
+            update matrix_publish_plan
+            set status = %s, update_time = %s
+            where id = %s
+            """,
+            (status, now, plan_id),
+        )
+        return status
 
     def _dump_json(self, value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
