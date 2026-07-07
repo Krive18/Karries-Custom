@@ -21,11 +21,11 @@ def create_matrix_plan(
     if payload.schedule_start_time > payload.schedule_end_time:
         return _validation_error("schedule start must be before end")
 
-    if payload.source_type == "product" and not repo.validate_product_for_user(
-        user["id"],
-        payload.product_id,
-    ):
+    if payload.source_type == "product" and payload.product_id == 0:
         return _not_found("product not found")
+    if payload.product_id > 0:
+        if not repo.validate_product_for_user(user["id"], payload.product_id):
+            return _not_found("product not found")
 
     if not repo.validate_accounts_for_user(user["id"], payload.xhs_account_ids):
         return _not_found("xhs account not found")

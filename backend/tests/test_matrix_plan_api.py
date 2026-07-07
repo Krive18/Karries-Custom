@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from app.repositories.user_repository import UserRepository
@@ -157,6 +159,62 @@ def test_create_plan_rolls_back_when_item_insert_fails():
     assert conn.rollback_count == 1
     assert any("insert into matrix_publish_plan" in statement for statement in conn.statements)
     assert any("insert into matrix_publish_item" in statement for statement in conn.statements)
+
+
+def test_matrix_plan_create_accepts_public_schedule_aliases():
+    from app.schemas.matrix_plan import MatrixPlanCreate
+
+    payload = MatrixPlanCreate(
+        plan_name="Alias plan",
+        product_id=9,
+        xhs_account_ids=[11],
+        schedule_start=1_700_000_000,
+        schedule_end=1_700_086_400,
+    )
+
+    assert payload.schedule_start_time == 1_700_000_000
+    assert payload.schedule_end_time == 1_700_086_400
+
+
+def test_temporary_material_plan_validates_nonzero_product_owner(monkeypatch):
+    from app.api import matrix_plans as matrix_plans_api
+    from app.schemas.matrix_plan import MatrixPlanCreate
+
+    class FakeRepository:
+        def __init__(self, _conn):
+            self.product_checked = False
+
+        def validate_product_for_user(self, user_id, product_id):
+            assert user_id == 5
+            assert product_id == 99
+            self.product_checked = True
+            return False
+
+        def validate_accounts_for_user(self, _user_id, _account_ids):
+            return True
+
+        def create_plan(self, *_args, **_kwargs):
+            raise AssertionError("create_plan should not run for cross-user product")
+
+    monkeypatch.setattr(matrix_plans_api, "MatrixPlanRepository", FakeRepository)
+    payload = MatrixPlanCreate(
+        plan_name="Temporary material plan",
+        source_type="temporary_material",
+        product_id=99,
+        xhs_account_ids=[11],
+        schedule_start_time=1_700_000_000,
+        schedule_end_time=1_700_086_400,
+    )
+
+    response = matrix_plans_api.create_matrix_plan(
+        payload=payload,
+        user={"id": 5},
+        conn=object(),
+    )
+
+    assert response.status_code == 404
+    body = json.loads(response.body)
+    assert body["error"]["code"] == "NOT_FOUND"
 
 
 def test_create_matrix_publish_plan_generates_items(mysql_conn, mysql_app_client):
