@@ -2,6 +2,31 @@ from app.db.migrations import migrate
 from app.db.schema import SCHEMA_STATEMENTS
 
 
+class _MetadataAliasCursor:
+    def __init__(self) -> None:
+        self.sql = ""
+        self.params = ()
+
+    def execute(self, sql: str, params: tuple) -> None:
+        self.sql = sql
+        self.params = params
+
+    def fetchone(self) -> dict[str, str]:
+        if "column_comment as column_comment" in self.sql.lower():
+            return {"column_comment": "会话状态"}
+        return {"COLUMN_COMMENT": "会话状态"}
+
+
+def test_column_comment_uses_stable_information_schema_alias():
+    from app.db.migrations import _column_comment
+
+    cursor = _MetadataAliasCursor()
+
+    assert _column_comment(cursor, "inspiration_session", "status") == "会话状态"
+    assert "column_comment as column_comment" in cursor.sql.lower()
+    assert cursor.params == ("inspiration_session", "status")
+
+
 SAAS_FOUNDATION_TABLES = {
     "app_user",
     "invite_code",

@@ -118,7 +118,7 @@ def _column_exists(cursor, table_name: str, column_name: str) -> bool:
 def _column_comment(cursor, table_name: str, column_name: str) -> str:
     cursor.execute(
         """
-        select column_comment
+        select column_comment as column_comment
         from information_schema.columns
         where table_schema = database()
           and table_name = %s
