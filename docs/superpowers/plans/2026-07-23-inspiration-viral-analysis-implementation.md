@@ -283,12 +283,15 @@ git commit -m "feat: add shared AI text provider services"
 - Create: `backend/app/services/inspiration_service.py`
 - Create: `backend/app/api/inspiration.py`
 - Create: `backend/app/api/admin_inspiration.py`
+- Modify: `backend/app/repositories/ai_usage_repository.py`
+- Modify: `backend/app/services/ai_usage_service.py`
 - Modify: `backend/app/repositories/content_draft_repository.py`
 - Modify: `backend/app/db/schema.py`
 - Modify: `backend/app/db/migrations.py`
 - Modify: `backend/app/main.py`
 - Modify: `backend/tests/conftest.py`
 - Modify: `backend/tests/test_database_schema.py`
+- Modify: `backend/tests/test_ai_usage_service.py`
 - Create: `backend/tests/test_inspiration_api.py`
 
 **Interfaces:**
@@ -397,6 +400,12 @@ Repository 所有员工读取和写入必须包含 `tenant_id = %s and user_id =
 5. 成功时在一个事务中保存 assistant 消息、恢复 active、更新计数与预估算力、写成功 usage；任一步失败全部回滚。
 6. Provider 失败时在一个事务中保存 failed assistant、恢复 active、更新计数、写失败 usage；任一步失败全部回滚，再返回 502 `AI_PROVIDER_ERROR`。
 
+为实现上述原子性，`AIUsageRepository.create(...)`、`AIUsageService.record_success(...)`
+和 `AIUsageService.record_failure(...)` 增加 `commit: bool = True` 参数。默认值保持
+现有独立调用行为；灵感对话完成事务传入 `commit=False`，由
+`InspirationService` 在 assistant 消息、会话状态与 usage 均成功后统一提交。调用者管理
+事务时，AI usage 层不得自行提交或回滚。
+
 查询索引必须与实际 SQL 顺序匹配：管理列表使用 `(tenant_id, update_time, id)`；历史消息使用 `(tenant_id, user_id, session_id, status, id)`。通过替换冗余索引控制单表索引数量，不追加重复前缀索引。
 
 - [ ] **Step 5: 实现用户和管理路由**
@@ -423,7 +432,7 @@ draft_id = content_drafts.create_from_ai_text(
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend\tests\test_inspiration_api.py -q
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
-git add backend/app/schemas/inspiration.py backend/app/repositories/inspiration_repository.py backend/app/services/inspiration_service.py backend/app/api/inspiration.py backend/app/api/admin_inspiration.py backend/app/repositories/content_draft_repository.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_inspiration_api.py
+git add backend/app/schemas/inspiration.py backend/app/repositories/inspiration_repository.py backend/app/services/inspiration_service.py backend/app/api/inspiration.py backend/app/api/admin_inspiration.py backend/app/repositories/ai_usage_repository.py backend/app/services/ai_usage_service.py backend/app/repositories/content_draft_repository.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_ai_usage_service.py backend/tests/test_inspiration_api.py
 git commit -m "feat: add inspiration conversation workflow"
 ```
 
