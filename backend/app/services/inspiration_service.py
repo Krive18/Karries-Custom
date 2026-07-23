@@ -1,3 +1,5 @@
+import uuid
+
 from app.repositories.ai_usage_repository import AIUsageRepository
 from app.repositories.content_draft_repository import ContentDraftRepository
 from app.repositories.inspiration_repository import (
@@ -79,15 +81,23 @@ class InspirationService:
     ) -> dict:
         tenant_id = user["tenant_id"]
         user_id = user["id"]
+        client_request_id = (
+            getattr(payload, "client_request_id", "").strip() or uuid.uuid4().hex
+        )
 
         try:
             existing = self.repository.get_session_for_user(tenant_id, user_id, session_id)
             if existing is None:
                 raise InspirationSessionNotFoundError
             context = self._context_from_session(existing)
-            session, user_message, generation_token = (
+            session, user_message, generation_token, assistant_message = (
                 self.repository.claim_and_store_user_message(
-                    tenant_id, user_id, session_id, payload.content, context
+                    tenant_id,
+                    user_id,
+                    session_id,
+                    payload.content,
+                    context,
+                    client_request_id,
                 )
             )
             self.conn.commit()
@@ -95,10 +105,37 @@ class InspirationService:
             self.conn.rollback()
             raise
 
+        if assistant_message is not None:
+            if assistant_message["status"] == "failed":
+                raise InspirationProviderError
+            return {
+                "user_message": user_message,
+                "assistant_message": assistant_message,
+                "credit_cost": assistant_message["credit_cost"],
+            }
+
         history = self.repository.list_successful_history(
             tenant_id, user_id, session_id, user_message["id"]
         )
-        provider_settings, provider = self._provider_from_settings_snapshot()
+        try:
+            provider_settings, provider = self._provider_from_settings_snapshot()
+            provider_name = str(getattr(provider_settings, "provider", "unknown"))
+            model_name = str(getattr(provider_settings, "model", ""))
+        except Exception as exc:
+            self.conn.rollback()
+            provider_error = self._provider_error_from_exception(exc)
+            self._finalize_provider_failure(
+                tenant_id,
+                user_id,
+                session_id,
+                context,
+                "unknown",
+                "",
+                provider_error,
+                generation_token,
+                client_request_id,
+            )
+            raise InspirationProviderError from exc
         # History and settings reads are completed before the provider HTTP request.
         self.conn.commit()
         credit_cost = CreditChargeService().estimate("inspiration_chat")
@@ -108,16 +145,18 @@ class InspirationService:
                 user_prompt=payload.content,
                 history=history,
             )
-        except AIProviderError as exc:
+        except Exception as exc:
+            provider_error = self._provider_error_from_exception(exc)
             self._finalize_provider_failure(
                 tenant_id,
                 user_id,
                 session_id,
                 context,
-                provider_settings.provider,
-                provider_settings.model,
-                exc,
+                provider_name,
+                model_name,
+                provider_error,
                 generation_token,
+                client_request_id,
             )
             raise InspirationProviderError from exc
 
@@ -134,6 +173,7 @@ class InspirationService:
                 credit_cost=credit_cost,
                 latency_ms=result.latency_ms,
                 status="success",
+                client_request_id=client_request_id,
             )
             AIUsageService(AIUsageRepository(self.conn)).record_success(
                 tenant_id=tenant_id,
@@ -219,6 +259,7 @@ class InspirationService:
         model_name: str,
         error: AIProviderError,
         generation_token: str,
+        client_request_id: str,
     ) -> None:
         try:
             self.repository.finalize_generation(
@@ -234,6 +275,7 @@ class InspirationService:
                 latency_ms=0,
                 status="failed",
                 error_message=str(error),
+                client_request_id=client_request_id,
             )
             AIUsageService(AIUsageRepository(self.conn)).record_failure(
                 tenant_id=tenant_id,
@@ -250,6 +292,11 @@ class InspirationService:
         except Exception:
             self.conn.rollback()
             raise
+
+    def _provider_error_from_exception(self, error: Exception) -> AIProviderError:
+        if isinstance(error, AIProviderError):
+            return error
+        return AIProviderError("transport", "AI service initialization or call failed")
 
     def _context_from_session(self, session: dict) -> dict:
         return {

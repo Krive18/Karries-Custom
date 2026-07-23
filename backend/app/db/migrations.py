@@ -79,6 +79,42 @@ def _ensure_tenant_compatibility(cursor) -> None:
             "comment '会话状态，active、generating 或 archived'"
         )
 
+    inspiration_request_comment = "客户端消息请求幂等键"
+    if not _column_exists(cursor, "inspiration_message", "client_request_id"):
+        cursor.execute(
+            "alter table `inspiration_message` "
+            "add column client_request_id varchar(64) not null default '' "
+            "comment %s after user_id",
+            (inspiration_request_comment,),
+        )
+    elif (
+        _column_comment(cursor, "inspiration_message", "client_request_id")
+        != inspiration_request_comment
+    ):
+        cursor.execute(
+            "alter table `inspiration_message` "
+            "modify column client_request_id varchar(64) not null default '' "
+            "comment %s",
+            (inspiration_request_comment,),
+        )
+    cursor.execute(
+        """
+        update inspiration_message
+        set client_request_id = concat('legacy-', id)
+        where client_request_id = ''
+        """
+    )
+    if not _index_exists(
+        cursor,
+        "inspiration_message",
+        "uk_insp_message_tenant_user_session_request_role",
+    ):
+        cursor.execute(
+            "alter table `inspiration_message` "
+            "add unique key `uk_insp_message_tenant_user_session_request_role` "
+            "(tenant_id, user_id, session_id, client_request_id, role)"
+        )
+
     for table_name, index_name in (
         ("app_user", "idx_app_user_tenant_id"),
         ("invite_code", "idx_invite_code_tenant_id"),

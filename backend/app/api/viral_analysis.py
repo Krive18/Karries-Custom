@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
@@ -20,6 +21,7 @@ from app.services.viral_analysis_service import (
 
 
 router = APIRouter(prefix="/api/viral-analysis", tags=["viral-analysis"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/jobs")
@@ -79,10 +81,21 @@ def upload_material(
             tenant_id=user["tenant_id"],
             job_id=job_id,
         )
-        material = service.repository.add_material(
+        material, replaced_storage_paths = service.repository.replace_material(
             user["tenant_id"], user["id"], job_id, stored.__dict__
         )
         material_saved = True
+        for storage_path in replaced_storage_paths:
+            try:
+                storage.delete(storage_path)
+            except (OSError, UploadStorageError):
+                logger.warning(
+                    "failed to remove replaced viral analysis material",
+                    extra={
+                        "tenant_id": user["tenant_id"],
+                        "job_id": job_id,
+                    },
+                )
         return ok(material)
     except UploadStorageError as exc:
         return JSONResponse(status_code=400, content=fail("INVALID_UPLOAD", str(exc)))

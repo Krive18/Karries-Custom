@@ -53,11 +53,54 @@ class ViralAnalysisRepository:
             raise ViralAnalysisNotFoundError
         return job
 
-    def add_material(self, tenant_id: int, user_id: int, job_id: int, material: dict) -> dict:
+    def replace_material(
+        self,
+        tenant_id: int,
+        user_id: int,
+        job_id: int,
+        material: dict,
+    ) -> tuple[dict, list[str]]:
         now = int(time.time())
         try:
             with self.conn.cursor() as cursor:
-                self._require_for_user(cursor, tenant_id, user_id, job_id)
+                cursor.execute(
+                    """
+                    select status, source_type
+                    from viral_analysis_job
+                    where tenant_id = %s and user_id = %s and id = %s
+                    for update
+                    """,
+                    (tenant_id, user_id, job_id),
+                )
+                job = cursor.fetchone()
+                if job is None:
+                    raise ViralAnalysisNotFoundError
+                if job["source_type"] != "upload":
+                    raise ViralAnalysisStateError("source_type_not_upload")
+                if job["status"] != "pending":
+                    raise ViralAnalysisStateError(str(job["status"]))
+
+                cursor.execute(
+                    """
+                    select storage_path
+                    from viral_analysis_material
+                    where tenant_id = %s and job_id = %s
+                    for update
+                    """,
+                    (tenant_id, job_id),
+                )
+                replaced_storage_paths = [
+                    str(row["storage_path"])
+                    for row in cursor.fetchall()
+                    if str(row["storage_path"]).strip()
+                ]
+                cursor.execute(
+                    """
+                    delete from viral_analysis_material
+                    where tenant_id = %s and job_id = %s
+                    """,
+                    (tenant_id, job_id),
+                )
                 cursor.execute(
                     """
                     insert into viral_analysis_material (
@@ -92,15 +135,18 @@ class ViralAnalysisRepository:
         except Exception:
             self.conn.rollback()
             raise
-        return {
-            "id": material_id,
-            "job_id": job_id,
-            "file_name": material["file_name"],
-            "file_type": material["file_type"],
-            "mime_type": material["mime_type"],
-            "file_size": material["file_size"],
-            "create_time": now,
-        }
+        return (
+            {
+                "id": material_id,
+                "job_id": job_id,
+                "file_name": material["file_name"],
+                "file_type": material["file_type"],
+                "mime_type": material["mime_type"],
+                "file_size": material["file_size"],
+                "create_time": now,
+            },
+            replaced_storage_paths,
+        )
 
     def list_for_user(self, tenant_id: int, user_id: int, page: int, page_size: int) -> dict:
         return self._list(
@@ -139,7 +185,12 @@ class ViralAnalysisRepository:
             clauses.append("status = %s")
             params.append(status)
         where_sql = "where " + " and ".join(clauses) if clauses else ""
-        return self._list(where_sql, tuple(params), page, page_size)
+        return self._list_developer_summaries(
+            where_sql,
+            tuple(params),
+            page,
+            page_size,
+        )
 
     def get_for_user(self, tenant_id: int, user_id: int, job_id: int) -> dict | None:
         return self._get_job("where tenant_id = %s and user_id = %s and id = %s", (tenant_id, user_id, job_id))
@@ -170,13 +221,37 @@ class ViralAnalysisRepository:
                     update viral_analysis_job
                     set status = 'processing', processing_token = %s,
                         processing_started_time = %s, error_message = '', update_time = %s
-                    where tenant_id = %s and user_id = %s and id = %s
+                    where viral_analysis_job.tenant_id = %s
+                      and viral_analysis_job.user_id = %s
+                      and viral_analysis_job.id = %s
                       and status in ('pending', 'failed')
+                      and (
+                          source_type <> 'upload'
+                          or exists (
+                              select 1
+                              from viral_analysis_material
+                              where viral_analysis_material.id =
+                                    viral_analysis_job.material_file_id
+                                and viral_analysis_material.tenant_id =
+                                    viral_analysis_job.tenant_id
+                                and viral_analysis_material.job_id =
+                                    viral_analysis_job.id
+                                and viral_analysis_material.file_size > 0
+                                and char_length(trim(
+                                    viral_analysis_material.storage_path
+                                )) > 0
+                          )
+                      )
                     """,
                     (token, now, now, tenant_id, user_id, job_id),
                 )
                 if cursor.rowcount != 1:
-                    self._raise_state_for_user(cursor, tenant_id, user_id, job_id)
+                    self._raise_claim_error_for_user(
+                        cursor,
+                        tenant_id,
+                        user_id,
+                        job_id,
+                    )
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -298,6 +373,38 @@ class ViralAnalysisRepository:
             items = [self._row_to_job(row) for row in cursor.fetchall()]
         return {"items": items, "page": page, "page_size": page_size, "total": total}
 
+    def _list_developer_summaries(
+        self,
+        where_sql: str,
+        params: tuple,
+        page: int,
+        page_size: int,
+    ) -> dict:
+        offset = (page - 1) * page_size
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                "select count(*) as total from viral_analysis_job " + where_sql,
+                params,
+            )
+            total = int(cursor.fetchone()["total"])
+            cursor.execute(
+                """
+                select id, tenant_id, user_id, title, source_type, status,
+                       credit_cost, create_time, update_time
+                from viral_analysis_job
+                """
+                + where_sql
+                + " order by create_time desc, id desc limit %s offset %s",
+                (*params, page_size, offset),
+            )
+            items = list(cursor.fetchall())
+        return {
+            "items": items,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+        }
+
     def _admin_filters(
         self,
         tenant_id: int,
@@ -359,14 +466,6 @@ class ViralAnalysisRepository:
         job["result"] = self._get_result(job["tenant_id"], job["id"])
         return job
 
-    def _require_for_user(self, cursor, tenant_id: int, user_id: int, job_id: int) -> None:
-        cursor.execute(
-            "select id from viral_analysis_job where tenant_id = %s and user_id = %s and id = %s",
-            (tenant_id, user_id, job_id),
-        )
-        if cursor.fetchone() is None:
-            raise ViralAnalysisNotFoundError
-
     def _raise_state_for_user(self, cursor, tenant_id: int, user_id: int, job_id: int) -> None:
         cursor.execute(
             "select status from viral_analysis_job where tenant_id = %s and user_id = %s and id = %s",
@@ -375,6 +474,48 @@ class ViralAnalysisRepository:
         row = cursor.fetchone()
         if row is None:
             raise ViralAnalysisNotFoundError
+        raise ViralAnalysisStateError(str(row["status"]))
+
+    def _raise_claim_error_for_user(
+        self,
+        cursor,
+        tenant_id: int,
+        user_id: int,
+        job_id: int,
+    ) -> None:
+        cursor.execute(
+            """
+            select viral_analysis_job.status, viral_analysis_job.source_type,
+                   exists (
+                       select 1
+                       from viral_analysis_material
+                       where viral_analysis_material.id =
+                             viral_analysis_job.material_file_id
+                         and viral_analysis_material.tenant_id =
+                             viral_analysis_job.tenant_id
+                         and viral_analysis_material.job_id =
+                             viral_analysis_job.id
+                         and viral_analysis_material.file_size > 0
+                         and char_length(trim(
+                             viral_analysis_material.storage_path
+                         )) > 0
+                   ) as has_valid_material
+            from viral_analysis_job
+            where viral_analysis_job.tenant_id = %s
+              and viral_analysis_job.user_id = %s
+              and viral_analysis_job.id = %s
+            """,
+            (tenant_id, user_id, job_id),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise ViralAnalysisNotFoundError
+        if (
+            row["source_type"] == "upload"
+            and row["status"] in {"pending", "failed"}
+            and not bool(row["has_valid_material"])
+        ):
+            raise ViralAnalysisStateError("missing_material")
         raise ViralAnalysisStateError(str(row["status"]))
 
     def _list_materials(self, job_id: int) -> list[dict]:

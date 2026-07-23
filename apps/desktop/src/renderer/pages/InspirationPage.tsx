@@ -48,6 +48,11 @@ export function InspirationPage() {
   const listRequestRef = useRef(0);
   const detailRequestRef = useRef(0);
   const sendRequestRef = useRef(0);
+  const pendingMessageRequestRef = useRef<{
+    sessionId: number;
+    content: string;
+    clientRequestId: string;
+  } | null>(null);
   const selectedSessionIdRef = useRef<number | null>(null);
 
   const loadSessions = useCallback(async (requestedPage = 1) => {
@@ -127,9 +132,22 @@ export function InspirationPage() {
     const session = detail.session;
     const requestId = ++sendRequestRef.current;
     const content = messageDraft.trim();
+    const pendingRequest = pendingMessageRequestRef.current;
+    const clientRequestId = pendingRequest?.sessionId === session.id
+      && pendingRequest.content === content
+      ? pendingRequest.clientRequestId
+      : globalThis.crypto.randomUUID();
+    pendingMessageRequestRef.current = {
+      sessionId: session.id,
+      content,
+      clientRequestId
+    };
     setSendingSessionId(session.id);
     try {
-      const response = await api.sendInspirationMessage(session.id, { content });
+      const response = await api.sendInspirationMessage(session.id, {
+        content,
+        client_request_id: clientRequestId
+      });
       const nextSession = {
         ...session,
         status: "active" as const,
@@ -144,6 +162,7 @@ export function InspirationPage() {
         return { session: nextSession, messages: nextMessages };
       });
       setMessageDraft("");
+      pendingMessageRequestRef.current = null;
       setMessage("");
     } catch (error) {
       if (requestId === sendRequestRef.current && selectedSessionIdRef.current === session.id) {

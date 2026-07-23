@@ -4,7 +4,11 @@ import { ChevronLeft, ChevronRight, RefreshCw, Search, ShieldCheck } from "lucid
 import { developerApi } from "../api/developerClient";
 import { ViralAnalysisResult } from "../components/viral/ViralAnalysisResult";
 import { viralAnalysisStatusLabel } from "../components/viral/status";
-import type { DeveloperViralAnalysisJob, ViralAnalysisStatus } from "../types";
+import type {
+  DeveloperViralAnalysisJob,
+  DeveloperViralAnalysisSummary,
+  ViralAnalysisStatus
+} from "../types";
 
 const pageSize = 20;
 type Filters = { tenantId: string; status: "" | ViralAnalysisStatus };
@@ -14,7 +18,7 @@ function formatTime(timestamp: number) { return timestamp ? new Intl.DateTimeFor
 
 export function DeveloperAIJobsPage() {
   const [filters, setFilters] = useState(emptyFilters);
-  const [jobs, setJobs] = useState<DeveloperViralAnalysisJob[]>([]); const [detail, setDetail] = useState<DeveloperViralAnalysisJob | null>(null);
+  const [jobs, setJobs] = useState<DeveloperViralAnalysisSummary[]>([]); const [detail, setDetail] = useState<DeveloperViralAnalysisJob | null>(null);
   const [page, setPage] = useState(1); const [total, setTotal] = useState(0); const [loading, setLoading] = useState(true); const [message, setMessage] = useState("");
   const listRequest = useRef(0); const detailRequest = useRef(0); const selectedId = useRef<number | null>(null); const appliedFilters = useRef(emptyFilters);
   const selectJob = useCallback(async (jobId: number) => { const requestId = ++detailRequest.current; selectedId.current = jobId; try { const result = await developerApi.getViralAnalysisJob(jobId); if (requestId === detailRequest.current && selectedId.current === jobId) { setDetail(result); setMessage(""); } } catch (error) { if (requestId === detailRequest.current && selectedId.current === jobId) setMessage(error instanceof Error ? error.message : "任务详情加载失败。"); } }, []);

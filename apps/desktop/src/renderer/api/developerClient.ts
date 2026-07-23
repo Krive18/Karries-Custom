@@ -1,5 +1,6 @@
 import type {
   DeveloperViralAnalysisJob,
+  DeveloperViralAnalysisSummary,
   PaginatedResult,
   VideoEditJobClaimRequest,
   VideoEditJobDeliverRequest,
@@ -22,7 +23,7 @@ export const developerApi = {
       body: JSON.stringify(payload)
     }),
   listViralAnalysisJobs: (params?: URLSearchParams) =>
-    request<PaginatedResult<DeveloperViralAnalysisJob>>(
+    request<PaginatedResult<DeveloperViralAnalysisSummary>>(
       `/api/developer/viral-analysis/jobs${params?.size ? `?${params.toString()}` : ""}`
     ),
   getViralAnalysisJob: (jobId: number) =>

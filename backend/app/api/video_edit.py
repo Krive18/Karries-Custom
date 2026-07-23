@@ -12,7 +12,11 @@ from app.schemas.video_edit import (
 
 
 router = APIRouter(prefix="/api/video-edit/jobs", tags=["video-edit"])
-internal_router = APIRouter(prefix="/api/internal/video-edit/jobs", tags=["internal-video-edit"])
+internal_router = APIRouter(
+    prefix="/api/internal/video-edit/jobs",
+    tags=["internal-video-edit"],
+    include_in_schema=False,
+)
 
 
 @router.post("")

@@ -251,6 +251,7 @@ export type InspirationSessionCreate = {
 
 export type InspirationMessageCreate = {
   content: string;
+  client_request_id: string;
 };
 
 export type InspirationMessageResponse = {
@@ -339,6 +340,19 @@ export type DeveloperViralAnalysisJob = ViralAnalysisJob & {
   error_message: string;
   latest_ai_usage: DeveloperAIUsage | null;
 };
+
+export type DeveloperViralAnalysisSummary = Pick<
+  DeveloperViralAnalysisJob,
+  | "id"
+  | "tenant_id"
+  | "user_id"
+  | "title"
+  | "source_type"
+  | "status"
+  | "credit_cost"
+  | "create_time"
+  | "update_time"
+>;
 
 export type DesktopBridge = {
   version: string;

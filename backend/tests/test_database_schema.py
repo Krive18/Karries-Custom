@@ -521,6 +521,112 @@ def test_ai_schema_declares_inspiration_workflow_mapping_and_indexes():
         "key idx_inspiration_message_tenant_user_session_status_id "
         "(tenant_id, user_id, session_id, status, id)"
     ) in schema
+    assert (
+        "client_request_id varchar(64) not null default '' "
+        "comment '客户端消息请求幂等键'"
+    ) in schema
+    assert (
+        "unique key uk_insp_message_tenant_user_session_request_role "
+        "(tenant_id, user_id, session_id, client_request_id, role)"
+    ) in schema
+
+
+def test_migrate_backfills_inspiration_message_request_ids_and_unique_index(mysql_conn):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("drop table inspiration_message")
+        cursor.execute(
+            """
+            create table inspiration_message (
+                id bigint unsigned not null auto_increment comment '主键',
+                tenant_id bigint unsigned not null comment '所属租户 ID',
+                session_id bigint unsigned not null comment '会话 ID',
+                user_id bigint unsigned not null comment '用户 ID',
+                role varchar(20) not null comment '消息角色',
+                content text not null comment '消息内容',
+                context_json text not null comment '上下文快照 JSON',
+                ai_provider varchar(50) not null default '' comment 'AI 服务商',
+                ai_model varchar(100) not null default '' comment '模型名称',
+                credit_cost int not null default 0 comment '消耗算力',
+                latency_ms int unsigned not null default 0 comment '响应耗时毫秒',
+                status varchar(20) not null default 'success' comment '消息状态',
+                error_message varchar(1000) not null default '' comment '失败原因',
+                create_time bigint unsigned not null comment '创建时间戳',
+                primary key (id)
+            ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci
+            comment='旧版灵感对话消息'
+            """
+        )
+        cursor.execute(
+            """
+            insert into inspiration_message (
+                tenant_id, session_id, user_id, role, content, context_json,
+                ai_provider, ai_model, credit_cost, latency_ms, status,
+                error_message, create_time
+            )
+            values
+                (1, 11, 21, 'user', 'first', '{}', '', '', 0, 0, 'success', '', 1),
+                (1, 11, 21, 'user', 'second', '{}', '', '', 0, 0, 'success', '', 2),
+                (1, 11, 21, 'assistant', 'reply', '{}', 'deepseek', 'chat', 1, 1, 'success', '', 3)
+            """
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+    migrate(mysql_conn)
+
+    columns = fetch_all(
+        mysql_conn,
+        """
+        select column_name as column_name, column_type as column_type,
+               is_nullable as is_nullable, column_default as column_default,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'inspiration_message'
+          and column_name = 'client_request_id'
+        """,
+    )
+    assert columns == [
+        {
+            "column_name": "client_request_id",
+            "column_type": "varchar(64)",
+            "is_nullable": "NO",
+            "column_default": "",
+            "column_comment": "客户端消息请求幂等键",
+        }
+    ]
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select id, client_request_id
+        from inspiration_message
+        order by id
+        """,
+    )
+    assert rows == [
+        {"id": 1, "client_request_id": "legacy-1"},
+        {"id": 2, "client_request_id": "legacy-2"},
+        {"id": 3, "client_request_id": "legacy-3"},
+    ]
+    index_rows = fetch_all(
+        mysql_conn,
+        """
+        select column_name as column_name, seq_in_index as seq_in_index,
+               non_unique as non_unique
+        from information_schema.statistics
+        where table_schema = database()
+          and table_name = 'inspiration_message'
+          and index_name = 'uk_insp_message_tenant_user_session_request_role'
+        order by seq_in_index
+        """,
+    )
+    assert index_rows == [
+        {"column_name": "tenant_id", "seq_in_index": 1, "non_unique": 0},
+        {"column_name": "user_id", "seq_in_index": 2, "non_unique": 0},
+        {"column_name": "session_id", "seq_in_index": 3, "non_unique": 0},
+        {"column_name": "client_request_id", "seq_in_index": 4, "non_unique": 0},
+        {"column_name": "role", "seq_in_index": 5, "non_unique": 0},
+    ]
 
 
 def test_viral_analysis_schema_declares_processing_lease_columns():

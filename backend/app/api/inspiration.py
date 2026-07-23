@@ -5,6 +5,7 @@ from app.core.dependencies import current_user, get_db_connection
 from app.core.responses import fail, ok
 from app.schemas.inspiration import InspirationMessageCreate, InspirationSessionCreate
 from app.repositories.inspiration_repository import (
+    InspirationRequestConflictError,
     InspirationSessionNotFoundError,
     InspirationSessionStateError,
 )
@@ -66,6 +67,14 @@ def send_message(
         return JSONResponse(
             status_code=400,
             content=fail("SESSION_ARCHIVED", "inspiration session is archived"),
+        )
+    except InspirationRequestConflictError:
+        return JSONResponse(
+            status_code=409,
+            content=fail(
+                "IDEMPOTENCY_CONFLICT",
+                "client request id was already used with different content",
+            ),
         )
     except InspirationProviderError:
         return JSONResponse(

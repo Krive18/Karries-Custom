@@ -423,6 +423,7 @@ SCHEMA_STATEMENTS = [
         tenant_id bigint unsigned not null comment '所属租户 ID',
         session_id bigint unsigned not null comment '会话 ID',
         user_id bigint unsigned not null comment '用户 ID',
+        client_request_id varchar(64) not null default '' comment '客户端消息请求幂等键',
         role varchar(20) not null comment '消息角色，user 或 assistant',
         content text not null comment '消息内容',
         context_json text not null comment '上下文快照 JSON',
@@ -434,6 +435,7 @@ SCHEMA_STATEMENTS = [
         error_message varchar(1000) not null default '' comment '失败原因',
         create_time bigint unsigned not null comment '创建时间戳',
         primary key (id),
+        unique key uk_insp_message_tenant_user_session_request_role (tenant_id, user_id, session_id, client_request_id, role),
         key idx_inspiration_message_tenant_user_session_status_id (tenant_id, user_id, session_id, status, id),
         key idx_inspiration_message_tenant_session_id (tenant_id, session_id, id)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='灵感对话消息'

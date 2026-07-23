@@ -10,6 +10,10 @@ class InspirationSessionNotFoundError(LookupError):
     pass
 
 
+class InspirationRequestConflictError(ValueError):
+    pass
+
+
 class InspirationSessionStateError(ValueError):
     def __init__(self, status: str) -> None:
         self.status = status
@@ -154,13 +158,47 @@ class InspirationRepository:
         session_id: int,
         content: str,
         context: dict,
-    ) -> tuple[dict, dict, str]:
+        client_request_id: str,
+    ) -> tuple[dict, dict, str, dict | None]:
         now = int(time.time())
         generation_token = uuid.uuid4().hex
+        created_message_id = 0
+        user_message: dict | None = None
+        assistant_message: dict | None = None
         with self.conn.cursor() as cursor:
             self._recover_expired_generation(
                 cursor, tenant_id, user_id, session_id, now
             )
+            current = self._get_session_for_user(
+                tenant_id, user_id, session_id, lock=True
+            )
+            if current is None:
+                raise InspirationSessionNotFoundError
+            request_messages = self._get_request_messages(
+                cursor,
+                tenant_id,
+                user_id,
+                session_id,
+                client_request_id,
+            )
+            user_message = next(
+                (message for message in request_messages if message["role"] == "user"),
+                None,
+            )
+            assistant_message = next(
+                (
+                    message
+                    for message in request_messages
+                    if message["role"] == "assistant"
+                ),
+                None,
+            )
+            if user_message is not None and user_message["content"] != content:
+                raise InspirationRequestConflictError
+            if user_message is not None and assistant_message is not None:
+                return current, user_message, "", assistant_message
+            if current["status"] != "active":
+                raise InspirationSessionStateError(current["status"])
             cursor.execute(
                 """
                 update inspiration_session
@@ -171,42 +209,55 @@ class InspirationRepository:
                 (generation_token, now, now, tenant_id, user_id, session_id),
             )
             if cursor.rowcount != 1:
-                current = self._get_session_for_user(
+                latest = self._get_session_for_user(
                     tenant_id, user_id, session_id, lock=True
                 )
                 raise InspirationSessionStateError(
-                    current["status"] if current is not None else "archived"
+                    latest["status"] if latest is not None else "archived"
                 )
-            cursor.execute(
-                """
-                insert into inspiration_message (
-                    tenant_id, session_id, user_id, role, content, context_json,
-                    ai_provider, ai_model, credit_cost, latency_ms, status,
-                    error_message, create_time
+            if user_message is None:
+                cursor.execute(
+                    """
+                    insert into inspiration_message (
+                        tenant_id, session_id, user_id, client_request_id, role,
+                        content, context_json, ai_provider, ai_model, credit_cost,
+                        latency_ms, status, error_message, create_time
+                    )
+                    values (
+                        %s, %s, %s, %s, 'user', %s, %s, '', '', 0, 0,
+                        'success', '', %s
+                    )
+                    """,
+                    (
+                        tenant_id,
+                        session_id,
+                        user_id,
+                        client_request_id,
+                        content,
+                        self._dump_json(context),
+                        now,
+                    ),
                 )
-                values (%s, %s, %s, 'user', %s, %s, '', '', 0, 0, 'success', '', %s)
-                """,
-                (tenant_id, session_id, user_id, content, self._dump_json(context), now),
-            )
-            message_id = int(cursor.lastrowid)
-            cursor.execute(
-                """
-                update inspiration_session
-                set message_count = message_count + 1
-                where tenant_id = %s and user_id = %s and id = %s and status = 'generating'
-                """,
-                (tenant_id, user_id, session_id),
+                created_message_id = int(cursor.lastrowid)
+                cursor.execute(
+                    """
+                    update inspiration_session
+                    set message_count = message_count + 1
+                    where tenant_id = %s and user_id = %s and id = %s
+                      and status = 'generating' and generation_token = %s
+                    """,
+                    (tenant_id, user_id, session_id, generation_token),
+                )
+        if user_message is None and created_message_id > 0:
+            user_message = self.get_message_for_user(
+                tenant_id, user_id, created_message_id
             )
         session = self.get_session_for_user(tenant_id, user_id, session_id)
         if session is None:
             raise InspirationSessionNotFoundError
-        return session, {
-            "id": message_id,
-            "role": "user",
-            "content": content,
-            "context": context,
-            "status": "success",
-        }, generation_token
+        if user_message is None:
+            raise RuntimeError("claimed inspiration user message was not found")
+        return session, user_message, generation_token, None
 
     def finalize_generation(
         self,
@@ -222,22 +273,27 @@ class InspirationRepository:
         latency_ms: int,
         status: str,
         error_message: str = "",
+        client_request_id: str = "",
     ) -> int:
         now = int(time.time())
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
                 insert into inspiration_message (
-                    tenant_id, session_id, user_id, role, content, context_json,
-                    ai_provider, ai_model, credit_cost, latency_ms, status,
-                    error_message, create_time
+                    tenant_id, session_id, user_id, client_request_id, role,
+                    content, context_json, ai_provider, ai_model, credit_cost,
+                    latency_ms, status, error_message, create_time
                 )
-                values (%s, %s, %s, 'assistant', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (
+                    %s, %s, %s, %s, 'assistant', %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s
+                )
                 """,
                 (
                     tenant_id,
                     session_id,
                     user_id,
+                    client_request_id,
                     content,
                     self._dump_json(context),
                     ai_provider,
@@ -370,9 +426,9 @@ class InspirationRepository:
 
     def _message_select_sql(self) -> str:
         return """
-            select id, tenant_id, session_id, user_id, role, content, context_json,
-                   ai_provider, ai_model, credit_cost, latency_ms, status,
-                   error_message, create_time,
+            select id, tenant_id, session_id, user_id, client_request_id, role,
+                   content, context_json, ai_provider, ai_model, credit_cost,
+                   latency_ms, status, error_message, create_time,
                    coalesce((
                        select source.content_draft_id
                        from content_draft_source as source
@@ -411,6 +467,7 @@ class InspirationRepository:
             "tenant_id": row["tenant_id"],
             "session_id": row["session_id"],
             "user_id": row["user_id"],
+            "client_request_id": row["client_request_id"],
             "role": row["role"],
             "content": row["content"],
             "context": self._load_json(row["context_json"]),
@@ -467,6 +524,25 @@ class InspirationRepository:
 
     def _dump_json(self, value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
+
+    def _get_request_messages(
+        self,
+        cursor,
+        tenant_id: int,
+        user_id: int,
+        session_id: int,
+        client_request_id: str,
+    ) -> list[dict]:
+        cursor.execute(
+            self._message_select_sql()
+            + """
+            where tenant_id = %s and user_id = %s and session_id = %s
+              and client_request_id = %s
+            order by id asc
+            """,
+            (tenant_id, user_id, session_id, client_request_id),
+        )
+        return [self._message_from_row(row) for row in cursor.fetchall()]
 
     def _recover_expired_generation(
         self, cursor, tenant_id: int, user_id: int, session_id: int, now: int

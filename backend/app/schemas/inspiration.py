@@ -18,3 +18,4 @@ class InspirationSessionCreate(BaseModel):
 
 class InspirationMessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=5000)
+    client_request_id: str = Field(default="", max_length=64)

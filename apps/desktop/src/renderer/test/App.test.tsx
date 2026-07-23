@@ -624,6 +624,34 @@ describe("KARRIES desktop workspace", () => {
     reply.resolve({ user_message: inspirationDetail.messages[0], assistant_message: inspirationDetail.messages[1], credit_cost: 1 });
   });
 
+  it("reuses the inspiration request id when the same message is retried", async () => {
+    mockedApi.getInspirationSession.mockResolvedValue(inspirationDetail);
+    mockedApi.sendInspirationMessage
+      .mockRejectedValueOnce(new Error("网络连接中断"))
+      .mockResolvedValueOnce({
+        user_message: inspirationDetail.messages[0],
+        assistant_message: inspirationDetail.messages[1],
+        credit_cost: 1
+      });
+    await renderAuthenticatedApp();
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    fireEvent.click(await screen.findByRole("button", { name: /新品种草选题/ }));
+    await screen.findByText("这里是 AI 返回的运营建议");
+    fireEvent.change(screen.getByLabelText("输入运营问题"), {
+      target: { value: "继续补充 3 个角度" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+    expect(await screen.findByText("网络连接中断")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+    await waitFor(() => expect(mockedApi.sendInspirationMessage).toHaveBeenCalledTimes(2));
+    const firstRequest = mockedApi.sendInspirationMessage.mock.calls[0][1];
+    const retriedRequest = mockedApi.sendInspirationMessage.mock.calls[1][1];
+    expect(firstRequest.client_request_id).toBeTruthy();
+    expect(retriedRequest.client_request_id).toBe(firstRequest.client_request_id);
+  });
+
   it("does not switch back when an older session send resolves after selecting another session", async () => {
     const reply = deferred<{ user_message: typeof inspirationDetail.messages[number]; assistant_message: typeof inspirationDetail.messages[number]; credit_cost: number }>();
     const secondDetail = { ...inspirationDetail, session: secondInspirationSession, messages: [] };
@@ -756,6 +784,31 @@ describe("KARRIES desktop workspace", () => {
     await waitFor(() => expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenCalledTimes(2));
     expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenLastCalledWith(71, file);
     expect(mockedApi.runViralAnalysisJob).toHaveBeenCalledWith(71);
+  });
+
+  it("does not upload the same material again after upload succeeds but analysis fails", async () => {
+    const pending = { ...viralJob, status: "pending" as const, result: null };
+    mockedApi.createViralAnalysisJob.mockResolvedValue(pending);
+    mockedApi.uploadViralAnalysisMaterial
+      .mockRejectedValueOnce(new ApiRequestError("upload interrupted", "UPLOAD_FAILED", 400))
+      .mockResolvedValueOnce({ id: 1 });
+    mockedApi.runViralAnalysisJob.mockRejectedValueOnce(new Error("provider failed"));
+    await renderAuthenticatedApp();
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
+    fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "上传成功后解析失败" } });
+    fireEvent.change(screen.getByLabelText("素材来源"), { target: { value: "upload" } });
+    const file = new File(["video"], "retry-once.mp4", { type: "video/mp4" });
+    fireEvent.change(screen.getByLabelText("上传参考素材"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("补充口播稿或观察笔记"), {
+      target: { value: viralJob.supplement_text }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "创建并开始解析" }));
+    await screen.findByRole("button", { name: "重新上传并继续解析" });
+    fireEvent.click(screen.getByRole("button", { name: "重新上传并继续解析" }));
+
+    await waitFor(() => expect(mockedApi.runViralAnalysisJob).toHaveBeenCalledWith(71));
+    expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("button", { name: "重新上传并继续解析" })).not.toBeInTheDocument();
   });
 
   it("only allows pending viral jobs to be cancelled", async () => {

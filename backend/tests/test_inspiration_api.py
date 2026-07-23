@@ -142,6 +142,7 @@ def test_message_mapping_normalizes_content_draft_identifier(
         "tenant_id": 2,
         "session_id": 3,
         "user_id": 4,
+        "client_request_id": "request-mapping",
         "role": "assistant",
         "content": "draft content",
         "context_json": "{}",
@@ -207,6 +208,120 @@ def test_employee_can_create_session_send_message_and_save_assistant_as_draft(
         assert cursor.fetchone()["total"] == 1
         cursor.execute("select total_credit_cost from inspiration_session where id = %s", (session_id,))
         assert cursor.fetchone()["total_credit_cost"] == 1
+
+
+def test_message_retry_returns_original_result_without_duplicate_ai_usage(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    calls = 0
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-inspiration-idempotency-test")
+
+    def fake_transport(_url, _headers, _payload, _timeout):
+        nonlocal calls
+        calls += 1
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": "One stable answer for the idempotent request"
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr("app.integrations.deepseek._post_json", fake_transport)
+    headers = auth_headers(mysql_conn, mysql_app_client, "idempotent-success")
+    session_id = create_session(mysql_app_client, headers)
+    request = {
+        "content": "Give me one campaign idea",
+        "client_request_id": "req-success-001",
+    }
+
+    first = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json=request,
+    )
+    retried = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json=request,
+    )
+
+    assert first.status_code == 200
+    assert retried.status_code == 200
+    assert retried.json()["data"] == first.json()["data"]
+    assert calls == 1
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select count(*) as total
+            from inspiration_message
+            where session_id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone()["total"] == 2
+        cursor.execute(
+            """
+            select count(*) as total
+            from ai_usage_log
+            where business_type = 'inspiration_chat' and business_id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone()["total"] == 1
+        cursor.execute(
+            """
+            select total_credit_cost
+            from inspiration_session
+            where id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone()["total_credit_cost"] == 1
+
+
+def test_message_retry_rejects_reused_request_id_with_different_content(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    calls = 0
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-inspiration-conflict-test")
+
+    def fake_transport(_url, _headers, _payload, _timeout):
+        nonlocal calls
+        calls += 1
+        return {
+            "choices": [
+                {"message": {"content": "Original idempotent response"}}
+            ]
+        }
+
+    monkeypatch.setattr("app.integrations.deepseek._post_json", fake_transport)
+    headers = auth_headers(mysql_conn, mysql_app_client, "idempotent-conflict")
+    session_id = create_session(mysql_app_client, headers)
+
+    first = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json={
+            "content": "Original message",
+            "client_request_id": "req-conflict-001",
+        },
+    )
+    conflict = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json={
+            "content": "Changed message",
+            "client_request_id": "req-conflict-001",
+        },
+    )
+
+    assert first.status_code == 200
+    assert conflict.status_code == 409
+    assert conflict.json()["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+    assert calls == 1
 
 
 def test_employee_sessions_are_user_isolated(mysql_conn, mysql_app_client):
@@ -620,6 +735,52 @@ def test_provider_failure_persists_failed_message_without_credit_charge(
         assert cursor.fetchone()["total_credit_cost"] == 0
 
 
+def test_failed_message_retry_returns_original_failure_without_duplicate_usage(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    headers = auth_headers(mysql_conn, mysql_app_client, "idempotent-failure")
+    session_id = create_session(mysql_app_client, headers)
+    request = {
+        "content": "This request must fail once",
+        "client_request_id": "req-failure-001",
+    }
+
+    first = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json=request,
+    )
+    retried = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json=request,
+    )
+
+    assert first.status_code == 502
+    assert retried.status_code == 502
+    assert retried.json() == first.json()
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select count(*) as total
+            from inspiration_message
+            where session_id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone()["total"] == 2
+        cursor.execute(
+            """
+            select count(*) as total
+            from ai_usage_log
+            where business_type = 'inspiration_chat' and business_id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone()["total"] == 1
+
+
 class _DuplicateMappingCursor:
     def __init__(self, conn):
         self.conn = conn
@@ -714,7 +875,12 @@ class _WorkflowRepository:
             "goal_type": "topic",
             "tone": "natural",
             "extra_requirement": "",
-        }, {"id": 20, "role": "user", "content": "ideas"}, "generation-token"
+        }, {
+            "id": 20,
+            "role": "user",
+            "content": "ideas",
+            "client_request_id": "request-001",
+        }, "generation-token", None
 
     def get_session_for_user(self, *_args):
         return {
@@ -909,6 +1075,56 @@ def test_provider_failure_finalization_commits_failed_message_session_and_usage(
     assert usage_calls[0]["commit"] is False
     assert conn.commits == 3
     assert conn.rollbacks == 0
+
+
+def test_settings_snapshot_failure_finalizes_generation_and_records_usage(monkeypatch):
+    from app.services import inspiration_service
+
+    conn = _WorkflowConnection()
+    repo = _WorkflowRepository(conn)
+    usage_calls = []
+
+    class FakeUsageService:
+        def __init__(self, _repository):
+            pass
+
+        def record_failure(self, **kwargs):
+            usage_calls.append(kwargs)
+
+    monkeypatch.setattr(inspiration_service, "InspirationRepository", lambda _conn: repo)
+    monkeypatch.setattr(inspiration_service, "AIUsageService", FakeUsageService)
+    service = inspiration_service.InspirationService(conn)
+    monkeypatch.setattr(
+        service,
+        "_provider_from_settings_snapshot",
+        lambda: (_ for _ in ()).throw(RuntimeError("settings snapshot unavailable")),
+    )
+
+    with pytest.raises(inspiration_service.InspirationProviderError):
+        service.send_message(
+            {"tenant_id": 7, "id": 3},
+            9,
+            SimpleNamespace(content="ideas", client_request_id="request-001"),
+        )
+
+    assert repo.finalized[0][1]["status"] == "failed"
+    assert repo.finalized[0][1]["generation_token"] == "generation-token"
+    assert repo.finalized[0][1]["client_request_id"] == "request-001"
+    assert usage_calls == [
+        {
+            "tenant_id": 7,
+            "user_id": 3,
+            "business_type": "inspiration_chat",
+            "business_id": 9,
+            "provider": "unknown",
+            "model_name": "",
+            "error_message": "AI service initialization or call failed",
+            "error_code": "transport",
+            "commit": False,
+        }
+    ]
+    assert conn.commits == 2
+    assert conn.rollbacks == 1
 
 
 def test_provider_failure_finalization_rolls_back_when_usage_write_fails(monkeypatch):

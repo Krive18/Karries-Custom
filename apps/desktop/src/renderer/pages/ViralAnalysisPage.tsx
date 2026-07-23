@@ -96,6 +96,7 @@ export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps
     setOperation({ phase: "uploading", jobId: created.id });
     try {
       await api.uploadViralAnalysisMaterial(created.id, uploadFile);
+      setPendingUploadJobId(null);
     } catch (error) {
       setPendingUploadJobId(created.id);
       writeSelectedDetail(created);

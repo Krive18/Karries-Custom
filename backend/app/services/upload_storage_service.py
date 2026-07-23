@@ -80,6 +80,11 @@ class UploadStorageService:
             temp_path.unlink(missing_ok=True)
             raise
 
+    def delete(self, storage_path: str) -> None:
+        target = self.root_dir / storage_path
+        self._assert_within_root(target)
+        target.unlink(missing_ok=True)
+
     def _safe_directory(self, tenant_id: int, job_id: int) -> Path:
         if tenant_id <= 0 or job_id <= 0:
             raise UploadStorageError("invalid upload scope")

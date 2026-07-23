@@ -11,6 +11,7 @@ from app.repositories.viral_analysis_repository import (
     ViralAnalysisStateError,
 )
 from app.schemas.viral_analysis import ViralAnalysisStructuredResult
+from app.services.upload_storage_service import UploadStorageService
 from app.services.viral_analysis_service import (
     ViralAnalysisCapabilityError,
     ViralAnalysisResponseError,
@@ -172,11 +173,15 @@ def test_viral_analysis_requires_auth(app_client_without_db):
     assert response.status_code == 401
 
 
-def test_developer_viral_routes_are_not_in_openapi_schema(app_client_without_db):
+def test_internal_and_developer_routes_are_not_in_openapi_schema(
+    app_client_without_db,
+):
     response = app_client_without_db.get("/openapi.json")
 
     assert response.status_code == 200
-    assert not any(path.startswith("/api/developer/viral-analysis") for path in response.json()["paths"])
+    paths = response.json()["paths"]
+    assert not any(path.startswith("/api/developer/") for path in paths)
+    assert not any(path.startswith("/api/internal/") for path in paths)
 
 
 def test_user_runs_text_analysis_and_saves_idempotent_video_draft(
@@ -378,6 +383,127 @@ def test_upload_persists_safe_metadata_without_storage_path(
     assert list(tmp_path.rglob("*.jpg"))
 
 
+def test_upload_job_without_material_cannot_be_claimed(
+    mysql_conn, mysql_app_client
+):
+    headers = _auth_headers(mysql_conn, mysql_app_client, "missing-upload")
+    job_id = _create_job(
+        mysql_app_client,
+        headers,
+        "missing-upload",
+        source_type="upload",
+    )
+
+    response = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/run",
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "STATE_CONFLICT"
+    assert "missing_material" in response.json()["error"]["message"]
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "select status, processing_token from viral_analysis_job where id = %s",
+            (job_id,),
+        )
+        job = cursor.fetchone()
+    assert job == {"status": "pending", "processing_token": ""}
+
+
+def test_repeated_upload_replaces_previous_material_record_and_file(
+    monkeypatch, tmp_path, mysql_conn, mysql_app_client
+):
+    headers = _auth_headers(mysql_conn, mysql_app_client, "replace-upload")
+    job_id = _create_job(
+        mysql_app_client,
+        headers,
+        "replace-upload",
+        source_type="upload",
+    )
+    monkeypatch.setattr(mysql_app_client.app.state.config, "data_dir", tmp_path)
+
+    first = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/upload",
+        headers=headers,
+        files={"file": ("first.jpg", b"\xff\xd8\xff\xe0first-image", "image/jpeg")},
+    )
+    second = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/upload",
+        headers=headers,
+        files={"file": ("second.png", b"\x89PNG\r\n\x1a\nsecond-image", "image/png")},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert first.json()["data"]["id"] != second.json()["data"]["id"]
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select id, file_name, storage_path
+            from viral_analysis_material
+            where tenant_id = %s and job_id = %s
+            order by id
+            """,
+            (1, job_id),
+        )
+        materials = list(cursor.fetchall())
+        cursor.execute(
+            "select material_file_id from viral_analysis_job where id = %s",
+            (job_id,),
+        )
+        job = cursor.fetchone()
+    assert len(materials) == 1
+    assert materials[0]["file_name"] == "second.png"
+    assert job["material_file_id"] == materials[0]["id"]
+    assert list(tmp_path.rglob("*.jpg")) == []
+    assert len(list(tmp_path.rglob("*.png"))) == 1
+
+
+def test_repeated_upload_keeps_new_material_when_old_file_cleanup_fails(
+    monkeypatch, tmp_path, mysql_conn, mysql_app_client
+):
+    headers = _auth_headers(mysql_conn, mysql_app_client, "cleanup-failure")
+    job_id = _create_job(
+        mysql_app_client,
+        headers,
+        "cleanup-failure",
+        source_type="upload",
+    )
+    monkeypatch.setattr(mysql_app_client.app.state.config, "data_dir", tmp_path)
+    first = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/upload",
+        headers=headers,
+        files={"file": ("first.jpg", b"\xff\xd8\xff\xe0first-image", "image/jpeg")},
+    )
+    assert first.status_code == 200
+
+    def fail_cleanup(_self, _storage_path):
+        raise OSError("file is locked")
+
+    monkeypatch.setattr(UploadStorageService, "delete", fail_cleanup)
+    second = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/upload",
+        headers=headers,
+        files={"file": ("second.png", b"\x89PNG\r\n\x1a\nsecond-image", "image/png")},
+    )
+
+    assert second.status_code == 200
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select id, file_name
+            from viral_analysis_material
+            where tenant_id = %s and job_id = %s
+            """,
+            (1, job_id),
+        )
+        materials = list(cursor.fetchall())
+    assert materials == [
+        {"id": second.json()["data"]["id"], "file_name": "second.png"}
+    ]
+
+
 def test_upload_rejects_non_upload_source_job(mysql_conn, mysql_app_client):
     headers = _auth_headers(mysql_conn, mysql_app_client, "upload-source")
     job_id = _create_job(mysql_app_client, headers, "upload-source")
@@ -403,7 +529,11 @@ def test_upload_race_cleanup_removes_written_file_after_state_conflict(
     def fail_after_write(_self, *_args, **_kwargs):
         raise ViralAnalysisStateError("processing")
 
-    monkeypatch.setattr(viral_analysis_repository.ViralAnalysisRepository, "add_material", fail_after_write)
+    monkeypatch.setattr(
+        viral_analysis_repository.ViralAnalysisRepository,
+        "replace_material",
+        fail_after_write,
+    )
     response = mysql_app_client.post(
         f"/api/viral-analysis/jobs/{job_id}/upload",
         headers=headers,
@@ -470,6 +600,17 @@ def test_admin_and_developer_lists_filter_on_server_and_keep_external_fields_saf
     assert all("ai_provider" not in item for item in admin_response.json()["data"]["items"])
     assert [item["id"] for item in developer_response.json()["data"]["items"]] == [first_job]
     assert second_job not in [item["id"] for item in developer_response.json()["data"]["items"]]
+    assert set(developer_response.json()["data"]["items"][0]) == {
+        "id",
+        "tenant_id",
+        "user_id",
+        "title",
+        "source_type",
+        "status",
+        "credit_cost",
+        "create_time",
+        "update_time",
+    }
 
 
 def test_admin_keyword_matches_supplement_and_structured_result_fields(
