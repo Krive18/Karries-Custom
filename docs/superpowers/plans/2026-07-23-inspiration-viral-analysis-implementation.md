@@ -287,6 +287,7 @@ git commit -m "feat: add shared AI text provider services"
 - Modify: `backend/app/db/schema.py`
 - Modify: `backend/app/db/migrations.py`
 - Modify: `backend/app/main.py`
+- Modify: `backend/tests/conftest.py`
 - Modify: `backend/tests/test_database_schema.py`
 - Create: `backend/tests/test_inspiration_api.py`
 
@@ -335,7 +336,7 @@ Expected: 路由不存在返回 404。
 
 ```python
 GoalType = Literal["topic", "title", "body", "script", "strategy", "optimize"]
-SessionStatus = Literal["active", "archived"]
+SessionStatus = Literal["active", "generating", "archived"]
 
 class InspirationSessionCreate(BaseModel):
     title: str = Field(min_length=1, max_length=100)
@@ -364,16 +365,39 @@ extra_requirement varchar(1000) not null default '' comment '补充创作要求'
 
 在 `migrations.py` 中沿用 Task 1 的 `information_schema.columns` 幂等检查，为已创建的 `inspiration_session` 补齐这两列；`test_database_schema.py` 必须断言列类型、`NOT NULL`、默认值和中文注释。
 
+为跨模块草稿保存建立通用幂等映射表，避免在 `content_draft` 上使用会限制产品多次创作的伪唯一键：
+
+```sql
+create table if not exists content_draft_source (
+    id bigint unsigned not null auto_increment comment '主键',
+    tenant_id bigint unsigned not null comment '所属租户 ID',
+    user_id bigint unsigned not null comment '所属用户 ID',
+    source_type varchar(30) not null comment '来源类型，inspiration 或 viral_analysis',
+    source_id bigint unsigned not null comment '来源业务记录 ID',
+    content_draft_id bigint unsigned not null comment '内容草稿 ID',
+    create_time bigint unsigned not null comment '创建时间戳',
+    primary key (id),
+    unique key uk_content_draft_source_business (tenant_id, user_id, source_type, source_id),
+    key idx_content_draft_source_draft_id (content_draft_id)
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='内容草稿来源幂等映射';
+```
+
+把该表加入 MySQL 清理顺序和 schema 测试。`create_from_ai_text` 在同一事务中插入草稿和映射；唯一键冲突时回滚本次草稿，再按唯一键读取已有 `content_draft_id`，禁止“先查再插”作为唯一幂等手段。
+
 - [ ] **Step 4: 实现 Repository 与 Service**
 
-Repository 所有员工读取和写入必须包含 `tenant_id = %s and user_id = %s`；管理读取必须包含 `tenant_id = %s`。消息发送顺序：
+Repository 所有员工读取和写入必须包含 `tenant_id = %s and user_id = %s`；管理读取必须包含 `tenant_id = %s`。非零 `linked_product_id` 和 `linked_xhs_account_id` 必须先通过当前用户范围的 Repository 校验，不属于当前用户时返回 404。
 
-1. 校验会话属于当前员工且状态为 active。
-2. 保存 user 消息和上下文快照。
+消息发送顺序：
+
+1. 以条件更新或行锁原子校验会话属于当前员工且状态为 active，将状态改为 `generating`，保存 user 消息和上下文快照后提交。
+2. `generating` 状态禁止并发发送和归档；归档只允许从 active 进入 archived。
 3. 读取最近 20 条成功消息构造历史。
 4. 在事务外调用 AI。
-5. 成功时保存 assistant 消息、更新计数与预估算力、记录成功用量。
-6. 失败时保存 failed assistant 记录、记录失败用量、返回 502 `AI_PROVIDER_ERROR`。
+5. 成功时在一个事务中保存 assistant 消息、恢复 active、更新计数与预估算力、写成功 usage；任一步失败全部回滚。
+6. Provider 失败时在一个事务中保存 failed assistant、恢复 active、更新计数、写失败 usage；任一步失败全部回滚，再返回 502 `AI_PROVIDER_ERROR`。
+
+查询索引必须与实际 SQL 顺序匹配：管理列表使用 `(tenant_id, update_time, id)`；历史消息使用 `(tenant_id, user_id, session_id, status, id)`。通过替换冗余索引控制单表索引数量，不追加重复前缀索引。
 
 - [ ] **Step 5: 实现用户和管理路由**
 
@@ -399,7 +423,7 @@ draft_id = content_drafts.create_from_ai_text(
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend\tests\test_inspiration_api.py -q
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
-git add backend/app/schemas/inspiration.py backend/app/repositories/inspiration_repository.py backend/app/services/inspiration_service.py backend/app/api/inspiration.py backend/app/api/admin_inspiration.py backend/app/repositories/content_draft_repository.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/main.py backend/tests/test_database_schema.py backend/tests/test_inspiration_api.py
+git add backend/app/schemas/inspiration.py backend/app/repositories/inspiration_repository.py backend/app/services/inspiration_service.py backend/app/api/inspiration.py backend/app/api/admin_inspiration.py backend/app/repositories/content_draft_repository.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_inspiration_api.py
 git commit -m "feat: add inspiration conversation workflow"
 ```
 
