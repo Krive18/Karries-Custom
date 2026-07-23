@@ -364,6 +364,8 @@ class InspirationMessageCreate(BaseModel):
 ```sql
 tone varchar(100) not null default '自然真诚' comment '文案语气',
 extra_requirement varchar(1000) not null default '' comment '补充创作要求',
+generation_token varchar(64) not null default '' comment '当前生成操作令牌',
+generation_started_time bigint unsigned not null default 0 comment '当前生成开始时间戳',
 ```
 
 在 `migrations.py` 中沿用 Task 1 的 `information_schema.columns` 幂等检查，为已创建的 `inspiration_session` 补齐这两列；`test_database_schema.py` 必须断言列类型、`NOT NULL`、默认值和中文注释。
@@ -393,12 +395,16 @@ Repository 所有员工读取和写入必须包含 `tenant_id = %s and user_id =
 
 消息发送顺序：
 
-1. 以条件更新或行锁原子校验会话属于当前员工且状态为 active，将状态改为 `generating`，保存 user 消息和上下文快照后提交。
-2. `generating` 状态禁止并发发送和归档；归档只允许从 active 进入 archived。
-3. 读取最近 20 条成功消息构造历史。
+1. 生成 UUID 操作令牌；以条件更新或行锁原子校验会话属于当前员工且状态为 active，将状态改为 `generating`，同时保存 `generation_token`、`generation_started_time`、user 消息和上下文快照后提交。
+2. `generating` 状态禁止并发发送和归档；归档只允许从 active 进入 archived。每次发送或归档前，允许把超过 5 分钟的 `generating` 租约原子恢复为 active，并清空令牌和开始时间。
+3. 按当前 user message ID 排除本条消息后，读取最近 20 条成功历史消息构造上下文。
 4. 在事务外调用 AI。
-5. 成功时在一个事务中保存 assistant 消息、恢复 active、更新计数与预估算力、写成功 usage；任一步失败全部回滚。
-6. Provider 失败时在一个事务中保存 failed assistant、恢复 active、更新计数、写失败 usage；任一步失败全部回滚，再返回 502 `AI_PROVIDER_ERROR`。
+5. 成功时在一个事务中按 `status = generating and generation_token = 当前令牌` 保存 assistant 消息、恢复 active、清空令牌与开始时间、更新计数与预估算力、写成功 usage；任一步失败全部回滚。
+6. Provider 失败时在一个事务中按相同令牌保存 failed assistant、恢复 active、清空令牌与开始时间、更新计数、写失败 usage；任一步失败全部回滚，再返回 502 `AI_PROVIDER_ERROR`。
+
+租约恢复必须防止旧请求晚到覆盖新请求：恢复后的新发送会获得新令牌，旧请求 finalize
+时令牌不匹配，必须回滚其 assistant 与 usage 写入并返回状态冲突。测试至少覆盖过期
+`generating` 可重新发送、可归档，以及旧令牌无法 finalize 新操作。
 
 为实现上述原子性，`AIUsageRepository.create(...)`、`AIUsageService.record_success(...)`
 和 `AIUsageService.record_failure(...)` 增加 `commit: bool = True` 参数。默认值保持
