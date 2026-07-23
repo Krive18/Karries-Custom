@@ -262,6 +262,20 @@ SCHEMA_STATEMENTS = [
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='AI generated content draft'
     """,
     """
+    create table if not exists content_draft_source (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null comment '所属租户 ID',
+        user_id bigint unsigned not null comment '所属用户 ID',
+        source_type varchar(30) not null comment '来源类型，inspiration 或 viral_analysis',
+        source_id bigint unsigned not null comment '来源业务记录 ID',
+        content_draft_id bigint unsigned not null comment '内容草稿 ID',
+        create_time bigint unsigned not null comment '创建时间戳',
+        primary key (id),
+        unique key uk_content_draft_source_business (tenant_id, user_id, source_type, source_id),
+        key idx_content_draft_source_draft_id (content_draft_id)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='内容草稿来源幂等映射'
+    """,
+    """
     create table if not exists matrix_publish_plan (
         id bigint unsigned not null auto_increment comment '主键',
         user_id bigint unsigned not null comment '所属用户 ID',
@@ -389,14 +403,14 @@ SCHEMA_STATEMENTS = [
         goal_type varchar(50) not null comment '对话目标',
         tone varchar(100) not null default '自然真诚' comment '文案语气',
         extra_requirement varchar(1000) not null default '' comment '补充创作要求',
-        status varchar(20) not null default 'active' comment '会话状态，active 或 archived',
+        status varchar(20) not null default 'active' comment '会话状态，active、generating 或 archived',
         message_count int unsigned not null default 0 comment '消息数量',
         total_credit_cost int not null default 0 comment '累计消耗算力',
         create_time bigint unsigned not null comment '创建时间戳',
         update_time bigint unsigned not null comment '更新时间戳',
         primary key (id),
         key idx_inspiration_session_tenant_user_time (tenant_id, user_id, update_time),
-        key idx_inspiration_session_tenant_status_time (tenant_id, status, update_time),
+        key idx_inspiration_session_tenant_update_id (tenant_id, update_time, id),
         key idx_inspiration_session_product (linked_product_id),
         key idx_inspiration_session_xhs_account (linked_xhs_account_id)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='灵感对话会话'
@@ -418,8 +432,8 @@ SCHEMA_STATEMENTS = [
         error_message varchar(1000) not null default '' comment '失败原因',
         create_time bigint unsigned not null comment '创建时间戳',
         primary key (id),
-        key idx_inspiration_message_session_time (session_id, create_time),
-        key idx_inspiration_message_tenant_user_time (tenant_id, user_id, create_time)
+        key idx_inspiration_message_tenant_user_session_status_id (tenant_id, user_id, session_id, status, id),
+        key idx_inspiration_message_tenant_session_id (tenant_id, session_id, id)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='灵感对话消息'
     """,
     """

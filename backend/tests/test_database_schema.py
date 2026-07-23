@@ -25,6 +25,7 @@ AI_MODULE_TABLES = {
     "ai_usage_log",
     "inspiration_session",
     "inspiration_message",
+    "content_draft_source",
     "viral_analysis_job",
     "viral_analysis_result",
     "viral_analysis_material",
@@ -376,7 +377,7 @@ def test_migrate_creates_ai_module_tables(mysql_conn):
         where table_schema = database()
           and table_name in (
             'tenant', 'ai_usage_log', 'inspiration_session',
-            'inspiration_message', 'viral_analysis_job',
+            'inspiration_message', 'content_draft_source', 'viral_analysis_job',
             'viral_analysis_result', 'viral_analysis_material'
           )
         """,
@@ -399,7 +400,7 @@ def test_migrate_declares_ai_module_column_comments_and_not_null(mysql_conn):
         where table_schema = database()
           and table_name in (
             'tenant', 'ai_usage_log', 'inspiration_session',
-            'inspiration_message', 'viral_analysis_job',
+            'inspiration_message', 'content_draft_source', 'viral_analysis_job',
             'viral_analysis_result', 'viral_analysis_material'
           )
         """,
@@ -458,6 +459,19 @@ def test_ai_schema_declares_persisted_inspiration_session_context():
     )
 
 
+def test_ai_schema_declares_inspiration_workflow_mapping_and_indexes():
+    schema = "\n".join(SCHEMA_STATEMENTS)
+
+    assert "create table if not exists content_draft_source" in schema
+    assert "unique key uk_content_draft_source_business (tenant_id, user_id, source_type, source_id)" in schema
+    assert "key idx_content_draft_source_draft_id (content_draft_id)" in schema
+    assert "key idx_inspiration_session_tenant_update_id (tenant_id, update_time, id)" in schema
+    assert (
+        "key idx_inspiration_message_tenant_user_session_status_id "
+        "(tenant_id, user_id, session_id, status, id)"
+    ) in schema
+
+
 def test_migrate_backfills_inspiration_session_context_columns(mysql_conn):
     with mysql_conn.cursor() as cursor:
         cursor.execute("drop table inspiration_session")
@@ -508,6 +522,37 @@ def test_migrate_backfills_inspiration_session_context_columns(mysql_conn):
     assert by_name["extra_requirement"]["is_nullable"] == "NO"
     assert by_name["extra_requirement"]["column_default"] == ""
     assert by_name["extra_requirement"]["column_comment"] == "补充创作要求"
+    status_column = fetch_one(
+        mysql_conn,
+        """
+        select column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'inspiration_session'
+          and column_name = 'status'
+        """,
+    )
+    assert status_column["column_comment"] == "会话状态，active、generating 或 archived"
+    indexes = fetch_all(
+        mysql_conn,
+        """
+        select index_name as index_name, column_name as column_name, seq_in_index as seq_in_index
+        from information_schema.statistics
+        where table_schema = database() and table_name = 'inspiration_session'
+        """,
+    )
+    by_index = {}
+    for index in indexes:
+        by_index.setdefault(index["index_name"], []).append(
+            (index["seq_in_index"], index["column_name"])
+        )
+    assert "idx_inspiration_session_tenant_status_time" not in by_index
+    assert [
+        column_name
+        for _, column_name in sorted(
+            by_index["idx_inspiration_session_tenant_update_id"]
+        )
+    ] == ["tenant_id", "update_time", "id"]
 
 
 def test_migrate_declares_ai_module_indexes(mysql_conn):
@@ -523,7 +568,7 @@ def test_migrate_declares_ai_module_indexes(mysql_conn):
         where table_schema = database()
         and table_name in (
             'app_user', 'invite_code',
-            'ai_usage_log', 'inspiration_session', 'inspiration_message',
+            'ai_usage_log', 'inspiration_session', 'inspiration_message', 'content_draft_source',
             'viral_analysis_job', 'viral_analysis_result',
             'viral_analysis_material'
           )
@@ -536,11 +581,13 @@ def test_migrate_declares_ai_module_indexes(mysql_conn):
         ("ai_usage_log", "idx_ai_usage_user_time"),
         ("ai_usage_log", "idx_ai_usage_business"),
         ("inspiration_session", "idx_inspiration_session_tenant_user_time"),
-        ("inspiration_session", "idx_inspiration_session_tenant_status_time"),
+        ("inspiration_session", "idx_inspiration_session_tenant_update_id"),
         ("inspiration_session", "idx_inspiration_session_product"),
         ("inspiration_session", "idx_inspiration_session_xhs_account"),
-        ("inspiration_message", "idx_inspiration_message_session_time"),
-        ("inspiration_message", "idx_inspiration_message_tenant_user_time"),
+        ("inspiration_message", "idx_inspiration_message_tenant_user_session_status_id"),
+        ("inspiration_message", "idx_inspiration_message_tenant_session_id"),
+        ("content_draft_source", "uk_content_draft_source_business"),
+        ("content_draft_source", "idx_content_draft_source_draft_id"),
         ("viral_analysis_job", "idx_viral_job_tenant_user_time"),
         ("viral_analysis_job", "idx_viral_job_tenant_status_time"),
         ("viral_analysis_job", "idx_viral_job_source_type"),
@@ -569,6 +616,18 @@ def test_migrate_declares_ai_module_indexes(mysql_conn):
             )
         ]
 
+    assert definitions[("inspiration_session", "idx_inspiration_session_tenant_update_id")] == {
+        "columns": ["tenant_id", "update_time", "id"],
+        "non_unique": 1,
+    }
+    assert definitions[("inspiration_message", "idx_inspiration_message_tenant_user_session_status_id")] == {
+        "columns": ["tenant_id", "user_id", "session_id", "status", "id"],
+        "non_unique": 1,
+    }
+    assert definitions[("content_draft_source", "uk_content_draft_source_business")] == {
+        "columns": ["tenant_id", "user_id", "source_type", "source_id"],
+        "non_unique": 0,
+    }
     assert definitions[("inspiration_session", "idx_inspiration_session_xhs_account")] == {
         "columns": ["linked_xhs_account_id"],
         "non_unique": 1,
@@ -583,6 +642,11 @@ def test_ai_schema_declares_relationship_indexes():
     schema = "\n".join(SCHEMA_STATEMENTS)
 
     assert "key idx_inspiration_session_xhs_account (linked_xhs_account_id)" in schema
+    assert "key idx_inspiration_session_tenant_update_id (tenant_id, update_time, id)" in schema
+    assert (
+        "key idx_inspiration_message_tenant_user_session_status_id "
+        "(tenant_id, user_id, session_id, status, id)"
+    ) in schema
     assert "key idx_viral_job_material_file_id (material_file_id)" in schema
 
 

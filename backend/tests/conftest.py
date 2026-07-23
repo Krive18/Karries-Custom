@@ -25,6 +25,7 @@ MYSQL_TABLES = (
     "video_edit_job",
     "matrix_publish_item",
     "matrix_publish_plan",
+    "content_draft_source",
     "content_draft",
     "material_file",
     "product_material_package",

@@ -4,6 +4,10 @@ from fastapi.responses import JSONResponse
 from app.core.dependencies import current_user, get_db_connection
 from app.core.responses import fail, ok
 from app.schemas.inspiration import InspirationMessageCreate, InspirationSessionCreate
+from app.repositories.inspiration_repository import (
+    InspirationSessionNotFoundError,
+    InspirationSessionStateError,
+)
 from app.services.inspiration_service import InspirationProviderError, InspirationService
 
 
@@ -16,7 +20,10 @@ def create_session(
     user: dict = Depends(current_user),
     conn=Depends(get_db_connection),
 ) -> dict:
-    return ok(InspirationService(conn).create_session(user, payload))
+    try:
+        return ok(InspirationService(conn).create_session(user, payload))
+    except LookupError:
+        return _not_found("linked product or xhs account not found")
 
 
 @router.get("/sessions")
@@ -48,9 +55,14 @@ def send_message(
 ) -> dict:
     try:
         return ok(InspirationService(conn).send_message(user, session_id, payload))
-    except LookupError:
+    except InspirationSessionNotFoundError:
         return _not_found("inspiration session not found")
-    except ValueError:
+    except InspirationSessionStateError as exc:
+        if exc.status == "generating":
+            return JSONResponse(
+                status_code=409,
+                content=fail("SESSION_GENERATING", "inspiration session is generating"),
+            )
         return JSONResponse(
             status_code=400,
             content=fail("SESSION_ARCHIVED", "inspiration session is archived"),
@@ -68,8 +80,20 @@ def archive_session(
     user: dict = Depends(current_user),
     conn=Depends(get_db_connection),
 ) -> dict:
-    session = InspirationService(conn).archive_session(user, session_id)
-    return ok(session) if session is not None else _not_found("inspiration session not found")
+    try:
+        return ok(InspirationService(conn).archive_session(user, session_id))
+    except InspirationSessionNotFoundError:
+        return _not_found("inspiration session not found")
+    except InspirationSessionStateError as exc:
+        if exc.status == "generating":
+            return JSONResponse(
+                status_code=409,
+                content=fail("SESSION_GENERATING", "inspiration session is generating"),
+            )
+        return JSONResponse(
+            status_code=400,
+            content=fail("SESSION_ARCHIVED", "inspiration session is archived"),
+        )
 
 
 @router.post("/messages/{message_id}/save-draft")

@@ -125,6 +125,67 @@ def test_usage_service_records_success_with_generation_metrics():
     assert "insert into ai_usage_log" in conn.queries[0]
 
 
+def test_usage_service_can_join_a_caller_managed_transaction():
+    conn = FakeUsageConnection()
+    usage = AIUsageService(AIUsageRepository(conn))
+    result = TextGenerationResult(
+        content="reply",
+        provider="deepseek",
+        model_name="deepseek-chat",
+        latency_ms=12,
+        input_chars=8,
+        output_chars=5,
+    )
+
+    usage.record_success(
+        tenant_id=2,
+        user_id=7,
+        business_type="inspiration_chat",
+        business_id=19,
+        result=result,
+        credit_cost=1,
+        commit=False,
+    )
+    usage.record_failure(
+        tenant_id=2,
+        user_id=7,
+        business_type="inspiration_chat",
+        business_id=19,
+        provider="deepseek",
+        model_name="deepseek-chat",
+        error_message="provider timeout",
+        commit=False,
+    )
+
+    assert conn.commits == 0
+    assert conn.rollbacks == 0
+    assert [row["status"] for row in conn.rows] == ["success", "failed"]
+
+
+def test_usage_repository_leaves_rollback_to_transaction_owner_when_commit_is_false():
+    conn = FakeUsageConnection(fail_execute=True)
+
+    with pytest.raises(RuntimeError, match="database execute failed"):
+        AIUsageRepository(conn).create(
+            tenant_id=2,
+            user_id=7,
+            business_type="inspiration_chat",
+            business_id=19,
+            provider="deepseek",
+            model_name="deepseek-chat",
+            status="success",
+            credit_cost=1,
+            latency_ms=0,
+            input_chars=0,
+            output_chars=0,
+            error_message="",
+            commit=False,
+        )
+
+    assert conn.commits == 0
+    assert conn.rollbacks == 0
+
+
 def test_usage_service_records_failed_call_without_key_or_prompt():
     conn = FakeUsageConnection()
     usage = AIUsageService(AIUsageRepository(conn))

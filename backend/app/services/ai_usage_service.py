@@ -16,6 +16,7 @@ class AIUsageService:
         business_id: int,
         result: TextGenerationResult,
         credit_cost: int,
+        commit: bool = True,
     ) -> int:
         return self.repository.create(
             tenant_id=tenant_id,
@@ -30,6 +31,7 @@ class AIUsageService:
             input_chars=result.input_chars,
             output_chars=result.output_chars,
             error_message="",
+            commit=commit,
         )
 
     def record_failure(
@@ -44,6 +46,7 @@ class AIUsageService:
         latency_ms: int = 0,
         input_chars: int = 0,
         error_code: str | None = None,
+        commit: bool = True,
     ) -> int:
         return self.repository.create(
             tenant_id=tenant_id,
@@ -58,6 +61,7 @@ class AIUsageService:
             input_chars=input_chars,
             output_chars=0,
             error_message=_sanitize_error_message(error_message, error_code),
+            commit=commit,
         )
 
 

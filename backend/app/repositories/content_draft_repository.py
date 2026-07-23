@@ -2,6 +2,8 @@ import json
 import time
 from typing import Any
 
+import pymysql
+
 from app.schemas.content_draft import ContentDraftGenerateRequest, ContentDraftUpdateRequest
 
 
@@ -57,6 +59,7 @@ class ContentDraftRepository:
 
     def create_from_ai_text(
         self,
+        tenant_id: int,
         user_id: int,
         source_type: str,
         source_id: int,
@@ -66,21 +69,6 @@ class ContentDraftRepository:
         model_name: str,
         context: dict,
     ) -> int:
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                """
-                select id
-                from content_draft
-                where user_id = %s and source_type = %s
-                  and cast(json_unquote(json_extract(material_json, '$.source_id')) as unsigned) = %s
-                limit 1
-                """,
-                (user_id, source_type, source_id),
-            )
-            existing = cursor.fetchone()
-        if existing is not None:
-            return int(existing["id"])
-
         now = int(time.time())
         material = {"source_id": source_id, "context": context}
         try:
@@ -112,8 +100,34 @@ class ContentDraftRepository:
                     ),
                 )
                 draft_id = int(cursor.lastrowid)
+                cursor.execute(
+                    """
+                    insert into content_draft_source (
+                        tenant_id, user_id, source_type, source_id,
+                        content_draft_id, create_time
+                    )
+                    values (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (tenant_id, user_id, source_type, source_id, draft_id, now),
+                )
             self.conn.commit()
             return draft_id
+        except pymysql.err.IntegrityError:
+            self.conn.rollback()
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    select content_draft_id
+                    from content_draft_source
+                    where tenant_id = %s and user_id = %s
+                      and source_type = %s and source_id = %s
+                    """,
+                    (tenant_id, user_id, source_type, source_id),
+                )
+                existing = cursor.fetchone()
+            if existing is not None:
+                return int(existing["content_draft_id"])
+            raise
         except Exception:
             self.conn.rollback()
             raise

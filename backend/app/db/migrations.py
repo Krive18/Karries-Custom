@@ -26,6 +26,13 @@ def _ensure_tenant_compatibility(cursor) -> None:
                 f"add column {column_name} {definition}"
             )
 
+    if _column_comment(cursor, "inspiration_session", "status") != "会话状态，active、generating 或 archived":
+        cursor.execute(
+            "alter table `inspiration_session` modify column status "
+            "varchar(20) not null default 'active' "
+            "comment '会话状态，active、generating 或 archived'"
+        )
+
     for table_name, index_name in (
         ("app_user", "idx_app_user_tenant_id"),
         ("invite_code", "idx_invite_code_tenant_id"),
@@ -56,6 +63,35 @@ def _ensure_tenant_compatibility(cursor) -> None:
                 f"add key `{index_name}` ({column_name})"
             )
 
+    for table_name, index_name in (
+        ("inspiration_session", "idx_inspiration_session_tenant_status_time"),
+        ("inspiration_message", "idx_inspiration_message_session_time"),
+        ("inspiration_message", "idx_inspiration_message_tenant_user_time"),
+    ):
+        _drop_index_if_exists(cursor, table_name, index_name)
+
+    for table_name, index_name, columns in (
+        (
+            "inspiration_session",
+            "idx_inspiration_session_tenant_update_id",
+            "tenant_id, update_time, id",
+        ),
+        (
+            "inspiration_message",
+            "idx_inspiration_message_tenant_user_session_status_id",
+            "tenant_id, user_id, session_id, status, id",
+        ),
+        (
+            "inspiration_message",
+            "idx_inspiration_message_tenant_session_id",
+            "tenant_id, session_id, id",
+        ),
+    ):
+        if not _index_exists(cursor, table_name, index_name):
+            cursor.execute(
+                f"alter table `{table_name}` add key `{index_name}` ({columns})"
+            )
+
 
 def _column_exists(cursor, table_name: str, column_name: str) -> bool:
     cursor.execute(
@@ -71,6 +107,21 @@ def _column_exists(cursor, table_name: str, column_name: str) -> bool:
     return cursor.fetchone() is not None
 
 
+def _column_comment(cursor, table_name: str, column_name: str) -> str:
+    cursor.execute(
+        """
+        select column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = %s
+          and column_name = %s
+        """,
+        (table_name, column_name),
+    )
+    row = cursor.fetchone()
+    return "" if row is None else str(row["column_comment"])
+
+
 def _index_exists(cursor, table_name: str, index_name: str) -> bool:
     cursor.execute(
         """
@@ -83,3 +134,8 @@ def _index_exists(cursor, table_name: str, index_name: str) -> bool:
         (table_name, index_name),
     )
     return cursor.fetchone() is not None
+
+
+def _drop_index_if_exists(cursor, table_name: str, index_name: str) -> None:
+    if _index_exists(cursor, table_name, index_name):
+        cursor.execute(f"alter table `{table_name}` drop index `{index_name}`")

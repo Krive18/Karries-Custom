@@ -5,6 +5,16 @@ from typing import Any
 from app.schemas.inspiration import InspirationSessionCreate
 
 
+class InspirationSessionNotFoundError(LookupError):
+    pass
+
+
+class InspirationSessionStateError(ValueError):
+    def __init__(self, status: str) -> None:
+        self.status = status
+        super().__init__(f"inspiration session is {status}")
+
+
 class InspirationRepository:
     def __init__(self, conn) -> None:
         self.conn = conn
@@ -38,7 +48,10 @@ class InspirationRepository:
             )
             session_id = int(cursor.lastrowid)
         self.conn.commit()
-        return self.get_session_for_user(tenant_id, user_id, session_id)  # type: ignore[return-value]
+        session = self.get_session_for_user(tenant_id, user_id, session_id)
+        if session is None:
+            raise RuntimeError("created inspiration session was not found")
+        return session
 
     def list_sessions_for_user(
         self, tenant_id: int, user_id: int, page: int, page_size: int
@@ -89,10 +102,16 @@ class InspirationRepository:
     def get_session_for_user(
         self, tenant_id: int, user_id: int, session_id: int
     ) -> dict | None:
+        return self._get_session_for_user(tenant_id, user_id, session_id)
+
+    def _get_session_for_user(
+        self, tenant_id: int, user_id: int, session_id: int, lock: bool = False
+    ) -> dict | None:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 self._session_select_sql()
-                + "where tenant_id = %s and user_id = %s and id = %s",
+                + "where tenant_id = %s and user_id = %s and id = %s"
+                + (" for update" if lock else ""),
                 (tenant_id, user_id, session_id),
             )
             row = cursor.fetchone()
@@ -106,6 +125,149 @@ class InspirationRepository:
             )
             row = cursor.fetchone()
         return self._session_from_row(row) if row is not None else None
+
+    def claim_and_store_user_message(
+        self,
+        tenant_id: int,
+        user_id: int,
+        session_id: int,
+        content: str,
+        context: dict,
+    ) -> tuple[dict, dict]:
+        session = self.get_session_for_user(tenant_id, user_id, session_id)
+        if session is None:
+            raise InspirationSessionNotFoundError
+        now = int(time.time())
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                update inspiration_session
+                set status = 'generating', update_time = %s
+                where tenant_id = %s and user_id = %s and id = %s and status = 'active'
+                """,
+                (now, tenant_id, user_id, session_id),
+            )
+            if cursor.rowcount != 1:
+                current = self._get_session_for_user(
+                    tenant_id, user_id, session_id, lock=True
+                )
+                raise InspirationSessionStateError(
+                    current["status"] if current is not None else "archived"
+                )
+            cursor.execute(
+                """
+                insert into inspiration_message (
+                    tenant_id, session_id, user_id, role, content, context_json,
+                    ai_provider, ai_model, credit_cost, latency_ms, status,
+                    error_message, create_time
+                )
+                values (%s, %s, %s, 'user', %s, %s, '', '', 0, 0, 'success', '', %s)
+                """,
+                (tenant_id, session_id, user_id, content, self._dump_json(context), now),
+            )
+            message_id = int(cursor.lastrowid)
+            cursor.execute(
+                """
+                update inspiration_session
+                set message_count = message_count + 1
+                where tenant_id = %s and user_id = %s and id = %s and status = 'generating'
+                """,
+                (tenant_id, user_id, session_id),
+            )
+        session["status"] = "generating"
+        return session, {
+            "id": message_id,
+            "role": "user",
+            "content": content,
+            "context": context,
+            "status": "success",
+        }
+
+    def finalize_generation(
+        self,
+        tenant_id: int,
+        user_id: int,
+        session_id: int,
+        content: str,
+        context: dict,
+        ai_provider: str,
+        ai_model: str,
+        credit_cost: int,
+        latency_ms: int,
+        status: str,
+        error_message: str = "",
+    ) -> int:
+        now = int(time.time())
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                insert into inspiration_message (
+                    tenant_id, session_id, user_id, role, content, context_json,
+                    ai_provider, ai_model, credit_cost, latency_ms, status,
+                    error_message, create_time
+                )
+                values (%s, %s, %s, 'assistant', %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    tenant_id,
+                    session_id,
+                    user_id,
+                    content,
+                    self._dump_json(context),
+                    ai_provider,
+                    ai_model,
+                    credit_cost,
+                    latency_ms,
+                    status,
+                    error_message,
+                    now,
+                ),
+            )
+            message_id = int(cursor.lastrowid)
+            cursor.execute(
+                """
+                update inspiration_session
+                set status = 'active',
+                    message_count = message_count + 1,
+                    total_credit_cost = total_credit_cost + %s,
+                    update_time = %s
+                where tenant_id = %s and user_id = %s and id = %s and status = 'generating'
+                """,
+                (credit_cost, now, tenant_id, user_id, session_id),
+            )
+            if cursor.rowcount != 1:
+                current = self._get_session_for_user(
+                    tenant_id, user_id, session_id, lock=True
+                )
+                raise InspirationSessionStateError(
+                    current["status"] if current is not None else "archived"
+                )
+        return message_id
+
+    def archive_active_session(
+        self, tenant_id: int, user_id: int, session_id: int
+    ) -> dict:
+        session = self.get_session_for_user(tenant_id, user_id, session_id)
+        if session is None:
+            raise InspirationSessionNotFoundError
+        if session["status"] != "active":
+            raise InspirationSessionStateError(session["status"])
+        now = int(time.time())
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                update inspiration_session
+                set status = 'archived', update_time = %s
+                where tenant_id = %s and user_id = %s and id = %s and status = 'active'
+                """,
+                (now, tenant_id, user_id, session_id),
+            )
+            if cursor.rowcount != 1:
+                raise InspirationSessionStateError("generating")
+        self.conn.commit()
+        session["status"] = "archived"
+        session["update_time"] = now
+        return session
 
     def list_messages_for_user(
         self, tenant_id: int, user_id: int, session_id: int
@@ -138,62 +300,6 @@ class InspirationRepository:
             rows = list(reversed(cursor.fetchall()))
         return [(row["role"], row["content"]) for row in rows]
 
-    def add_message(
-        self,
-        tenant_id: int,
-        user_id: int,
-        session_id: int,
-        role: str,
-        content: str,
-        context: dict,
-        ai_provider: str = "",
-        ai_model: str = "",
-        credit_cost: int = 0,
-        latency_ms: int = 0,
-        status: str = "success",
-        error_message: str = "",
-    ) -> dict:
-        now = int(time.time())
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                """
-                insert into inspiration_message (
-                    tenant_id, session_id, user_id, role, content, context_json,
-                    ai_provider, ai_model, credit_cost, latency_ms, status,
-                    error_message, create_time
-                )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """,
-                (
-                    tenant_id,
-                    session_id,
-                    user_id,
-                    role,
-                    content,
-                    self._dump_json(context),
-                    ai_provider,
-                    ai_model,
-                    credit_cost,
-                    latency_ms,
-                    status,
-                    error_message,
-                    now,
-                ),
-            )
-            message_id = int(cursor.lastrowid)
-            cursor.execute(
-                """
-                update inspiration_session
-                set message_count = message_count + 1,
-                    total_credit_cost = total_credit_cost + %s,
-                    update_time = %s
-                where tenant_id = %s and user_id = %s and id = %s
-                """,
-                (credit_cost, now, tenant_id, user_id, session_id),
-            )
-        self.conn.commit()
-        return self.get_message_for_user(tenant_id, user_id, message_id)  # type: ignore[return-value]
-
     def get_message_for_user(
         self, tenant_id: int, user_id: int, message_id: int
     ) -> dict | None:
@@ -205,23 +311,6 @@ class InspirationRepository:
             )
             row = cursor.fetchone()
         return self._message_from_row(row) if row is not None else None
-
-    def archive_session(self, tenant_id: int, user_id: int, session_id: int) -> dict | None:
-        now = int(time.time())
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                """
-                update inspiration_session
-                set status = 'archived', update_time = %s
-                where tenant_id = %s and user_id = %s and id = %s
-                """,
-                (now, tenant_id, user_id, session_id),
-            )
-            updated = cursor.rowcount == 1
-        self.conn.commit()
-        if not updated:
-            return None
-        return self.get_session_for_user(tenant_id, user_id, session_id)
 
     def _list_messages(self, where_sql: str, params: tuple) -> list[dict]:
         with self.conn.cursor() as cursor:

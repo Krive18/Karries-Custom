@@ -1,4 +1,10 @@
+from types import SimpleNamespace
+
+import pymysql
+import pytest
+
 from app.core.security import create_access_token
+from app.integrations.deepseek import TextGenerationResult
 from app.repositories.user_repository import UserRepository
 
 
@@ -117,6 +123,8 @@ def test_employee_can_create_session_send_message_and_save_assistant_as_draft(
     with mysql_conn.cursor() as cursor:
         cursor.execute("select count(*) as total from content_draft where source_type = 'inspiration'")
         assert cursor.fetchone()["total"] == 1
+        cursor.execute("select count(*) as total from content_draft_source")
+        assert cursor.fetchone()["total"] == 1
         cursor.execute("select total_credit_cost from inspiration_session where id = %s", (session_id,))
         assert cursor.fetchone()["total_credit_cost"] == 1
 
@@ -179,6 +187,68 @@ def test_archived_session_rejects_new_messages(mysql_conn, mysql_app_client):
     assert response.json()["error"]["code"] == "SESSION_ARCHIVED"
 
 
+def test_generating_session_rejects_concurrent_send_and_archive(mysql_conn, mysql_app_client):
+    headers = auth_headers(mysql_conn, mysql_app_client, "generating")
+    session_id = create_session(mysql_app_client, headers)
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "update inspiration_session set status = 'generating' where id = %s",
+            (session_id,),
+        )
+    mysql_conn.commit()
+
+    send_response = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json={"content": "This must not overlap"},
+    )
+    archive_response = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/archive", headers=headers
+    )
+
+    assert send_response.status_code == 409
+    assert send_response.json()["error"]["code"] == "SESSION_GENERATING"
+    assert archive_response.status_code == 409
+    assert archive_response.json()["error"]["code"] == "SESSION_GENERATING"
+
+
+def test_session_rejects_linked_resources_owned_by_another_user(mysql_conn, mysql_app_client):
+    owner_headers = auth_headers(mysql_conn, mysql_app_client, "linked-owner")
+    other_headers = auth_headers(mysql_conn, mysql_app_client, "linked-other")
+    product = mysql_app_client.post(
+        "/api/products",
+        headers=owner_headers,
+        json={
+            "product_name": "Private product",
+            "brand_name": "KARRIES",
+            "category": "skincare",
+            "selling_point": {"points": ["private"]},
+            "ai_material": {},
+        },
+    )
+    account = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=owner_headers,
+        json={"display_name": "Private account", "profile": {}},
+    )
+    assert product.status_code == 200
+    assert account.status_code == 200
+
+    response = mysql_app_client.post(
+        "/api/inspiration/sessions",
+        headers=other_headers,
+        json={
+            "title": "Unauthorized links",
+            "linked_product_id": product.json()["data"]["id"],
+            "linked_xhs_account_id": account.json()["data"]["id"],
+            "goal_type": "topic",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"
+
+
 def test_provider_failure_persists_failed_message_without_credit_charge(
     monkeypatch, mysql_conn, mysql_app_client
 ):
@@ -207,3 +277,291 @@ def test_provider_failure_persists_failed_message_without_credit_charge(
         assert cursor.fetchone()["credit_cost"] == 0
         cursor.execute("select total_credit_cost from inspiration_session where id = %s", (session_id,))
         assert cursor.fetchone()["total_credit_cost"] == 0
+
+
+class _DuplicateMappingCursor:
+    def __init__(self, conn):
+        self.conn = conn
+        self.lastrowid = 0
+        self.row = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def execute(self, sql, _params):
+        normalized = " ".join(sql.lower().split())
+        self.conn.sql.append(normalized)
+        if "select id from content_draft" in normalized:
+            raise AssertionError("idempotency must be enforced by the mapping unique key")
+        if "insert into content_draft (" in normalized:
+            self.lastrowid = 22
+            return
+        if "insert into content_draft_source" in normalized:
+            raise pymysql.err.IntegrityError(1062, "duplicate source mapping")
+        if "select content_draft_id from content_draft_source" in normalized:
+            self.row = {"content_draft_id": 41}
+            return
+        raise AssertionError(f"unexpected SQL: {normalized}")
+
+    def fetchone(self):
+        return self.row
+
+
+class _DuplicateMappingConnection:
+    def __init__(self):
+        self.sql = []
+        self.commits = 0
+        self.rollbacks = 0
+
+    def cursor(self):
+        return _DuplicateMappingCursor(self)
+
+    def commit(self):
+        self.commits += 1
+
+    def rollback(self):
+        self.rollbacks += 1
+
+
+def test_save_draft_returns_existing_mapping_after_concurrent_unique_conflict():
+    from app.repositories.content_draft_repository import ContentDraftRepository
+
+    conn = _DuplicateMappingConnection()
+    draft_id = ContentDraftRepository(conn).create_from_ai_text(
+        tenant_id=7,
+        user_id=3,
+        source_type="inspiration",
+        source_id=11,
+        title="Generated title",
+        body="Generated body",
+        ai_provider="deepseek",
+        model_name="deepseek-chat",
+        context={"linked_product_id": 0, "linked_xhs_account_id": 0},
+    )
+
+    assert draft_id == 41
+    assert conn.commits == 0
+    assert conn.rollbacks == 1
+    assert any("insert into content_draft_source" in sql for sql in conn.sql)
+
+
+class _WorkflowConnection:
+    def __init__(self):
+        self.commits = 0
+        self.rollbacks = 0
+
+    def commit(self):
+        self.commits += 1
+
+    def rollback(self):
+        self.rollbacks += 1
+
+
+class _WorkflowRepository:
+    def __init__(self, _conn):
+        self.finalized = []
+
+    def claim_and_store_user_message(self, *_args):
+        return {
+            "id": 9,
+            "title": "Campaign",
+            "linked_product_id": 0,
+            "linked_xhs_account_id": 0,
+            "goal_type": "topic",
+            "tone": "natural",
+            "extra_requirement": "",
+        }, {"id": 20, "role": "user", "content": "ideas"}
+
+    def get_session_for_user(self, *_args):
+        return {
+            "id": 9,
+            "title": "Campaign",
+            "linked_product_id": 0,
+            "linked_xhs_account_id": 0,
+            "goal_type": "topic",
+            "tone": "natural",
+            "extra_requirement": "",
+        }
+
+    def list_successful_history(self, *_args):
+        return [("user", "ideas")]
+
+    def finalize_generation(self, *_args, **_kwargs):
+        self.finalized.append((_args, _kwargs))
+        return 21
+
+    def get_message_for_user(self, *_args):
+        return {"id": 21, "role": "assistant", "status": "success"}
+
+
+def test_success_finalization_commits_assistant_session_and_usage_together(monkeypatch):
+    from app.services import inspiration_service
+
+    conn = _WorkflowConnection()
+    repo = _WorkflowRepository(conn)
+    usage_calls = []
+
+    class FakeUsageService:
+        def __init__(self, _repository):
+            pass
+
+        def record_success(self, **kwargs):
+            usage_calls.append(kwargs)
+
+    monkeypatch.setattr(inspiration_service, "InspirationRepository", lambda _conn: repo)
+    monkeypatch.setattr(inspiration_service, "AIUsageService", FakeUsageService)
+    service = inspiration_service.InspirationService(conn)
+    monkeypatch.setattr(
+        service,
+        "_provider_from_settings_snapshot",
+        lambda: (
+            SimpleNamespace(provider="deepseek", model="deepseek-chat"),
+            SimpleNamespace(
+                generate_text=lambda *_args, **_kwargs: TextGenerationResult(
+                    content="assistant reply",
+                    provider="deepseek",
+                    model_name="deepseek-chat",
+                    latency_ms=3,
+                    input_chars=8,
+                    output_chars=15,
+                )
+            ),
+        ),
+    )
+
+    result = service.send_message(
+        {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+    )
+
+    assert result["assistant_message"]["id"] == 21
+    assert len(repo.finalized) == 1
+    assert usage_calls[0]["commit"] is False
+    assert conn.commits == 3
+    assert conn.rollbacks == 0
+
+
+def test_failed_finalization_rolls_back_assistant_session_and_usage(monkeypatch):
+    from app.services import inspiration_service
+
+    conn = _WorkflowConnection()
+    repo = _WorkflowRepository(conn)
+
+    class FailingUsageService:
+        def __init__(self, _repository):
+            pass
+
+        def record_success(self, **_kwargs):
+            raise RuntimeError("usage write failed")
+
+    monkeypatch.setattr(inspiration_service, "InspirationRepository", lambda _conn: repo)
+    monkeypatch.setattr(inspiration_service, "AIUsageService", FailingUsageService)
+    service = inspiration_service.InspirationService(conn)
+    monkeypatch.setattr(
+        service,
+        "_provider_from_settings_snapshot",
+        lambda: (
+            SimpleNamespace(provider="deepseek", model="deepseek-chat"),
+            SimpleNamespace(
+                generate_text=lambda *_args, **_kwargs: TextGenerationResult(
+                    content="assistant reply",
+                    provider="deepseek",
+                    model_name="deepseek-chat",
+                    latency_ms=3,
+                    input_chars=8,
+                    output_chars=15,
+                )
+            ),
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="usage write failed"):
+        service.send_message(
+            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+        )
+
+    assert len(repo.finalized) == 1
+    assert conn.rollbacks == 1
+
+
+def test_provider_failure_finalization_commits_failed_message_session_and_usage(monkeypatch):
+    from app.services import inspiration_service
+    from app.services.ai_provider_service import AIProviderError
+
+    conn = _WorkflowConnection()
+    repo = _WorkflowRepository(conn)
+    usage_calls = []
+
+    class FakeUsageService:
+        def __init__(self, _repository):
+            pass
+
+        def record_failure(self, **kwargs):
+            usage_calls.append(kwargs)
+
+    monkeypatch.setattr(inspiration_service, "InspirationRepository", lambda _conn: repo)
+    monkeypatch.setattr(inspiration_service, "AIUsageService", FakeUsageService)
+    service = inspiration_service.InspirationService(conn)
+    monkeypatch.setattr(
+        service,
+        "_provider_from_settings_snapshot",
+        lambda: (
+            SimpleNamespace(provider="deepseek", model="deepseek-chat"),
+            SimpleNamespace(
+                generate_text=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    AIProviderError("timeout", "provider timeout")
+                )
+            ),
+        ),
+    )
+
+    with pytest.raises(inspiration_service.InspirationProviderError):
+        service.send_message(
+            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+        )
+
+    assert repo.finalized[0][1]["status"] == "failed"
+    assert usage_calls[0]["commit"] is False
+    assert conn.commits == 3
+    assert conn.rollbacks == 0
+
+
+def test_provider_failure_finalization_rolls_back_when_usage_write_fails(monkeypatch):
+    from app.services import inspiration_service
+    from app.services.ai_provider_service import AIProviderError
+
+    conn = _WorkflowConnection()
+    repo = _WorkflowRepository(conn)
+
+    class FailingUsageService:
+        def __init__(self, _repository):
+            pass
+
+        def record_failure(self, **_kwargs):
+            raise RuntimeError("failure usage write failed")
+
+    monkeypatch.setattr(inspiration_service, "InspirationRepository", lambda _conn: repo)
+    monkeypatch.setattr(inspiration_service, "AIUsageService", FailingUsageService)
+    service = inspiration_service.InspirationService(conn)
+    monkeypatch.setattr(
+        service,
+        "_provider_from_settings_snapshot",
+        lambda: (
+            SimpleNamespace(provider="deepseek", model="deepseek-chat"),
+            SimpleNamespace(
+                generate_text=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                    AIProviderError("timeout", "provider timeout")
+                )
+            ),
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="failure usage write failed"):
+        service.send_message(
+            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+        )
+
+    assert len(repo.finalized) == 1
+    assert conn.rollbacks == 1

@@ -1,7 +1,13 @@
 from app.repositories.ai_usage_repository import AIUsageRepository
 from app.repositories.content_draft_repository import ContentDraftRepository
-from app.repositories.inspiration_repository import InspirationRepository
+from app.repositories.inspiration_repository import (
+    InspirationRepository,
+    InspirationSessionNotFoundError,
+    InspirationSessionStateError,
+)
+from app.repositories.product_repository import ProductRepository
 from app.repositories.setting_repository import SettingRepository
+from app.repositories.xhs_account_repository import XHSAccountRepository
 from app.schemas.inspiration import InspirationMessageCreate, InspirationSessionCreate
 from app.services.ai_provider_service import AIProviderError, AIProviderService
 from app.services.ai_settings_service import get_ai_setting_key, get_ai_settings_view
@@ -27,6 +33,18 @@ class InspirationService:
         self.repository = InspirationRepository(conn)
 
     def create_session(self, user: dict, payload: InspirationSessionCreate) -> dict:
+        if payload.linked_product_id > 0:
+            product = ProductRepository(self.conn).get_for_user(
+                user["id"], payload.linked_product_id
+            )
+            if product is None:
+                raise LookupError("product not found")
+        if payload.linked_xhs_account_id > 0:
+            account = XHSAccountRepository(self.conn).get_for_user(
+                user["id"], payload.linked_xhs_account_id
+            )
+            if account is None:
+                raise LookupError("xhs account not found")
         return self.repository.create_session(user["tenant_id"], user["id"], payload)
 
     def list_sessions(self, user: dict, page: int, page_size: int) -> dict:
@@ -47,29 +65,38 @@ class InspirationService:
             ),
         }
 
-    def archive_session(self, user: dict, session_id: int) -> dict | None:
-        return self.repository.archive_session(user["tenant_id"], user["id"], session_id)
+    def archive_session(self, user: dict, session_id: int) -> dict:
+        try:
+            return self.repository.archive_active_session(
+                user["tenant_id"], user["id"], session_id
+            )
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def send_message(
         self, user: dict, session_id: int, payload: InspirationMessageCreate
     ) -> dict:
         tenant_id = user["tenant_id"]
         user_id = user["id"]
-        session = self.repository.get_session_for_user(tenant_id, user_id, session_id)
-        if session is None:
-            raise LookupError("session not found")
-        if session["status"] != "active":
-            raise ValueError("session is archived")
 
-        context = self._context_from_session(session)
-        user_message = self.repository.add_message(
-            tenant_id, user_id, session_id, "user", payload.content, context
-        )
+        try:
+            existing = self.repository.get_session_for_user(tenant_id, user_id, session_id)
+            if existing is None:
+                raise InspirationSessionNotFoundError
+            context = self._context_from_session(existing)
+            session, user_message = self.repository.claim_and_store_user_message(
+                tenant_id, user_id, session_id, payload.content, context
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
         history = self.repository.list_successful_history(tenant_id, user_id, session_id)
         history = history[:-1] if history and history[-1][0] == "user" else history
-
         provider_settings, provider = self._provider_from_settings_snapshot()
-        # All writes and settings reads above are committed before the provider HTTP request.
+        # History and settings reads are completed before the provider HTTP request.
         self.conn.commit()
         credit_cost = CreditChargeService().estimate("inspiration_chat")
         try:
@@ -79,50 +106,49 @@ class InspirationService:
                 history=history,
             )
         except AIProviderError as exc:
-            self.repository.add_message(
+            self._finalize_provider_failure(
                 tenant_id,
                 user_id,
                 session_id,
-                "assistant",
-                "",
                 context,
-                ai_provider=provider_settings.provider,
-                ai_model=provider_settings.model,
-                status="failed",
-                error_message=str(exc),
+                provider_settings.provider,
+                provider_settings.model,
+                exc,
             )
-            AIUsageService(AIUsageRepository(self.conn)).record_failure(
+            raise InspirationProviderError from exc
+
+        try:
+            assistant_message_id = self.repository.finalize_generation(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                session_id=session_id,
+                content=result.content,
+                context=context,
+                ai_provider=result.provider,
+                ai_model=result.model_name,
+                credit_cost=credit_cost,
+                latency_ms=result.latency_ms,
+                status="success",
+            )
+            AIUsageService(AIUsageRepository(self.conn)).record_success(
                 tenant_id=tenant_id,
                 user_id=user_id,
                 business_type="inspiration_chat",
                 business_id=session_id,
-                provider=provider_settings.provider,
-                model_name=provider_settings.model,
-                error_message=str(exc),
-                error_code=exc.code,
+                result=result,
+                credit_cost=credit_cost,
+                commit=False,
             )
-            raise InspirationProviderError from exc
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
 
-        assistant_message = self.repository.add_message(
-            tenant_id,
-            user_id,
-            session_id,
-            "assistant",
-            result.content,
-            context,
-            ai_provider=result.provider,
-            ai_model=result.model_name,
-            credit_cost=credit_cost,
-            latency_ms=result.latency_ms,
+        assistant_message = self.repository.get_message_for_user(
+            tenant_id, user_id, assistant_message_id
         )
-        AIUsageService(AIUsageRepository(self.conn)).record_success(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            business_type="inspiration_chat",
-            business_id=session_id,
-            result=result,
-            credit_cost=credit_cost,
-        )
+        if assistant_message is None:
+            raise RuntimeError("finalized inspiration message was not found")
         return {
             "user_message": user_message,
             "assistant_message": assistant_message,
@@ -136,6 +162,7 @@ class InspirationService:
         if message is None or message["role"] != "assistant" or message["status"] != "success":
             return None
         return ContentDraftRepository(self.conn).create_from_ai_text(
+            tenant_id=user["tenant_id"],
             user_id=user["id"],
             source_type="inspiration",
             source_id=message_id,
@@ -157,6 +184,46 @@ class InspirationService:
             "session": session,
             "messages": self.repository.list_messages_for_admin(user["tenant_id"], session_id),
         }
+
+    def _finalize_provider_failure(
+        self,
+        tenant_id: int,
+        user_id: int,
+        session_id: int,
+        context: dict,
+        provider: str,
+        model_name: str,
+        error: AIProviderError,
+    ) -> None:
+        try:
+            self.repository.finalize_generation(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                session_id=session_id,
+                content="",
+                context=context,
+                ai_provider=provider,
+                ai_model=model_name,
+                credit_cost=0,
+                latency_ms=0,
+                status="failed",
+                error_message=str(error),
+            )
+            AIUsageService(AIUsageRepository(self.conn)).record_failure(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                business_type="inspiration_chat",
+                business_id=session_id,
+                provider=provider,
+                model_name=model_name,
+                error_message=str(error),
+                error_code=error.code,
+                commit=False,
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
 
     def _context_from_session(self, session: dict) -> dict:
         return {

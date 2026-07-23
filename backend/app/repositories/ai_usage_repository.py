@@ -19,6 +19,7 @@ class AIUsageRepository:
         input_chars: int,
         output_chars: int,
         error_message: str,
+        commit: bool = True,
     ) -> int:
         now = int(time.time())
         try:
@@ -49,11 +50,13 @@ class AIUsageRepository:
                     ),
                 )
                 usage_id = int(cursor.lastrowid)
-            self.conn.commit()
+            if commit:
+                self.conn.commit()
             return usage_id
         except Exception:
-            try:
-                self.conn.rollback()
-            except Exception:
-                pass
+            if commit:
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
             raise

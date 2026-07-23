@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 GoalType = Literal["topic", "title", "body", "script", "strategy", "optimize"]
-SessionStatus = Literal["active", "archived"]
+SessionStatus = Literal["active", "generating", "archived"]
 
 
 class InspirationSessionCreate(BaseModel):
