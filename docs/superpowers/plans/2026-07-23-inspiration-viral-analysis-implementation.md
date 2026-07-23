@@ -35,6 +35,7 @@
 - Modify: `backend/app/repositories/user_repository.py`
 - Modify: `backend/app/services/auth_service.py`
 - Modify: `backend/app/schemas/auth.py`
+- Modify: `backend/app/api/auth.py`
 - Modify: `backend/tests/conftest.py`
 - Modify: `backend/tests/test_database_schema.py`
 - Modify: `backend/tests/test_auth_api.py`
@@ -110,7 +111,32 @@ create table if not exists tenant (
 ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='客户租户';
 ```
 
-其余 6 张业务表严格按设计文档字段创建，并添加以下查询索引：
+其余 6 张业务表严格按设计文档字段创建。`ai_usage_log` 使用以下完整字段契约：
+
+```sql
+create table if not exists ai_usage_log (
+    id bigint unsigned not null auto_increment comment '主键',
+    tenant_id bigint unsigned not null comment '所属租户 ID',
+    user_id bigint unsigned not null comment '调用用户 ID',
+    business_type varchar(50) not null comment '业务类型',
+    business_id bigint unsigned not null default 0 comment '关联业务 ID',
+    provider varchar(50) not null comment 'AI 服务商',
+    model_name varchar(100) not null comment '模型名称',
+    status varchar(20) not null comment '调用状态，success 或 failed',
+    credit_cost int not null default 0 comment '本次预估消耗算力',
+    latency_ms int unsigned not null default 0 comment '调用耗时毫秒',
+    input_chars int unsigned not null default 0 comment '输入字符数量',
+    output_chars int unsigned not null default 0 comment '输出字符数量',
+    error_message varchar(1000) not null default '' comment '脱敏后的错误信息',
+    create_time bigint unsigned not null comment '创建时间戳',
+    primary key (id),
+    key idx_ai_usage_tenant_business_time (tenant_id, business_type, create_time),
+    key idx_ai_usage_user_time (user_id, create_time),
+    key idx_ai_usage_business (business_type, business_id)
+) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='AI 调用用量记录';
+```
+
+新增业务表添加以下查询索引：
 
 ```text
 ai_usage_log: idx_ai_usage_tenant_business_time, idx_ai_usage_user_time, idx_ai_usage_business
@@ -153,7 +179,7 @@ Expected: 相关可执行测试全部通过，MySQL 未配置的集成测试仅�
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
-git add backend/app/db/schema.py backend/app/db/migrations.py backend/app/repositories/user_repository.py backend/app/services/auth_service.py backend/app/schemas/auth.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_auth_api.py
+git add backend/app/db/schema.py backend/app/db/migrations.py backend/app/repositories/user_repository.py backend/app/services/auth_service.py backend/app/schemas/auth.py backend/app/api/auth.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_auth_api.py
 git commit -m "feat: add tenant-aware AI module schema"
 ```
 
@@ -725,4 +751,3 @@ git commit -m "fix: harden inspiration and viral analysis workflows"
 ```
 
 若审查无代码修改，不创建空提交。
-
