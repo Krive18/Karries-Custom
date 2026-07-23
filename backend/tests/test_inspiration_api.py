@@ -1,5 +1,6 @@
-from types import SimpleNamespace
+from decimal import Decimal
 import time
+from types import SimpleNamespace
 
 import pymysql
 import pytest
@@ -127,6 +128,37 @@ def test_inspiration_sessions_require_auth(app_client_without_db):
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.parametrize(
+    ("raw_draft_id", "expected_draft_id"),
+    [("0", 0), (Decimal("812"), 812)],
+)
+def test_message_mapping_normalizes_content_draft_identifier(
+    raw_draft_id, expected_draft_id
+):
+    row = {
+        "id": 1,
+        "tenant_id": 2,
+        "session_id": 3,
+        "user_id": 4,
+        "role": "assistant",
+        "content": "draft content",
+        "context_json": "{}",
+        "ai_provider": "deepseek",
+        "ai_model": "deepseek-chat",
+        "credit_cost": 1,
+        "latency_ms": 12,
+        "status": "success",
+        "error_message": "",
+        "content_draft_id": raw_draft_id,
+        "create_time": 1_700_000_000,
+    }
+
+    message = InspirationRepository(None)._message_from_row(row)
+
+    assert message["content_draft_id"] == expected_draft_id
+    assert isinstance(message["content_draft_id"], int)
 
 
 def test_employee_can_create_session_send_message_and_save_assistant_as_draft(

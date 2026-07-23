@@ -420,7 +420,7 @@ class InspirationRepository:
             "latency_ms": row["latency_ms"],
             "status": row["status"],
             "error_message": row["error_message"],
-            "content_draft_id": row["content_draft_id"],
+            "content_draft_id": int(row["content_draft_id"] or 0),
             "create_time": row["create_time"],
         }
 
