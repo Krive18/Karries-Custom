@@ -842,6 +842,26 @@ def test_migrate_backfills_tenant_columns_for_legacy_tables(mysql_conn):
     assert all(str(column["column_default"]) == "1" for column in columns)
     assert all(column["column_comment"] == "所属租户 ID" for column in columns)
 
+    role_column = fetch_one(
+        mysql_conn,
+        """
+        select is_nullable as is_nullable,
+               column_default as column_default,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'app_user'
+          and column_name = 'user_role'
+        """,
+    )
+    assert role_column == {
+        "is_nullable": "NO",
+        "column_default": "customer",
+        "column_comment": (
+            "用户角色，customer、client_owner、client_admin、platform_admin 或 developer_admin"
+        ),
+    }
+
     indexes = fetch_all(
         mysql_conn,
         """
