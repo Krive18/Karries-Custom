@@ -284,7 +284,10 @@ git commit -m "feat: add shared AI text provider services"
 - Create: `backend/app/api/inspiration.py`
 - Create: `backend/app/api/admin_inspiration.py`
 - Modify: `backend/app/repositories/content_draft_repository.py`
+- Modify: `backend/app/db/schema.py`
+- Modify: `backend/app/db/migrations.py`
 - Modify: `backend/app/main.py`
+- Modify: `backend/tests/test_database_schema.py`
 - Create: `backend/tests/test_inspiration_api.py`
 
 **Interfaces:**
@@ -352,6 +355,15 @@ class InspirationMessageCreate(BaseModel):
 {"items": [], "page": 1, "page_size": 20, "total": 0}
 ```
 
+`inspiration_session` 需要持久化页面上下文；在 `schema.py` 的新建表定义中增加：
+
+```sql
+tone varchar(100) not null default '自然真诚' comment '文案语气',
+extra_requirement varchar(1000) not null default '' comment '补充创作要求',
+```
+
+在 `migrations.py` 中沿用 Task 1 的 `information_schema.columns` 幂等检查，为已创建的 `inspiration_session` 补齐这两列；`test_database_schema.py` 必须断言列类型、`NOT NULL`、默认值和中文注释。
+
 - [ ] **Step 4: 实现 Repository 与 Service**
 
 Repository 所有员工读取和写入必须包含 `tenant_id = %s and user_id = %s`；管理读取必须包含 `tenant_id = %s`。消息发送顺序：
@@ -387,7 +399,7 @@ draft_id = content_drafts.create_from_ai_text(
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend\tests\test_inspiration_api.py -q
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
-git add backend/app/schemas/inspiration.py backend/app/repositories/inspiration_repository.py backend/app/services/inspiration_service.py backend/app/api/inspiration.py backend/app/api/admin_inspiration.py backend/app/repositories/content_draft_repository.py backend/app/main.py backend/tests/test_inspiration_api.py
+git add backend/app/schemas/inspiration.py backend/app/repositories/inspiration_repository.py backend/app/services/inspiration_service.py backend/app/api/inspiration.py backend/app/api/admin_inspiration.py backend/app/repositories/content_draft_repository.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/main.py backend/tests/test_database_schema.py backend/tests/test_inspiration_api.py
 git commit -m "feat: add inspiration conversation workflow"
 ```
 
