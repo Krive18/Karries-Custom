@@ -78,6 +78,40 @@ button {
   gap: 8px;
 }
 
+.portal-switcher {
+  display: grid;
+  gap: 8px;
+}
+
+.portal-tab {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 54px;
+  padding: 10px 13px;
+  border: 1px solid rgba(93, 64, 42, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #60452f;
+  text-align: left;
+}
+
+.portal-tab strong {
+  font-size: 14px;
+}
+
+.portal-tab span {
+  color: #91796a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portal-tab.active {
+  border-color: rgba(126, 83, 42, 0.28);
+  background: #fff3e1;
+  box-shadow: 0 10px 22px rgba(94, 54, 20, 0.1);
+}
+
 .nav-item {
   display: grid;
   grid-template-columns: 22px 1fr;
@@ -230,6 +264,26 @@ button {
   display: grid;
   gap: 16px;
   max-width: 1320px;
+}
+
+.app-alert,
+.form-message {
+  padding: 11px 14px;
+  border: 1px solid rgba(173, 63, 50, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 240, 238, 0.9);
+  color: #9b372d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-alert {
+  max-width: 1320px;
+  margin: 0 0 14px;
+}
+
+.form-message {
+  margin-bottom: 14px;
 }
 
 .panel {
@@ -581,6 +635,12 @@ textarea {
   color: #34271e;
 }
 
+.task-table .empty-table-cell {
+  padding: 30px 14px;
+  color: #86705f;
+  text-align: center;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -615,6 +675,204 @@ textarea {
   display: grid;
   grid-template-columns: minmax(380px, 0.78fr) minmax(560px, 1fr);
   gap: 16px;
+}
+
+.video-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(440px, 0.82fr) minmax(520px, 1fr);
+  gap: 16px;
+  max-width: 1320px;
+}
+
+.video-edit-submit-panel,
+.video-edit-status-panel,
+.manager-note-panel {
+  padding: 22px;
+}
+
+.compact-upload-zone {
+  min-height: 132px;
+  margin-top: 16px;
+}
+
+.material-list,
+.job-card-list,
+.developer-job-board {
+  display: grid;
+  gap: 12px;
+}
+
+.material-list {
+  margin-top: 14px;
+}
+
+.material-list > div,
+.job-card,
+.developer-job-card {
+  border: 1px solid rgba(93, 64, 42, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 252, 247, 0.74);
+}
+
+.material-list > div {
+  padding: 12px 13px;
+}
+
+.material-list strong,
+.material-list span,
+.job-card strong,
+.job-card span {
+  display: block;
+}
+
+.material-list span,
+.job-card span,
+.delivery-box,
+.empty-list-state {
+  color: #806957;
+  font-size: 13px;
+}
+
+.job-card {
+  padding: 15px;
+}
+
+.job-card strong {
+  color: #312319;
+  font-size: 16px;
+}
+
+.job-card > div:first-child span {
+  margin-top: 6px;
+  line-height: 1.6;
+}
+
+.job-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.job-meta-row span {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #f5eadc;
+  color: #765239;
+  font-weight: 800;
+}
+
+.progress-track {
+  height: 8px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: rgba(119, 83, 50, 0.12);
+  overflow: hidden;
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8f5b23, #d8a35d);
+}
+
+.delivery-box {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #e7f2e6;
+  color: #2e6d45;
+  font-weight: 800;
+}
+
+.empty-list-state {
+  padding: 28px;
+  text-align: center;
+}
+
+.developer-job-board {
+  max-width: 1320px;
+}
+
+.developer-job-card {
+  padding: 20px;
+}
+
+.developer-job-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.developer-job-head h2,
+.manager-note-panel h2 {
+  margin: 8px 0 0;
+  color: #2f2117;
+  font-size: 20px;
+}
+
+.developer-job-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.developer-job-grid > div {
+  padding: 13px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.developer-job-grid strong {
+  color: #5f4129;
+  font-size: 13px;
+}
+
+.developer-job-grid p {
+  margin: 7px 0 0;
+  color: #3f2c21;
+  line-height: 1.65;
+}
+
+.developer-material-list {
+  margin: 16px 0;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 1320px;
+}
+
+.metric-card {
+  min-height: 148px;
+  padding: 20px;
+  display: grid;
+  align-content: space-between;
+  color: #5a3d27;
+}
+
+.metric-card span {
+  color: #806957;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.metric-card strong {
+  color: #3d291c;
+  font-size: 36px;
+}
+
+.manager-note-panel {
+  max-width: 1320px;
+}
+
+.manager-note-panel p {
+  color: #725946;
+  line-height: 1.75;
 }
 
 .runtime-panel {

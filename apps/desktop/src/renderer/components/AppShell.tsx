@@ -1,24 +1,61 @@
 import type { ReactNode } from "react";
-import { Bell, ChevronDown, Clock3, Settings, Sparkles, UserRound } from "lucide-react";
+import {
+  Bell,
+  ChevronDown,
+  Clock3,
+  LayoutDashboard,
+  Settings,
+  ShieldCheck,
+  Sparkles,
+  Scissors,
+  UserRound
+} from "lucide-react";
 
 import { brandAssets } from "../assets";
-import type { PageKey } from "../types";
+import type { PageKey, PortalKey } from "../types";
 
 
 type AppShellProps = {
   activePage: PageKey;
+  activePortal: PortalKey;
   onNavigate: (page: PageKey) => void;
+  onPortalChange: (portal: PortalKey) => void;
   children: ReactNode;
 };
 
-const navItems: Array<{ key: PageKey; label: string; icon: typeof Sparkles }> = [
-  { key: "create", label: "智能创作", icon: Sparkles },
-  { key: "schedule", label: "定时发布", icon: Clock3 },
-  { key: "settings", label: "系统配置", icon: Settings }
+const portalItems: Array<{ key: PortalKey; label: string; description: string }> = [
+  { key: "user", label: "用户端", description: "禾一斯员工" },
+  { key: "manager", label: "管理端", description: "老板/管理层" },
+  { key: "developer", label: "开发者端", description: "内部隐藏" }
 ];
 
+const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; icon: typeof Sparkles }>> = {
+  user: [
+    { key: "create", label: "智能创作", icon: Sparkles },
+    { key: "videoEdit", label: "智能剪辑", icon: Scissors },
+    { key: "schedule", label: "定时发布", icon: Clock3 },
+    { key: "settings", label: "系统配置", icon: Settings }
+  ],
+  manager: [
+    { key: "managerOverview", label: "运营总览", icon: LayoutDashboard },
+    { key: "schedule", label: "发布监控", icon: Clock3 }
+  ],
+  developer: [
+    { key: "developerVideoJobs", label: "剪辑工单", icon: ShieldCheck },
+    { key: "settings", label: "系统配置", icon: Settings }
+  ]
+};
 
-export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
+
+export function AppShell({
+  activePage,
+  activePortal,
+  onNavigate,
+  onPortalChange,
+  children
+}: AppShellProps) {
+  const navItems = navItemsByPortal[activePortal];
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -28,6 +65,20 @@ export function AppShell({ activePage, onNavigate, children }: AppShellProps) {
             <div className="brand-name">KARRIES</div>
             <div className="brand-cn">禾一斯</div>
           </div>
+        </div>
+
+        <div className="portal-switcher" aria-label="端切换">
+          {portalItems.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              className={activePortal === item.key ? "portal-tab active" : "portal-tab"}
+              onClick={() => onPortalChange(item.key)}
+            >
+              <strong>{item.label}</strong>
+              <span>{item.description}</span>
+            </button>
+          ))}
         </div>
 
         <nav className="nav-list" aria-label="主导航">

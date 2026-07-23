@@ -22,11 +22,19 @@ def summary(
         account_count = int(cursor.fetchone()["total_accounts"])
         cursor.execute("select count(*) as total_plans from matrix_publish_plan")
         plan_count = int(cursor.fetchone()["total_plans"])
+        cursor.execute("select count(*) as total_jobs from video_edit_job")
+        video_edit_job_count = int(cursor.fetchone()["total_jobs"])
+        cursor.execute(
+            "select count(*) as pending_jobs from video_edit_job where status in (1, 2, 4)"
+        )
+        pending_video_edit_job_count = int(cursor.fetchone()["pending_jobs"])
 
     return ok(
         {
             "total_users": user_count,
             "total_xhs_accounts": account_count,
             "total_matrix_plans": plan_count,
+            "total_video_edit_jobs": video_edit_job_count,
+            "pending_video_edit_jobs": pending_video_edit_job_count,
         }
     )

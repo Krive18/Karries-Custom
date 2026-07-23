@@ -16,6 +16,7 @@ SAAS_FOUNDATION_TABLES = {
     "matrix_publish_plan",
     "matrix_publish_item",
     "admin_audit_log",
+    "video_edit_job",
 }
 
 
@@ -116,7 +117,7 @@ def test_migrate_creates_saas_foundation_tables(mysql_conn):
             'recharge_package', 'xhs_account', 'xhs_account_profile',
             'product', 'product_material_package', 'material_file',
             'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
-            'admin_audit_log'
+            'admin_audit_log', 'video_edit_job'
           )
         """,
     )
@@ -141,7 +142,7 @@ def test_migrate_declares_saas_foundation_column_comments_and_not_null(mysql_con
             'recharge_package', 'xhs_account', 'xhs_account_profile',
             'product', 'product_material_package', 'material_file',
             'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
-            'admin_audit_log'
+            'admin_audit_log', 'video_edit_job'
           )
         """,
     )
@@ -168,7 +169,7 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
             'recharge_package', 'xhs_account', 'xhs_account_profile',
             'product', 'product_material_package', 'material_file',
             'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
-            'admin_audit_log'
+            'admin_audit_log', 'video_edit_job'
           )
         """,
     )
@@ -327,6 +328,22 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
         },
         ("admin_audit_log", "idx_admin_audit_log_target"): {
             "columns": ["target_type", "target_id"],
+            "non_unique": 1,
+        },
+        ("video_edit_job", "idx_video_edit_job_user_id"): {
+            "columns": ["user_id"],
+            "non_unique": 1,
+        },
+        ("video_edit_job", "idx_video_edit_job_status"): {
+            "columns": ["status"],
+            "non_unique": 1,
+        },
+        ("video_edit_job", "idx_video_edit_job_expected_delivery_time"): {
+            "columns": ["expected_delivery_time"],
+            "non_unique": 1,
+        },
+        ("video_edit_job", "idx_video_edit_job_status_time"): {
+            "columns": ["status", "create_time"],
             "non_unique": 1,
         },
     }

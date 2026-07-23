@@ -56,3 +56,19 @@ def verify_worker_token(
 
 
 current_user = get_current_user
+
+
+MANAGEMENT_ROLES = {"client_owner", "client_admin", "platform_admin"}
+DEVELOPER_ROLES = {"platform_admin", "developer_admin"}
+
+
+def require_management_user(user: dict = Depends(current_user)) -> dict:
+    if user["user_role"] not in MANAGEMENT_ROLES:
+        raise HTTPException(status_code=403, detail="management role required")
+    return user
+
+
+def require_developer_user(user: dict = Depends(current_user)) -> dict:
+    if user["user_role"] not in DEVELOPER_ROLES:
+        raise HTTPException(status_code=403, detail="developer role required")
+    return user

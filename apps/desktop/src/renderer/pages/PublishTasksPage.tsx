@@ -7,10 +7,12 @@ import type { ScheduledTask } from "../types";
 type PublishTasksPageProps = {
   tasks: ScheduledTask[];
   onCreate: () => void;
+  onRefresh: () => void;
+  onSubmitTask: (taskId: number) => void;
 };
 
 
-export function PublishTasksPage({ tasks, onCreate }: PublishTasksPageProps) {
+export function PublishTasksPage({ tasks, onCreate, onRefresh, onSubmitTask }: PublishTasksPageProps) {
   return (
     <section className="page-stack">
       <div className="page-heading horizontal-heading">
@@ -23,7 +25,7 @@ export function PublishTasksPage({ tasks, onCreate }: PublishTasksPageProps) {
             <SquarePen size={17} aria-hidden="true" />
             新建任务
           </button>
-          <button className="secondary-button compact" type="button">
+          <button className="secondary-button compact" type="button" onClick={onRefresh}>
             <RefreshCw size={16} aria-hidden="true" />
             刷新状态
           </button>
@@ -43,7 +45,11 @@ export function PublishTasksPage({ tasks, onCreate }: PublishTasksPageProps) {
             </tr>
           </thead>
           <tbody>
-            {tasks.map((task) => (
+            {tasks.length === 0 ? (
+              <tr>
+                <td className="empty-table-cell" colSpan={6}>暂无任务，请先新建小红书图文发布任务。</td>
+              </tr>
+            ) : tasks.map((task) => (
               <tr key={task.id}>
                 <td>{task.account}</td>
                 <td>{task.title}</td>
@@ -51,7 +57,15 @@ export function PublishTasksPage({ tasks, onCreate }: PublishTasksPageProps) {
                 <td>{task.scheduleTime}</td>
                 <td><StatusBadge status={task.status} /></td>
                 <td>
-                  <button className="table-action" type="button">
+                  <button
+                    className="table-action"
+                    type="button"
+                    onClick={() => {
+                      if (task.status === "待提交") {
+                        onSubmitTask(task.id);
+                      }
+                    }}
+                  >
                     <Send size={15} aria-hidden="true" />
                     {task.status === "待提交" ? "提交" : "查看日志"}
                   </button>

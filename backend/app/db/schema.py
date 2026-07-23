@@ -316,4 +316,27 @@ SCHEMA_STATEMENTS = [
         key idx_admin_audit_log_target (target_type, target_id)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='后台审计日志'
     """,
+    """
+    create table if not exists video_edit_job (
+        id bigint unsigned not null auto_increment comment 'Primary key',
+        user_id bigint unsigned not null comment 'Owner user ID',
+        job_title varchar(200) not null comment 'Video editing request title',
+        script_text text not null comment 'User-provided editing script',
+        requirement_text varchar(2000) not null default '' comment 'Additional editing requirements',
+        material_json text not null comment 'Uploaded material metadata JSON',
+        status tinyint unsigned not null default 1 comment 'Status: 1-submitted, 2-in production, 3-delivered, 4-revision requested, 5-cancelled',
+        expected_delivery_time bigint unsigned not null comment 'Promised delivery timestamp, default 24 hours after submit',
+        operator_user_id bigint unsigned not null default 0 comment 'Internal developer/operator user ID',
+        developer_note varchar(1000) not null default '' comment 'Internal processing note',
+        delivery_json text not null comment 'Delivered video metadata JSON',
+        delivered_time bigint unsigned not null default 0 comment 'Actual delivery timestamp',
+        create_time bigint unsigned not null comment 'Created timestamp',
+        update_time bigint unsigned not null comment 'Updated timestamp',
+        primary key (id),
+        key idx_video_edit_job_user_id (user_id),
+        key idx_video_edit_job_status (status),
+        key idx_video_edit_job_expected_delivery_time (expected_delivery_time),
+        key idx_video_edit_job_status_time (status, create_time)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='Manual-backed intelligent video editing work order'
+    """,
 ]

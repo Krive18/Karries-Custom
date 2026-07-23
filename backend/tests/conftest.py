@@ -16,6 +16,7 @@ from app.main import create_app
 
 
 MYSQL_TABLES = (
+    "video_edit_job",
     "matrix_publish_item",
     "matrix_publish_plan",
     "content_draft",
