@@ -594,6 +594,8 @@ assert run.json()["data"]["result"]["hook_summary"]
 同时覆盖：其他员工 404、跨租户管理者不可见、取消 pending 成功、completed 不可取消、无文字且无视频 Provider 时返回 409、Provider 失败变为 failed 且不计费、开发者详情写 `admin_audit_log`。
 
 上传测试覆盖：允许 MP4/JPG/PNG，拒绝可执行文件，拒绝超过 200 MiB，服务端生成文件名，API 响应不返回 `storage_path`。
+还要覆盖客户端伪造 MIME/扩展名、包含路径片段的原始文件名，以及验证失败后不残留
+临时文件。
 
 - [ ] **Step 2: 运行测试并确认 RED**
 
@@ -640,6 +642,11 @@ usage 在一个事务中提交。任一步失败必须整体回滚。
 - 接受 `video/mp4`、`video/quicktime`、`image/jpeg`、`image/png`、`image/webp`。
 - 最大 200 MiB，按 1 MiB 分块读取，超过上限立即删除临时文件。
 - 文件名使用 UUID，保留经过白名单映射的扩展名。
+- 不信任客户端 MIME 或扩展名：校验 JPEG、PNG、WEBP 及 ISO BMFF
+  MP4/MOV 的文件头签名，声明类型与真实签名不一致时拒绝。
+- 先写同目录 UUID `.part` 临时文件；大小与签名验证通过后用原子 rename/replace
+  生成最终文件。任意异常必须清理临时文件。
+- 展示用原始文件名只保留 basename，移除控制字符并限制到 255 字符；绝不参与存储路径。
 - 路径固定在配置的上传根目录下，解析后验证不能逃逸根目录。
 - Repository 保存真实路径，但用户和管理响应只返回 `id/file_name/file_type/mime_type/file_size/create_time`。
 
