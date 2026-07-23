@@ -10,6 +10,22 @@ def migrate(conn) -> None:
 
 
 def _ensure_tenant_compatibility(cursor) -> None:
+    for column_name, definition in (
+        (
+            "tone",
+            "varchar(100) not null default '自然真诚' comment '文案语气'",
+        ),
+        (
+            "extra_requirement",
+            "varchar(1000) not null default '' comment '补充创作要求'",
+        ),
+    ):
+        if not _column_exists(cursor, "inspiration_session", column_name):
+            cursor.execute(
+                "alter table `inspiration_session` "
+                f"add column {column_name} {definition}"
+            )
+
     for table_name, index_name in (
         ("app_user", "idx_app_user_tenant_id"),
         ("invite_code", "idx_invite_code_tenant_id"),

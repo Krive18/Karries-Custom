@@ -8,9 +8,11 @@ from fastapi.responses import JSONResponse
 
 from app.api.accounts import router as accounts_router
 from app.api.admin import router as admin_router
+from app.api.admin_inspiration import router as admin_inspiration_router
 from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
 from app.api.content_drafts import router as content_drafts_router
+from app.api.inspiration import router as inspiration_router
 from app.api.matrix_plans import router as matrix_plans_router
 from app.api.products import router as products_router
 from app.api.runtime import router as runtime_router
@@ -98,9 +100,11 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(admin_inspiration_router)
     app.include_router(ai_router)
     app.include_router(accounts_router)
     app.include_router(content_drafts_router)
+    app.include_router(inspiration_router)
     app.include_router(matrix_plans_router)
     app.include_router(products_router)
     app.include_router(runtime_router)

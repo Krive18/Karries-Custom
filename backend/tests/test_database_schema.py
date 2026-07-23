@@ -411,6 +411,105 @@ def test_migrate_declares_ai_module_column_comments_and_not_null(mysql_conn):
     assert all(column["column_comment"] for column in columns)
 
 
+def test_migrate_persists_inspiration_session_context_columns(mysql_conn):
+    columns = fetch_all(
+        mysql_conn,
+        """
+        select column_name as column_name,
+               column_type as column_type,
+               is_nullable as is_nullable,
+               column_default as column_default,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'inspiration_session'
+          and column_name in ('tone', 'extra_requirement')
+        """,
+    )
+
+    assert {column["column_name"] for column in columns} == {
+        "tone",
+        "extra_requirement",
+    }
+    by_name = {column["column_name"]: column for column in columns}
+    assert by_name["tone"] == {
+        "column_name": "tone",
+        "column_type": "varchar(100)",
+        "is_nullable": "NO",
+        "column_default": "自然真诚",
+        "column_comment": "文案语气",
+    }
+    assert by_name["extra_requirement"] == {
+        "column_name": "extra_requirement",
+        "column_type": "varchar(1000)",
+        "is_nullable": "NO",
+        "column_default": "",
+        "column_comment": "补充创作要求",
+    }
+
+
+def test_ai_schema_declares_persisted_inspiration_session_context():
+    schema = "\n".join(SCHEMA_STATEMENTS)
+
+    assert "tone varchar(100) not null default '自然真诚' comment '文案语气'" in schema
+    assert (
+        "extra_requirement varchar(1000) not null default '' comment '补充创作要求'"
+        in schema
+    )
+
+
+def test_migrate_backfills_inspiration_session_context_columns(mysql_conn):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("drop table inspiration_session")
+        cursor.execute(
+            """
+            create table inspiration_session (
+                id bigint unsigned not null auto_increment comment '主键',
+                tenant_id bigint unsigned not null comment '所属租户 ID',
+                user_id bigint unsigned not null comment '创建用户 ID',
+                title varchar(200) not null comment '会话标题',
+                linked_product_id bigint unsigned not null default 0 comment '关联产品 ID',
+                linked_xhs_account_id bigint unsigned not null default 0 comment '关联小红书账号 ID',
+                goal_type varchar(50) not null comment '对话目标',
+                status varchar(20) not null default 'active' comment '会话状态',
+                message_count int unsigned not null default 0 comment '消息数量',
+                total_credit_cost int not null default 0 comment '累计消耗算力',
+                create_time bigint unsigned not null comment '创建时间戳',
+                update_time bigint unsigned not null comment '更新时间戳',
+                primary key (id)
+            ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci
+            """
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    columns = fetch_all(
+        mysql_conn,
+        """
+        select column_name as column_name,
+               column_type as column_type,
+               is_nullable as is_nullable,
+               column_default as column_default,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'inspiration_session'
+          and column_name in ('tone', 'extra_requirement')
+        """,
+    )
+    by_name = {column["column_name"]: column for column in columns}
+
+    assert by_name["tone"]["column_type"] == "varchar(100)"
+    assert by_name["tone"]["is_nullable"] == "NO"
+    assert by_name["tone"]["column_default"] == "自然真诚"
+    assert by_name["tone"]["column_comment"] == "文案语气"
+    assert by_name["extra_requirement"]["column_type"] == "varchar(1000)"
+    assert by_name["extra_requirement"]["is_nullable"] == "NO"
+    assert by_name["extra_requirement"]["column_default"] == ""
+    assert by_name["extra_requirement"]["column_comment"] == "补充创作要求"
+
+
 def test_migrate_declares_ai_module_indexes(mysql_conn):
     rows = fetch_all(
         mysql_conn,

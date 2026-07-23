@@ -55,6 +55,69 @@ class ContentDraftRepository:
             self.conn.rollback()
             raise
 
+    def create_from_ai_text(
+        self,
+        user_id: int,
+        source_type: str,
+        source_id: int,
+        title: str,
+        body: str,
+        ai_provider: str,
+        model_name: str,
+        context: dict,
+    ) -> int:
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                select id
+                from content_draft
+                where user_id = %s and source_type = %s
+                  and cast(json_unquote(json_extract(material_json, '$.source_id')) as unsigned) = %s
+                limit 1
+                """,
+                (user_id, source_type, source_id),
+            )
+            existing = cursor.fetchone()
+        if existing is not None:
+            return int(existing["id"])
+
+        now = int(time.time())
+        material = {"source_id": source_id, "context": context}
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    insert into content_draft (
+                        user_id, product_id, xhs_account_id, source_type,
+                        content_type, title, body, tag_json, material_json,
+                        status, ai_provider, model_name, prompt_json,
+                        create_time, update_time
+                    )
+                    values (%s, %s, %s, %s, 'image_text', %s, %s, '[]', %s,
+                            1, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        user_id,
+                        int(context.get("linked_product_id", 0)),
+                        int(context.get("linked_xhs_account_id", 0)),
+                        source_type,
+                        title,
+                        body,
+                        self._dump_json(material),
+                        ai_provider,
+                        model_name,
+                        self._dump_json(context),
+                        now,
+                        now,
+                    ),
+                )
+                draft_id = int(cursor.lastrowid)
+            self.conn.commit()
+            return draft_id
+        except Exception:
+            self.conn.rollback()
+            raise
+
     def get_for_user(self, user_id: int, draft_id: int) -> dict | None:
         with self.conn.cursor() as cursor:
             cursor.execute(

@@ -387,6 +387,8 @@ SCHEMA_STATEMENTS = [
         linked_product_id bigint unsigned not null default 0 comment '关联产品 ID',
         linked_xhs_account_id bigint unsigned not null default 0 comment '关联小红书账号 ID',
         goal_type varchar(50) not null comment '对话目标',
+        tone varchar(100) not null default '自然真诚' comment '文案语气',
+        extra_requirement varchar(1000) not null default '' comment '补充创作要求',
         status varchar(20) not null default 'active' comment '会话状态，active 或 archived',
         message_count int unsigned not null default 0 comment '消息数量',
         total_credit_cost int not null default 0 comment '累计消耗算力',
