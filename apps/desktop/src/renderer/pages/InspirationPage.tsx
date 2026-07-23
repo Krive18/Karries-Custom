@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Lightbulb, Plus, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Lightbulb, Plus, RefreshCw } from "lucide-react";
 
 import { ApiRequestError, api } from "../api/client";
 import {
@@ -13,6 +13,7 @@ import type {
   InspirationSessionDetail
 } from "../types";
 
+const pageSize = 20;
 const initialDraft: InspirationSessionDraft = {
   title: "",
   linked_product_id: 0,
@@ -34,45 +35,66 @@ function explainError(error: unknown) {
 export function InspirationPage() {
   const [sessions, setSessions] = useState<InspirationSession[]>([]);
   const [detail, setDetail] = useState<InspirationSessionDetail | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [sendingSessionId, setSendingSessionId] = useState<number | null>(null);
   const [isNewSessionOpen, setIsNewSessionOpen] = useState(false);
   const [sessionDraft, setSessionDraft] = useState(initialDraft);
   const [messageDraft, setMessageDraft] = useState("");
-  const [savedMessageIds, setSavedMessageIds] = useState<Set<number>>(new Set());
   const [message, setMessage] = useState("");
+  const listRequestRef = useRef(0);
+  const detailRequestRef = useRef(0);
+  const sendRequestRef = useRef(0);
+  const selectedSessionIdRef = useRef<number | null>(null);
 
-  const loadSessions = useCallback(async () => {
+  const loadSessions = useCallback(async (requestedPage = 1) => {
+    const requestId = ++listRequestRef.current;
     setIsListLoading(true);
     try {
-      const result = await api.listInspirationSessions();
+      const result = await api.listInspirationSessions(new URLSearchParams({
+        page: String(requestedPage),
+        page_size: String(pageSize)
+      }));
+      if (requestId !== listRequestRef.current) return;
+      if (result.items.length === 0 && result.total > 0 && requestedPage > 1) {
+        void loadSessions(requestedPage - 1);
+        return;
+      }
       setSessions(result.items);
+      setPage(result.page);
+      setTotal(result.total);
       setMessage("");
-      if (detail && !result.items.some((item) => item.id === detail.session.id)) setDetail(null);
     } catch (error) {
-      setMessage(explainError(error));
+      if (requestId === listRequestRef.current) setMessage(explainError(error));
     } finally {
-      setIsListLoading(false);
+      if (requestId === listRequestRef.current) setIsListLoading(false);
     }
-  }, [detail]);
+  }, []);
 
   useEffect(() => {
     void loadSessions();
   }, [loadSessions]);
 
   const selectSession = useCallback(async (sessionId: number) => {
+    const requestId = ++detailRequestRef.current;
+    selectedSessionIdRef.current = sessionId;
     setIsDetailLoading(true);
+    setIsNewSessionOpen(false);
+    setMessageDraft("");
     try {
-      setDetail(await api.getInspirationSession(sessionId));
+      const nextDetail = await api.getInspirationSession(sessionId);
+      if (requestId !== detailRequestRef.current || selectedSessionIdRef.current !== sessionId) return;
+      setDetail(nextDetail);
       setMessage("");
-      setIsNewSessionOpen(false);
-      setMessageDraft("");
     } catch (error) {
-      setMessage(explainError(error));
+      if (requestId === detailRequestRef.current && selectedSessionIdRef.current === sessionId) {
+        setMessage(explainError(error));
+      }
     } finally {
-      setIsDetailLoading(false);
+      if (requestId === detailRequestRef.current) setIsDetailLoading(false);
     }
   }, []);
 
@@ -84,11 +106,15 @@ export function InspirationPage() {
     setIsCreating(true);
     try {
       const created = await api.createInspirationSession({ ...sessionDraft, title: sessionDraft.title.trim() });
-      setSessions((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+      selectedSessionIdRef.current = created.id;
+      setSessions((current) => [created, ...current.filter((item) => item.id !== created.id)].slice(0, pageSize));
       setDetail({ session: created, messages: [] });
+      setPage(1);
+      setTotal((current) => current + 1);
       setIsNewSessionOpen(false);
       setSessionDraft(initialDraft);
       setMessage("会话已创建，可以开始提问。");
+      void loadSessions(1);
     } catch (error) {
       setMessage(explainError(error));
     } finally {
@@ -98,32 +124,43 @@ export function InspirationPage() {
 
   async function sendMessage() {
     if (!detail || !messageDraft.trim()) return;
-    setIsSending(true);
+    const session = detail.session;
+    const requestId = ++sendRequestRef.current;
+    const content = messageDraft.trim();
+    setSendingSessionId(session.id);
     try {
-      const response = await api.sendInspirationMessage(detail.session.id, { content: messageDraft.trim() });
-      const nextMessages: InspirationMessage[] = [...detail.messages, response.user_message, response.assistant_message];
+      const response = await api.sendInspirationMessage(session.id, { content });
       const nextSession = {
-        ...detail.session,
+        ...session,
         status: "active" as const,
-        message_count: nextMessages.length,
-        total_credit_cost: detail.session.total_credit_cost + response.credit_cost
+        message_count: session.message_count + 2,
+        total_credit_cost: session.total_credit_cost + response.credit_cost
       };
-      setDetail({ session: nextSession, messages: nextMessages });
-      setSessions((current) => current.map((item) => item.id === nextSession.id ? nextSession : item));
+      setSessions((current) => current.map((item) => item.id === session.id ? nextSession : item));
+      if (requestId !== sendRequestRef.current || selectedSessionIdRef.current !== session.id) return;
+      setDetail((current) => {
+        if (!current || current.session.id !== session.id) return current;
+        const nextMessages: InspirationMessage[] = [...current.messages, response.user_message, response.assistant_message];
+        return { session: nextSession, messages: nextMessages };
+      });
       setMessageDraft("");
       setMessage("");
     } catch (error) {
-      setMessage(explainError(error));
+      if (requestId === sendRequestRef.current && selectedSessionIdRef.current === session.id) {
+        setMessage(explainError(error));
+      }
     } finally {
-      setIsSending(false);
+      if (requestId === sendRequestRef.current) setSendingSessionId(null);
     }
   }
 
   async function archiveSession() {
-    if (!detail) return;
+    if (!detail || sendingSessionId === detail.session.id) return;
+    const sessionId = detail.session.id;
     try {
-      const archived = await api.archiveInspirationSession(detail.session.id);
-      setDetail((current) => current ? { ...current, session: archived } : current);
+      const archived = await api.archiveInspirationSession(sessionId);
+      if (selectedSessionIdRef.current !== sessionId) return;
+      setDetail((current) => current?.session.id === sessionId ? { ...current, session: archived } : current);
       setSessions((current) => current.map((item) => item.id === archived.id ? archived : item));
       setMessage("会话已归档。");
     } catch (error) {
@@ -133,45 +170,39 @@ export function InspirationPage() {
 
   async function saveDraft(messageId: number) {
     try {
-      await api.saveInspirationMessageDraft(messageId);
-      setSavedMessageIds((current) => new Set([...current, messageId]));
+      const result = await api.saveInspirationMessageDraft(messageId);
+      setDetail((current) => current ? {
+        ...current,
+        messages: current.messages.map((item) => item.id === messageId ? { ...item, content_draft_id: result.draft_id } : item)
+      } : current);
       setMessage("已保存为内容草稿。");
     } catch (error) {
       setMessage(explainError(error));
     }
   }
 
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const selectedSession = detail?.session ?? null;
   return (
     <section className="page-stack inspiration-page">
       <div className="page-heading horizontal-heading">
-        <div>
-          <h1>灵感对话</h1>
-          <p>围绕产品、账号定位和运营目标连续讨论，生成可继续编辑的内容思路。</p>
-        </div>
+        <div><h1>灵感对话</h1><p>围绕产品、账号定位和运营目标连续讨论，生成可继续编辑的内容思路。</p></div>
         <div className="heading-actions">
-          <button className="secondary-button compact" type="button" onClick={() => void loadSessions()}>
-            <RefreshCw size={16} aria-hidden="true" />刷新
-          </button>
-          <button className="primary-button compact" type="button" onClick={() => setIsNewSessionOpen(true)}>
-            <Plus size={17} aria-hidden="true" />新建会话
-          </button>
+          <button className="secondary-button compact" type="button" onClick={() => void loadSessions(page)}><RefreshCw size={16} aria-hidden="true" />刷新</button>
+          <button className="primary-button compact" type="button" onClick={() => setIsNewSessionOpen(true)}><Plus size={17} aria-hidden="true" />新建会话</button>
         </div>
       </div>
       {message ? <div className="form-message" role="status">{message}</div> : null}
       <div className="inspiration-workspace">
         <aside className="inspiration-session-panel" aria-label="会话列表">
-          <div className="panel-title"><h2><Lightbulb size={18} aria-hidden="true" />会话</h2><span>{sessions.length}</span></div>
+          <div className="panel-title"><h2><Lightbulb size={18} aria-hidden="true" />会话</h2><span>{total} 条</span></div>
           {isListLoading ? <div className="inspiration-session-skeleton" aria-label="正在加载会话"><span /><span /><span /></div> : null}
           {!isListLoading && sessions.length === 0 ? <div className="empty-list-state">暂无会话，点击“新建会话”开始。</div> : null}
-          {!isListLoading ? <div className="inspiration-session-list">
-            {sessions.map((session) => <button key={session.id} type="button" className={detail?.session.id === session.id ? "inspiration-session-item active" : "inspiration-session-item"} onClick={() => void selectSession(session.id)}>
-              <strong>{session.title}</strong>
-              <span>{session.status === "archived" ? "已归档" : session.status === "generating" ? "生成中" : "进行中"} · {session.total_credit_cost} 算力</span>
-            </button>)}
-          </div> : null}
+          {!isListLoading ? <div className="inspiration-session-list">{sessions.map((session) => <button key={session.id} type="button" className={selectedSession?.id === session.id ? "inspiration-session-item active" : "inspiration-session-item"} onClick={() => void selectSession(session.id)}><strong>{session.title}</strong><span>{session.status === "archived" ? "已归档" : session.status === "generating" ? "生成中" : "进行中"} · {session.total_credit_cost} 算力</span></button>)}</div> : null}
+          <div className="inspiration-pagination" aria-label="会话分页"><button className="table-action compact" type="button" disabled={page <= 1 || isListLoading} onClick={() => void loadSessions(page - 1)}><ChevronLeft size={15} aria-hidden="true" />上一页</button><span>第 {page} 页 / 共 {total} 条</span><button className="table-action compact" type="button" disabled={page >= pageCount || isListLoading} onClick={() => void loadSessions(page + 1)}>下一页<ChevronRight size={15} aria-hidden="true" /></button></div>
         </aside>
-        <InspirationMessages session={detail?.session ?? null} messages={detail?.messages ?? []} draftMessage={messageDraft} isLoading={isDetailLoading} isSending={isSending} savedMessageIds={savedMessageIds} onDraftMessageChange={setMessageDraft} onSend={() => void sendMessage()} onSaveDraft={(messageId) => void saveDraft(messageId)} />
-        <InspirationContextPanel draft={sessionDraft} session={detail?.session ?? null} isCreating={isCreating} isOpen={isNewSessionOpen || !detail} onDraftChange={setSessionDraft} onCreate={() => void createSession()} onClose={() => setIsNewSessionOpen(false)} onArchive={() => void archiveSession()} />
+        <InspirationMessages session={selectedSession} messages={detail?.messages ?? []} draftMessage={messageDraft} isLoading={isDetailLoading} isSending={sendingSessionId === selectedSession?.id} onDraftMessageChange={setMessageDraft} onSend={() => void sendMessage()} onSaveDraft={(messageId) => void saveDraft(messageId)} />
+        <InspirationContextPanel draft={sessionDraft} session={selectedSession} isCreating={isCreating} isArchiveDisabled={sendingSessionId === selectedSession?.id} isOpen={isNewSessionOpen} onDraftChange={setSessionDraft} onCreate={() => void createSession()} onClose={() => setIsNewSessionOpen(false)} onArchive={() => void archiveSession()} />
       </div>
     </section>
   );

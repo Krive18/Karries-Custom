@@ -959,6 +959,23 @@ textarea {
   gap: 8px;
 }
 
+.inspiration-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  color: #806957;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inspiration-pagination > span {
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .inspiration-session-item {
   display: grid;
   gap: 5px;
@@ -1098,6 +1115,14 @@ textarea {
   margin-top: 11px;
 }
 
+.message-draft-id {
+  display: block;
+  margin-top: 8px;
+  color: #6d523e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .inspiration-composer {
   display: grid;
   gap: 8px;
@@ -1163,7 +1188,7 @@ textarea {
 
 .manager-inspiration-filters {
   display: grid;
-  grid-template-columns: auto repeat(4, minmax(0, 1fr)) minmax(190px, 1.35fr);
+  grid-template-columns: auto repeat(4, minmax(0, 1fr)) minmax(190px, 1.35fr) auto;
   align-items: end;
   gap: 12px;
   padding: 16px 18px;
@@ -1222,6 +1247,11 @@ textarea {
   .manager-keyword-filter {
     grid-column: span 2;
   }
+
+  .manager-inspiration-filters .primary-button {
+    grid-column: 2 / span 2;
+    justify-self: start;
+  }
 }
 
 @media (max-width: 900px) {
@@ -1268,4 +1298,6 @@ textarea {
   .context-summary-list { grid-template-columns: 1fr; }
   .context-summary-list .wide { grid-column: auto; }
   .manager-inspiration-filters { grid-template-columns: 1fr; }
+  .manager-inspiration-filters .primary-button { grid-column: auto; }
+  .inspiration-pagination { flex-wrap: wrap; }
 }

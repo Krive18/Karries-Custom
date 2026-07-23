@@ -209,6 +209,7 @@ export type InspirationMessage = {
   latency_ms: number;
   status: InspirationMessageStatus;
   error_message: string;
+  content_draft_id: number;
   create_time: number;
 };
 

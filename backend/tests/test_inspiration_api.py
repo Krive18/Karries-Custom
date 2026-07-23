@@ -161,6 +161,13 @@ def test_employee_can_create_session_send_message_and_save_assistant_as_draft(
     assert first_save.status_code == 200
     assert second_save.status_code == 200
     assert first_save.json()["data"]["draft_id"] == second_save.json()["data"]["draft_id"]
+    detail = mysql_app_client.get(
+        f"/api/inspiration/sessions/{session_id}", headers=headers
+    )
+    assert detail.status_code == 200
+    messages = detail.json()["data"]["messages"]
+    assert messages[0]["content_draft_id"] == 0
+    assert messages[1]["content_draft_id"] == first_save.json()["data"]["draft_id"]
     with mysql_conn.cursor() as cursor:
         cursor.execute("select count(*) as total from content_draft where source_type = 'inspiration'")
         assert cursor.fetchone()["total"] == 1
@@ -212,6 +219,75 @@ def test_management_can_read_own_tenant_complete_session_but_not_other_tenant(
     assert len(response.json()["data"]["messages"]) == 2
     assert hidden.status_code == 404
     assert hidden.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_management_session_filters_are_tenant_isolated_and_match_message_content(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    configure_ai(monkeypatch)
+    tenant_headers = auth_headers(mysql_conn, mysql_app_client, "filter-own", tenant_id=17)
+    other_headers = auth_headers(mysql_conn, mysql_app_client, "filter-other", tenant_id=18)
+    own_session_id = create_session(mysql_app_client, tenant_headers)
+    other_session_id = create_session(mysql_app_client, other_headers)
+    own_message = mysql_app_client.post(
+        f"/api/inspiration/sessions/{own_session_id}/messages",
+        headers=tenant_headers,
+        json={"content": "keyword only present in message body"},
+    )
+    other_message = mysql_app_client.post(
+        f"/api/inspiration/sessions/{other_session_id}/messages",
+        headers=other_headers,
+        json={"content": "keyword only present in message body"},
+    )
+    assert own_message.status_code == 200
+    assert other_message.status_code == 200
+    admin_headers = management_headers(mysql_conn, mysql_app_client, "filter", tenant_id=17)
+
+    response = mysql_app_client.get(
+        "/api/admin/inspiration/sessions",
+        headers=admin_headers,
+        params={"keyword": "message body", "page": 1, "page_size": 1},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert payload["total"] == 1
+    assert [item["id"] for item in payload["items"]] == [own_session_id]
+
+
+def test_management_session_filters_apply_user_time_and_product_parameters(
+    mysql_conn, mysql_app_client
+):
+    employee_headers = auth_headers(mysql_conn, mysql_app_client, "filter-fields", tenant_id=21)
+    session_id = create_session(mysql_app_client, employee_headers)
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            update inspiration_session
+            set linked_product_id = %s, create_time = %s
+            where id = %s
+            """,
+            (77, 1_700_000_000, session_id),
+        )
+    mysql_conn.commit()
+    admin_headers = management_headers(mysql_conn, mysql_app_client, "filter-fields", tenant_id=21)
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("select user_id from inspiration_session where id = %s", (session_id,))
+        user_id = cursor.fetchone()["user_id"]
+
+    response = mysql_app_client.get(
+        "/api/admin/inspiration/sessions",
+        headers=admin_headers,
+        params={
+            "user_id": user_id,
+            "product_id": 77,
+            "start_time": 1_699_999_999,
+            "end_time": 1_700_000_001,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["total"] == 1
 
 
 def test_archived_session_rejects_new_messages(mysql_conn, mysql_app_client):

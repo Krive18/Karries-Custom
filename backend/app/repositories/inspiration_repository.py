@@ -82,22 +82,40 @@ class InspirationRepository:
             items = [self._session_from_row(row) for row in cursor.fetchall()]
         return {"items": items, "page": page, "page_size": page_size, "total": total}
 
-    def list_sessions_for_admin(self, tenant_id: int, page: int, page_size: int) -> dict:
+    def list_sessions_for_admin(
+        self,
+        tenant_id: int,
+        page: int,
+        page_size: int,
+        user_id: int | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        product_id: int | None = None,
+        keyword: str | None = None,
+    ) -> dict:
         offset = (page - 1) * page_size
+        where_sql, filter_params = self._admin_filter_sql(
+            tenant_id,
+            user_id=user_id,
+            start_time=start_time,
+            end_time=end_time,
+            product_id=product_id,
+            keyword=keyword,
+        )
         with self.conn.cursor() as cursor:
             cursor.execute(
-                "select count(*) as total from inspiration_session where tenant_id = %s",
-                (tenant_id,),
+                "select count(*) as total from inspiration_session " + where_sql,
+                filter_params,
             )
             total = int(cursor.fetchone()["total"])
             cursor.execute(
                 self._session_select_sql()
+                + where_sql
                 + """
-                where tenant_id = %s
                 order by update_time desc, id desc
                 limit %s offset %s
                 """,
-                (tenant_id, page_size, offset),
+                (*filter_params, page_size, offset),
             )
             items = [self._session_from_row(row) for row in cursor.fetchall()]
         return {"items": items, "page": page, "page_size": page_size, "total": total}
@@ -354,7 +372,16 @@ class InspirationRepository:
         return """
             select id, tenant_id, session_id, user_id, role, content, context_json,
                    ai_provider, ai_model, credit_cost, latency_ms, status,
-                   error_message, create_time
+                   error_message, create_time,
+                   coalesce((
+                       select source.content_draft_id
+                       from content_draft_source as source
+                       where source.tenant_id = inspiration_message.tenant_id
+                         and source.user_id = inspiration_message.user_id
+                         and source.source_type = 'inspiration'
+                         and source.source_id = inspiration_message.id
+                       limit 1
+                   ), 0) as content_draft_id
             from inspiration_message
             """
 
@@ -393,8 +420,50 @@ class InspirationRepository:
             "latency_ms": row["latency_ms"],
             "status": row["status"],
             "error_message": row["error_message"],
+            "content_draft_id": row["content_draft_id"],
             "create_time": row["create_time"],
         }
+
+    def _admin_filter_sql(
+        self,
+        tenant_id: int,
+        user_id: int | None,
+        start_time: int | None,
+        end_time: int | None,
+        product_id: int | None,
+        keyword: str | None,
+    ) -> tuple[str, tuple[Any, ...]]:
+        clauses = ["tenant_id = %s"]
+        params: list[Any] = [tenant_id]
+        if user_id is not None:
+            clauses.append("user_id = %s")
+            params.append(user_id)
+        if start_time is not None:
+            clauses.append("create_time >= %s")
+            params.append(start_time)
+        if end_time is not None:
+            clauses.append("create_time <= %s")
+            params.append(end_time)
+        if product_id is not None:
+            clauses.append("linked_product_id = %s")
+            params.append(product_id)
+        if keyword:
+            keyword_like = f"%{keyword}%"
+            clauses.append(
+                """(
+                    title like %s
+                    or extra_requirement like %s
+                    or exists (
+                        select 1
+                        from inspiration_message
+                        where inspiration_message.tenant_id = %s
+                          and inspiration_message.session_id = inspiration_session.id
+                          and inspiration_message.content like %s
+                    )
+                )"""
+            )
+            params.extend((keyword_like, keyword_like, tenant_id, keyword_like))
+        return " where " + " and ".join(clauses), tuple(params)
 
     def _dump_json(self, value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)

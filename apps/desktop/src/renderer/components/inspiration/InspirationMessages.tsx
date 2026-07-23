@@ -8,7 +8,6 @@ type InspirationMessagesProps = {
   draftMessage: string;
   isLoading: boolean;
   isSending: boolean;
-  savedMessageIds: Set<number>;
   onDraftMessageChange: (value: string) => void;
   onSend: () => void;
   onSaveDraft: (messageId: number) => void;
@@ -20,7 +19,6 @@ export function InspirationMessages({
   draftMessage,
   isLoading,
   isSending,
-  savedMessageIds,
   onDraftMessageChange,
   onSend,
   onSaveDraft
@@ -50,11 +48,12 @@ export function InspirationMessages({
             <p>{message.content}</p>
             {message.status === "failed" ? <span className="message-error">本次生成未完成，请重新提问。</span> : null}
             {message.role === "assistant" && message.status === "success" ? (
-              <button className="table-action compact" type="button" disabled={savedMessageIds.has(message.id)} onClick={() => onSaveDraft(message.id)}>
+              <button className="table-action compact" type="button" disabled={message.content_draft_id > 0} onClick={() => onSaveDraft(message.id)}>
                 <BookmarkPlus size={15} aria-hidden="true" />
-                {savedMessageIds.has(message.id) ? "已保存为内容草稿" : "保存为内容草稿"}
+                {message.content_draft_id > 0 ? "已保存为内容草稿" : "保存为内容草稿"}
               </button>
             ) : null}
+            {message.role === "assistant" && message.content_draft_id > 0 ? <span className="message-draft-id">草稿 ID：{message.content_draft_id}</span> : null}
           </article>
         ))}
       </div>

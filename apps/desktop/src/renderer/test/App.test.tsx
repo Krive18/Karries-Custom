@@ -155,6 +155,7 @@ const inspirationDetail = {
       latency_ms: 0,
       status: "success" as const,
       error_message: "",
+      content_draft_id: 0,
       create_time: 1782570600
     },
     {
@@ -171,13 +172,33 @@ const inspirationDetail = {
       latency_ms: 80,
       status: "success" as const,
       error_message: "",
+      content_draft_id: 0,
       create_time: 1782570660
     }
   ]
 };
 
+const secondInspirationSession = {
+  ...inspirationSession,
+  id: 42,
+  title: "门店活动内容策略",
+  linked_product_id: 0,
+  total_credit_cost: 0
+};
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => undefined;
+  let reject: (reason?: unknown) => void = () => undefined;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+}
+
 
 beforeEach(() => {
+  vi.resetAllMocks();
   delete window.karriesPublisher;
   mockedApi.listAccounts.mockResolvedValue([account]);
   mockedApi.listTasks.mockResolvedValue([]);
@@ -461,6 +482,13 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("shows read-only inspiration records in the manager portal and filters loaded sessions", async () => {
+    mockedApi.getAdminInspirationSession.mockResolvedValue({
+      ...inspirationDetail,
+      messages: [
+        inspirationDetail.messages[0],
+        { ...inspirationDetail.messages[1], content_draft_id: 801 }
+      ]
+    });
     render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: /管理端/ }));
@@ -469,11 +497,147 @@ describe("KARRIES desktop workspace", () => {
     expect(await screen.findByRole("heading", { name: "灵感对话记录" })).toBeInTheDocument();
     expect(await screen.findByText("这里是 AI 返回的运营建议")).toBeInTheDocument();
     expect(screen.getByText("总算力 1")).toBeInTheDocument();
+    expect(screen.getByText("草稿 ID：801")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "保存为内容草稿" })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("关键词筛选"), {
       target: { value: "不存在的关键词" }
     });
+    fireEvent.click(screen.getByRole("button", { name: "应用筛选" }));
+    await waitFor(() => {
+      expect(mockedApi.listAdminInspirationSessions).toHaveBeenLastCalledWith(
+        expect.any(URLSearchParams)
+      );
+    });
+  });
+
+  it("pages user inspiration sessions with a real total", async () => {
+    mockedApi.listInspirationSessions
+      .mockResolvedValueOnce({ items: [inspirationSession], page: 1, page_size: 20, total: 21 })
+      .mockResolvedValueOnce({ items: [secondInspirationSession], page: 2, page_size: 20, total: 21 });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    expect(await screen.findByText("第 1 页 / 共 21 条")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "下一页" }));
+
+    expect(await screen.findByText("第 2 页 / 共 21 条")).toBeInTheDocument();
+    const params = mockedApi.listInspirationSessions.mock.calls.at(-1)?.[0] as URLSearchParams;
+    expect(params.get("page")).toBe("2");
+  });
+
+  it("keeps the newest session list when an older list request resolves late", async () => {
+    const first = deferred<{ items: typeof inspirationSession[]; page: number; page_size: number; total: number }>();
+    const second = deferred<{ items: typeof inspirationSession[]; page: number; page_size: number; total: number }>();
+    mockedApi.listInspirationSessions
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    fireEvent.click(screen.getByRole("button", { name: "刷新" }));
+    second.resolve({ items: [secondInspirationSession], page: 1, page_size: 20, total: 1 });
+
+    expect(await screen.findByRole("button", { name: /门店活动内容策略/ })).toBeInTheDocument();
+    first.resolve({ items: [inspirationSession], page: 1, page_size: 20, total: 1 });
+    await Promise.resolve();
+    expect(screen.queryByRole("button", { name: /新品种草选题/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps the newest session detail when older detail requests resolve late", async () => {
+    const first = deferred<typeof inspirationDetail>();
+    const second = deferred<typeof inspirationDetail>();
+    mockedApi.listInspirationSessions.mockResolvedValue({
+      items: [inspirationSession, secondInspirationSession], page: 1, page_size: 20, total: 2
+    });
+    mockedApi.getInspirationSession.mockImplementation((sessionId: number) => sessionId === 41 ? first.promise : second.promise);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    await screen.findByRole("button", { name: /新品种草选题/ });
+    fireEvent.click(screen.getByRole("button", { name: /新品种草选题/ }));
+    fireEvent.click(screen.getByRole("button", { name: /门店活动内容策略/ }));
+    second.resolve({ ...inspirationDetail, session: secondInspirationSession, messages: [{ ...inspirationDetail.messages[1], content: "第二个会话的建议" }] });
+
+    expect(await screen.findByText("第二个会话的建议")).toBeInTheDocument();
+    first.resolve(inspirationDetail);
+    await Promise.resolve();
+    expect(screen.queryByText("这里是 AI 返回的运营建议")).not.toBeInTheDocument();
+  });
+
+  it("disables archiving the active session while its reply is generating", async () => {
+    const reply = deferred<{ user_message: typeof inspirationDetail.messages[number]; assistant_message: typeof inspirationDetail.messages[number]; credit_cost: number }>();
+    mockedApi.getInspirationSession.mockResolvedValue(inspirationDetail);
+    mockedApi.sendInspirationMessage.mockReturnValue(reply.promise);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    fireEvent.click(await screen.findByRole("button", { name: /新品种草选题/ }));
+    await screen.findByText("这里是 AI 返回的运营建议");
+    fireEvent.change(screen.getByLabelText("输入运营问题"), { target: { value: "继续补充 3 个角度" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(screen.getByRole("button", { name: "归档会话" })).toBeDisabled();
+    reply.resolve({ user_message: inspirationDetail.messages[0], assistant_message: inspirationDetail.messages[1], credit_cost: 1 });
+  });
+
+  it("does not switch back when an older session send resolves after selecting another session", async () => {
+    const reply = deferred<{ user_message: typeof inspirationDetail.messages[number]; assistant_message: typeof inspirationDetail.messages[number]; credit_cost: number }>();
+    const secondDetail = { ...inspirationDetail, session: secondInspirationSession, messages: [] };
+    mockedApi.listInspirationSessions.mockResolvedValue({
+      items: [inspirationSession, secondInspirationSession], page: 1, page_size: 20, total: 2
+    });
+    mockedApi.getInspirationSession.mockImplementation((sessionId: number) => Promise.resolve(sessionId === 42 ? secondDetail : inspirationDetail));
+    mockedApi.sendInspirationMessage.mockReturnValue(reply.promise);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    fireEvent.click(await screen.findByRole("button", { name: /新品种草选题/ }));
+    await screen.findByText("这里是 AI 返回的运营建议");
+    fireEvent.change(screen.getByLabelText("输入运营问题"), { target: { value: "继续补充 3 个角度" } });
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+    fireEvent.click(screen.getByRole("button", { name: /门店活动内容策略/ }));
+    await screen.findByRole("heading", { name: "门店活动内容策略" });
+
+    reply.resolve({ user_message: inspirationDetail.messages[0], assistant_message: inspirationDetail.messages[1], credit_cost: 1 });
+    await Promise.resolve();
+    expect(screen.getByRole("heading", { name: "门店活动内容策略" })).toBeInTheDocument();
+    expect(screen.queryByText("这里是 AI 返回的运营建议")).not.toBeInTheDocument();
+  });
+
+  it("recovers from a failed draft save and updates the real draft id after retry", async () => {
+    mockedApi.getInspirationSession.mockResolvedValue(inspirationDetail);
+    mockedApi.saveInspirationMessageDraft
+      .mockRejectedValueOnce(new Error("草稿保存失败"))
+      .mockResolvedValueOnce({ draft_id: 801 });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    fireEvent.click(await screen.findByRole("button", { name: /新品种草选题/ }));
+    await screen.findByText("这里是 AI 返回的运营建议");
+    fireEvent.click(screen.getByRole("button", { name: "保存为内容草稿" }));
+    expect(await screen.findByText("草稿保存失败")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "保存为内容草稿" }));
+
+    expect(await screen.findByText("草稿 ID：801")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "已保存为内容草稿" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "已保存为内容草稿" }));
+    expect(mockedApi.saveInspirationMessageDraft).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears the manager detail when server-side filters exclude the current session", async () => {
+    mockedApi.listAdminInspirationSessions
+      .mockResolvedValueOnce({ items: [inspirationSession], page: 1, page_size: 20, total: 1 })
+      .mockResolvedValueOnce({ items: [], page: 1, page_size: 20, total: 0 });
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /管理端/ }));
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话记录" }));
+    await screen.findByText("这里是 AI 返回的运营建议");
+    fireEvent.change(screen.getByLabelText("关键词筛选"), { target: { value: "不存在的关键词" } });
+    fireEvent.click(screen.getByRole("button", { name: "应用筛选" }));
+
+    expect(await screen.findByText(/选择一条会话记录查看完整内容/)).toBeInTheDocument();
     expect(screen.getByText("没有符合筛选条件的会话记录")).toBeInTheDocument();
   });
 });

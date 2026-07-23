@@ -178,8 +178,27 @@ class InspirationService:
             context=message["context"],
         )
 
-    def list_sessions_for_admin(self, user: dict, page: int, page_size: int) -> dict:
-        return self.repository.list_sessions_for_admin(user["tenant_id"], page, page_size)
+    def list_sessions_for_admin(
+        self,
+        user: dict,
+        page: int,
+        page_size: int,
+        user_id: int | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        product_id: int | None = None,
+        keyword: str | None = None,
+    ) -> dict:
+        return self.repository.list_sessions_for_admin(
+            user["tenant_id"],
+            page,
+            page_size,
+            user_id=user_id,
+            start_time=start_time,
+            end_time=end_time,
+            product_id=product_id,
+            keyword=keyword,
+        )
 
     def get_session_for_admin(self, user: dict, session_id: int) -> dict | None:
         session = self.repository.get_session_for_admin(user["tenant_id"], session_id)

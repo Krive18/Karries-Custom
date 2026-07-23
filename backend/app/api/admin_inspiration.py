@@ -13,10 +13,26 @@ router = APIRouter(prefix="/api/admin/inspiration", tags=["admin-inspiration"])
 def list_sessions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    user_id: int | None = Query(default=None, ge=1),
+    start_time: int | None = Query(default=None, ge=0),
+    end_time: int | None = Query(default=None, ge=0),
+    product_id: int | None = Query(default=None, ge=1),
+    keyword: str | None = Query(default=None, min_length=1, max_length=200),
     user: dict = Depends(require_management_user),
     conn=Depends(get_db_connection),
 ) -> dict:
-    return ok(InspirationService(conn).list_sessions_for_admin(user, page, page_size))
+    return ok(
+        InspirationService(conn).list_sessions_for_admin(
+            user,
+            page,
+            page_size,
+            user_id=user_id,
+            start_time=start_time,
+            end_time=end_time,
+            product_id=product_id,
+            keyword=keyword,
+        )
+    )
 
 
 @router.get("/sessions/{session_id}")

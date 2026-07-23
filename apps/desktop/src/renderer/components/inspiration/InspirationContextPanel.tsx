@@ -12,6 +12,7 @@ type InspirationContextPanelProps = {
   draft: InspirationSessionDraft;
   session: InspirationSession | null;
   isCreating: boolean;
+  isArchiveDisabled: boolean;
   isOpen: boolean;
   onDraftChange: (draft: InspirationSessionDraft) => void;
   onCreate: () => void;
@@ -37,12 +38,17 @@ export function InspirationContextPanel({
   draft,
   session,
   isCreating,
+  isArchiveDisabled,
   isOpen,
   onDraftChange,
   onCreate,
   onClose,
   onArchive
 }: InspirationContextPanelProps) {
+  if (!isOpen && !session) {
+    return <aside className="inspiration-context-panel empty-list-state">选择会话后可查看上下文，或新建会话开始讨论。</aside>;
+  }
+
   if (!isOpen && session) {
     return (
       <aside className="inspiration-context-panel" aria-label="会话上下文">
@@ -60,7 +66,7 @@ export function InspirationContextPanel({
           <div className="wide"><dt>补充要求</dt><dd>{session.extra_requirement || "无"}</dd></div>
         </dl>
         {session.status === "active" ? (
-          <button className="quiet-danger compact" type="button" onClick={onArchive}>
+          <button className="quiet-danger compact" type="button" disabled={isArchiveDisabled} onClick={onArchive}>
             <Archive size={16} aria-hidden="true" />
             归档会话
           </button>
