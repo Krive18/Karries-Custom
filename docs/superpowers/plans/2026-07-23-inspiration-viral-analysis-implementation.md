@@ -557,17 +557,20 @@ git commit -m "feat: add inspiration user and manager pages"
 - Create: `backend/app/repositories/viral_analysis_repository.py`
 - Create: `backend/app/services/viral_analysis_service.py`
 - Create: `backend/app/services/upload_storage_service.py`
+- Create: `backend/app/middleware/upload_size_limit.py`
 - Create: `backend/app/api/viral_analysis.py`
 - Create: `backend/app/api/admin_viral_analysis.py`
 - Create: `backend/app/api/developer_viral_analysis.py`
 - Modify: `backend/app/db/schema.py`
 - Modify: `backend/app/db/migrations.py`
+- Modify: `backend/app/repositories/ai_usage_repository.py`
 - Modify: `backend/app/repositories/content_draft_repository.py`
 - Modify: `backend/app/main.py`
 - Modify: `backend/tests/conftest.py`
 - Modify: `backend/tests/test_database_schema.py`
 - Create: `backend/tests/test_viral_analysis_api.py`
 - Create: `backend/tests/test_upload_storage_service.py`
+- Create: `backend/tests/test_upload_size_limit.py`
 
 **Interfaces:**
 - Consumes: Task 2 AI 服务与 Task 1 表结构。
@@ -595,7 +598,7 @@ assert run.json()["data"]["result"]["hook_summary"]
 
 上传测试覆盖：允许 MP4/JPG/PNG，拒绝可执行文件，拒绝超过 200 MiB，服务端生成文件名，API 响应不返回 `storage_path`。
 还要覆盖客户端伪造 MIME/扩展名、包含路径片段的原始文件名，以及验证失败后不残留
-临时文件。
+临时文件。模拟任务在文件写完后被运行或取消，数据库拒绝素材时最终文件也必须删除。
 
 - [ ] **Step 2: 运行测试并确认 RED**
 
@@ -641,9 +644,14 @@ usage 在一个事务中提交。任一步失败必须整体回滚。
 
 - 接受 `video/mp4`、`video/quicktime`、`image/jpeg`、`image/png`、`image/webp`。
 - 最大 200 MiB，按 1 MiB 分块读取，超过上限立即删除临时文件。
+- 在 Starlette multipart 解析前增加纯 ASGI 请求体限流中间件：目标上传路径先检查
+  `Content-Length`，并对无长度/chunked 请求累计 `http.request` 分片，超过
+  `200 MiB + 2 MiB multipart 开销` 立即返回统一 413。业务存储层仍严格限制文件
+  本体为 200 MiB。测试同时覆盖 Content-Length 早拒绝和 chunked 超限。
 - 文件名使用 UUID，保留经过白名单映射的扩展名。
 - 不信任客户端 MIME 或扩展名：校验 JPEG、PNG、WEBP 及 ISO BMFF
-  MP4/MOV 的文件头签名，声明类型与真实签名不一致时拒绝。
+  MP4/MOV 的文件头签名；原始文件名扩展名、声明 MIME 与真实签名三者必须属于同一
+  白名单映射，否则拒绝，例如 `.exe + image/jpeg + JPEG 文件头` 仍不得通过。
 - 先写同目录 UUID `.part` 临时文件；大小与签名验证通过后用原子 rename/replace
   生成最终文件。任意异常必须清理临时文件。
 - 展示用原始文件名只保留 basename，移除控制字符并限制到 255 字符；绝不参与存储路径。
@@ -667,6 +675,9 @@ class ViralAnalysisStructuredResult(BaseModel):
 ```
 
 JSON 无法解析或校验失败时任务置为 failed，开发者端可查看经过截断和脱敏的错误，不把原始 Provider 响应直接返回用户。
+`tags` 每项限制 1-100 字符。`viral_analysis_result.raw_result_json` 使用
+`mediumtext not null comment 'AI 原始结构化结果'`，并通过幂等 migration 把旧
+`text` 列升级为 MEDIUMTEXT，避免合法中文结果超过 65,535 字节。
 
 - [ ] **Step 6: 实现三端路由和保存草稿**
 
@@ -681,6 +692,21 @@ target_id=job_id
 审计写入通过独立 `AdminAuditRepository.create(...)` 完成，详情使用 JSON 序列化后写入
 `detail_json`，SQL 必须显式字段并参数化；开发者详情读取与审计写入均成功后再提交。
 
+普通用户和管理响应不返回内部 `ai_provider`、`ai_model` 或原始错误；开发者详情增加
+最新一次 `ai_usage` 的调用状态、Provider、模型、耗时、输入输出字符、算力和脱敏错误，
+由 `AIUsageRepository` 显式字段查询。管理列表 API 支持服务端参数化
+`user_id/start_time/end_time/status/keyword` 筛选；开发者列表支持
+`tenant_id/status` 排查筛选。开发者 router 仍做角色鉴权，并在 FastAPI 中
+`include_in_schema=False`，不得出现在 `/docs` 或 `/openapi.json`。
+
+AI 配置快照读取发生在 claim 之后时，任何配置读取/解密异常都必须尝试用当前 token
+原子结束为 failed 并写脱敏失败 usage，再返回 502；不得无条件等待租约过期。
+
+查询索引补齐并替换冗余索引：用户列表 `(tenant_id,user_id,create_time,id)`、管理状态
+列表 `(tenant_id,status,create_time,id)`、管理无状态列表
+`(tenant_id,create_time,id)`、开发者全局列表 `(create_time,id)`。schema 与幂等
+migration 测试必须核对顺序。
+
 保存草稿使用 `source_type="viral_analysis"`，不重复扣算力。把
 `ContentDraftRepository.create_from_ai_text(...)` 向后兼容扩展为可选
 `content_type: Literal["image_text", "video"] = "image_text"` 和 `tags: list[str] | None`；
@@ -690,9 +716,9 @@ target_id=job_id
 - [ ] **Step 7: 运行 GREEN、回归并提交**
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest backend\tests\test_upload_storage_service.py backend\tests\test_viral_analysis_api.py -q
+.\.venv\Scripts\python.exe -m pytest backend\tests\test_upload_storage_service.py backend\tests\test_upload_size_limit.py backend\tests\test_viral_analysis_api.py -q
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
-git add backend/app/schemas/viral_analysis.py backend/app/repositories/admin_audit_repository.py backend/app/repositories/viral_analysis_repository.py backend/app/services/viral_analysis_service.py backend/app/services/upload_storage_service.py backend/app/api/viral_analysis.py backend/app/api/admin_viral_analysis.py backend/app/api/developer_viral_analysis.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/repositories/content_draft_repository.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_viral_analysis_api.py backend/tests/test_upload_storage_service.py
+git add backend/app/schemas/viral_analysis.py backend/app/repositories/admin_audit_repository.py backend/app/repositories/ai_usage_repository.py backend/app/repositories/viral_analysis_repository.py backend/app/services/viral_analysis_service.py backend/app/services/upload_storage_service.py backend/app/middleware/upload_size_limit.py backend/app/api/viral_analysis.py backend/app/api/admin_viral_analysis.py backend/app/api/developer_viral_analysis.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/repositories/content_draft_repository.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_viral_analysis_api.py backend/tests/test_upload_storage_service.py backend/tests/test_upload_size_limit.py
 git commit -m "feat: add viral analysis task workflow"
 ```
 
