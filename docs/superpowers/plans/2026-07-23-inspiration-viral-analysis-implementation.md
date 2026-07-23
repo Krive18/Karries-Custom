@@ -647,7 +647,10 @@ usage 在一个事务中提交。任一步失败必须整体回滚。
 - 在 Starlette multipart 解析前增加纯 ASGI 请求体限流中间件：目标上传路径先检查
   `Content-Length`，并对无长度/chunked 请求累计 `http.request` 分片，超过
   `200 MiB + 2 MiB multipart 开销` 立即返回统一 413。业务存储层仍严格限制文件
-  本体为 200 MiB。测试同时覆盖 Content-Length 早拒绝和 chunked 超限。
+  本体为 200 MiB。中间件必须跟踪下游是否已发送 `http.response.start`；响应已开始
+  后超限时不得再发送第二个 413，而是重新抛出并由服务器关闭连接。CORS 必须位于限流
+  中间件外层，使正常早拒绝 413 仍带允许来源响应头。测试覆盖 Content-Length 早拒绝、
+  chunked 超限、下游已开始响应以及带 Origin 的 413。
 - 文件名使用 UUID，保留经过白名单映射的扩展名。
 - 不信任客户端 MIME 或扩展名：校验 JPEG、PNG、WEBP 及 ISO BMFF
   MP4/MOV 的文件头签名；原始文件名扩展名、声明 MIME 与真实签名三者必须属于同一
@@ -698,6 +701,8 @@ target_id=job_id
 `user_id/start_time/end_time/status/keyword` 筛选；开发者列表支持
 `tenant_id/status` 排查筛选。开发者 router 仍做角色鉴权，并在 FastAPI 中
 `include_in_schema=False`，不得出现在 `/docs` 或 `/openapi.json`。
+管理端 keyword 至少匹配任务标题、补充说明以及解析结果的钩子、结构、脚本、卖点和
+复用建议，不能只搜索标题。
 
 AI 配置快照读取发生在 claim 之后时，任何配置读取/解密异常都必须尝试用当前 token
 原子结束为 failed 并写脱敏失败 usage，再返回 502；不得无条件等待租约过期。
