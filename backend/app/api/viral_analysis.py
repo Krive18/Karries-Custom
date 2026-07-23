@@ -70,6 +70,7 @@ def upload_material(
 
     storage = UploadStorageService(Path(request.app.state.config.data_dir) / "viral_analysis_uploads")
     stored = None
+    material_saved = False
     try:
         stored = storage.save(
             stream=file.file,
@@ -81,6 +82,7 @@ def upload_material(
         material = service.repository.add_material(
             user["tenant_id"], user["id"], job_id, stored.__dict__
         )
+        material_saved = True
         return ok(material)
     except UploadStorageError as exc:
         return JSONResponse(status_code=400, content=fail("INVALID_UPLOAD", str(exc)))
@@ -88,11 +90,9 @@ def upload_material(
         return _not_found()
     except ViralAnalysisStateError as exc:
         return _state_conflict(exc.status)
-    except Exception:
-        if stored is not None:
-            (storage.root_dir / stored.storage_path).unlink(missing_ok=True)
-        raise
     finally:
+        if stored is not None and not material_saved:
+            (storage.root_dir / stored.storage_path).unlink(missing_ok=True)
         file.file.close()
 
 

@@ -7,7 +7,11 @@ from app.repositories.ai_usage_repository import AIUsageRepository
 from app.repositories.content_draft_repository import ContentDraftRepository
 from app.repositories.setting_repository import SettingRepository
 from app.repositories.viral_analysis_repository import ViralAnalysisRepository
-from app.schemas.viral_analysis import ViralAnalysisJobCreate, ViralAnalysisStructuredResult
+from app.schemas.viral_analysis import (
+    ViralAnalysisJobCreate,
+    ViralAnalysisStatus,
+    ViralAnalysisStructuredResult,
+)
 from app.services.ai_provider_service import AIProviderError, AIProviderService
 from app.services.ai_settings_service import get_ai_setting_key, get_ai_settings_view
 from app.services.ai_usage_service import AIUsageService
@@ -45,28 +49,64 @@ class ViralAnalysisService:
         self.repository = ViralAnalysisRepository(conn)
 
     def create_job(self, user: dict, payload: ViralAnalysisJobCreate) -> dict:
-        return self.repository.create_job(user["tenant_id"], user["id"], payload)
+        return self._external_job(
+            self.repository.create_job(user["tenant_id"], user["id"], payload)
+        )
 
     def list_jobs(self, user: dict, page: int, page_size: int) -> dict:
-        return self.repository.list_for_user(user["tenant_id"], user["id"], page, page_size)
+        return self._external_list(
+            self.repository.list_for_user(user["tenant_id"], user["id"], page, page_size)
+        )
 
     def get_job(self, user: dict, job_id: int) -> dict | None:
-        return self.repository.get_for_user(user["tenant_id"], user["id"], job_id)
+        job = self.repository.get_for_user(user["tenant_id"], user["id"], job_id)
+        return self._external_job(job) if job is not None else None
 
-    def list_jobs_for_admin(self, user: dict, page: int, page_size: int) -> dict:
-        return self.repository.list_for_admin(user["tenant_id"], page, page_size)
+    def list_jobs_for_admin(
+        self,
+        user: dict,
+        page: int,
+        page_size: int,
+        user_id: int | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status: ViralAnalysisStatus | None = None,
+        keyword: str | None = None,
+    ) -> dict:
+        return self._external_list(
+            self.repository.list_for_admin(
+                user["tenant_id"], page, page_size,
+                user_id=user_id, start_time=start_time, end_time=end_time,
+                status=status, keyword=keyword,
+            )
+        )
 
     def get_job_for_admin(self, user: dict, job_id: int) -> dict | None:
-        return self.repository.get_for_admin(user["tenant_id"], job_id)
+        job = self.repository.get_for_admin(user["tenant_id"], job_id)
+        return self._external_job(job) if job is not None else None
 
-    def list_jobs_for_developer(self, page: int, page_size: int) -> dict:
-        return self.repository.list_for_developer(page, page_size)
+    def list_jobs_for_developer(
+        self,
+        page: int,
+        page_size: int,
+        tenant_id: int | None = None,
+        status: ViralAnalysisStatus | None = None,
+    ) -> dict:
+        return self.repository.list_for_developer(page, page_size, tenant_id, status)
 
     def get_job_for_developer(self, job_id: int) -> dict | None:
-        return self.repository.get_for_developer(job_id)
+        job = self.repository.get_for_developer(job_id)
+        if job is None:
+            return None
+        job["latest_ai_usage"] = AIUsageRepository(self.conn).get_latest_for_business(
+            job["tenant_id"], "viral_analysis", job_id
+        )
+        return job
 
     def cancel_job(self, user: dict, job_id: int) -> dict:
-        return self.repository.cancel_for_user(user["tenant_id"], user["id"], job_id)
+        return self._external_job(
+            self.repository.cancel_for_user(user["tenant_id"], user["id"], job_id)
+        )
 
     def run_job(self, user: dict, job_id: int) -> dict:
         tenant_id, user_id = user["tenant_id"], user["id"]
@@ -76,9 +116,21 @@ class ViralAnalysisService:
         ViralAnalysisCapabilityError.require_text_input(existing["supplement_text"])
 
         job, token = self.repository.claim_for_run(tenant_id, user_id, job_id)
-        settings, provider = self._provider_from_settings_snapshot()
-        # Snapshot reads are committed before any provider HTTP happens.
-        self.conn.commit()
+        try:
+            settings, provider = self._provider_from_settings_snapshot()
+            # Snapshot reads are committed before any provider HTTP happens.
+            self.conn.commit()
+        except Exception as exc:
+            self.conn.rollback()
+            try:
+                self._finalize_failure(
+                    tenant_id, user_id, job_id, token,
+                    "deepseek", "", "AI provider configuration unavailable", "not_configured",
+                )
+            except Exception:
+                # The API still returns a closed error while preserving the configuration cause.
+                pass
+            raise ViralAnalysisProviderError("AI provider configuration failed") from exc
         try:
             generated = provider.generate_text(
                 system_prompt=self._system_prompt(job),
@@ -118,7 +170,8 @@ class ViralAnalysisService:
         except Exception:
             self.conn.rollback()
             raise
-        return self.repository.get_for_user(tenant_id, user_id, job_id)
+        completed = self.repository.get_for_user(tenant_id, user_id, job_id)
+        return self._external_job(completed) if completed is not None else None
 
     def save_draft(self, user: dict, job_id: int) -> int | None:
         job = self.repository.get_for_user(user["tenant_id"], user["id"], job_id)
@@ -192,6 +245,16 @@ class ViralAnalysisService:
             "hook_summary, structure_summary, shot_rhythm, script_breakdown, "
             "selling_points, reuse_suggestions, rewritten_script, tags."
         )
+
+    def _external_list(self, page_data: dict) -> dict:
+        return {**page_data, "items": [self._external_job(item) for item in page_data["items"]]}
+
+    def _external_job(self, job: dict) -> dict:
+        safe = dict(job)
+        safe.pop("ai_provider", None)
+        safe.pop("ai_model", None)
+        safe.pop("error_message", None)
+        return safe
 
 
 def parse_structured_result(raw: str) -> ViralAnalysisStructuredResult:

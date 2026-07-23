@@ -92,18 +92,54 @@ class ViralAnalysisRepository:
         except Exception:
             self.conn.rollback()
             raise
-        return self._get_material(material_id)
+        return {
+            "id": material_id,
+            "job_id": job_id,
+            "file_name": material["file_name"],
+            "file_type": material["file_type"],
+            "mime_type": material["mime_type"],
+            "file_size": material["file_size"],
+            "create_time": now,
+        }
 
     def list_for_user(self, tenant_id: int, user_id: int, page: int, page_size: int) -> dict:
         return self._list(
             "where tenant_id = %s and user_id = %s", (tenant_id, user_id), page, page_size
         )
 
-    def list_for_admin(self, tenant_id: int, page: int, page_size: int) -> dict:
-        return self._list("where tenant_id = %s", (tenant_id,), page, page_size)
+    def list_for_admin(
+        self,
+        tenant_id: int,
+        page: int,
+        page_size: int,
+        user_id: int | None = None,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        status: str | None = None,
+        keyword: str | None = None,
+    ) -> dict:
+        where_sql, params = self._admin_filters(
+            tenant_id, user_id, start_time, end_time, status, keyword
+        )
+        return self._list(where_sql, params, page, page_size)
 
-    def list_for_developer(self, page: int, page_size: int) -> dict:
-        return self._list("", (), page, page_size)
+    def list_for_developer(
+        self,
+        page: int,
+        page_size: int,
+        tenant_id: int | None = None,
+        status: str | None = None,
+    ) -> dict:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if tenant_id is not None:
+            clauses.append("tenant_id = %s")
+            params.append(tenant_id)
+        if status is not None:
+            clauses.append("status = %s")
+            params.append(status)
+        where_sql = "where " + " and ".join(clauses) if clauses else ""
+        return self._list(where_sql, tuple(params), page, page_size)
 
     def get_for_user(self, tenant_id: int, user_id: int, job_id: int) -> dict | None:
         return self._get_job("where tenant_id = %s and user_id = %s and id = %s", (tenant_id, user_id, job_id))
@@ -262,6 +298,34 @@ class ViralAnalysisRepository:
             items = [self._row_to_job(row) for row in cursor.fetchall()]
         return {"items": items, "page": page, "page_size": page_size, "total": total}
 
+    def _admin_filters(
+        self,
+        tenant_id: int,
+        user_id: int | None,
+        start_time: int | None,
+        end_time: int | None,
+        status: str | None,
+        keyword: str | None,
+    ) -> tuple[str, tuple]:
+        clauses = ["tenant_id = %s"]
+        params: list[Any] = [tenant_id]
+        if user_id is not None:
+            clauses.append("user_id = %s")
+            params.append(user_id)
+        if start_time is not None:
+            clauses.append("create_time >= %s")
+            params.append(start_time)
+        if end_time is not None:
+            clauses.append("create_time <= %s")
+            params.append(end_time)
+        if status is not None:
+            clauses.append("status = %s")
+            params.append(status)
+        if keyword is not None:
+            clauses.append("title like %s")
+            params.append(f"%{keyword}%")
+        return "where " + " and ".join(clauses), tuple(params)
+
     def _get_job(self, where_sql: str, params: tuple) -> dict | None:
         with self.conn.cursor() as cursor:
             cursor.execute(self._job_select_sql() + where_sql, params)
@@ -303,20 +367,6 @@ class ViralAnalysisRepository:
                 (job_id,),
             )
             return list(cursor.fetchall())
-
-    def _get_material(self, material_id: int) -> dict:
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                """
-                select id, job_id, file_name, file_type, mime_type, file_size, create_time
-                from viral_analysis_material where id = %s
-                """,
-                (material_id,),
-            )
-            row = cursor.fetchone()
-        if row is None:
-            raise ViralAnalysisNotFoundError
-        return row
 
     def _get_result(self, tenant_id: int, job_id: int) -> dict | None:
         with self.conn.cursor() as cursor:

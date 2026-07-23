@@ -31,6 +31,7 @@ from app.core.responses import fail, ok
 from app.db.connection import connect
 from app.db.errors import DatabaseConstraintError
 from app.db.migrations import migrate
+from app.middleware.upload_size_limit import UploadBodyLimitMiddleware
 
 
 def create_app() -> FastAPI:
@@ -66,6 +67,10 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+    )
+    app.add_middleware(
+        UploadBodyLimitMiddleware,
+        max_body_bytes=200 * 1024 * 1024 + 2 * 1024 * 1024,
     )
 
     @app.exception_handler(RequestValidationError)

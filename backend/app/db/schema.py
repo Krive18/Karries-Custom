@@ -459,9 +459,10 @@ SCHEMA_STATEMENTS = [
         create_time bigint unsigned not null comment '创建时间戳',
         update_time bigint unsigned not null comment '更新时间戳',
         primary key (id),
-        key idx_viral_job_tenant_user_time (tenant_id, user_id, create_time),
-        key idx_viral_job_tenant_status_time (tenant_id, status, create_time),
-        key idx_viral_job_source_type (source_type),
+        key idx_viral_job_tenant_user_time_id (tenant_id, user_id, create_time, id),
+        key idx_viral_job_tenant_status_time_id (tenant_id, status, create_time, id),
+        key idx_viral_job_tenant_time_id (tenant_id, create_time, id),
+        key idx_viral_job_time_id (create_time, id),
         key idx_viral_job_material_file_id (material_file_id)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='爆款解析任务'
     """,
@@ -478,7 +479,7 @@ SCHEMA_STATEMENTS = [
         reuse_suggestions text not null comment '可复用建议',
         rewritten_script text not null comment '改写后的自有脚本',
         tags text not null comment '推荐标签 JSON',
-        raw_result_json text not null comment 'AI 原始结构化结果',
+        raw_result_json mediumtext not null comment 'AI 原始结构化结果',
         create_time bigint unsigned not null comment '创建时间戳',
         primary key (id),
         unique key uk_viral_result_job_id (job_id),

@@ -39,7 +39,7 @@ def test_save_rejects_spoofed_or_unsupported_upload_and_cleans_part_files(
 ):
     service = UploadStorageService(tmp_path)
 
-    with pytest.raises(UploadStorageError, match="unsupported|does not match"):
+    with pytest.raises(UploadStorageError, match="unsupported|does not match|extension"):
         service.save(
             stream=io.BytesIO(payload),
             original_name="fake.mp4",
@@ -90,3 +90,27 @@ def test_save_rejects_quicktime_claim_for_mp4_signature(tmp_path):
             tenant_id=11,
             job_id=12,
         )
+
+
+def test_save_rejects_executable_extension_even_when_bytes_and_mime_are_jpeg(tmp_path):
+    with pytest.raises(UploadStorageError, match="extension"):
+        UploadStorageService(tmp_path).save(
+            stream=io.BytesIO(JPEG),
+            original_name="photo.exe",
+            declared_mime_type="image/jpeg",
+            tenant_id=11,
+            job_id=12,
+        )
+
+
+def test_save_keeps_valid_extension_when_display_name_is_truncated(tmp_path):
+    stored = UploadStorageService(tmp_path).save(
+        stream=io.BytesIO(JPEG),
+        original_name=("a" * 300) + ".jpg",
+        declared_mime_type="image/jpeg",
+        tenant_id=11,
+        job_id=12,
+    )
+
+    assert len(stored.file_name) == 255
+    assert stored.file_name.endswith(".jpg")

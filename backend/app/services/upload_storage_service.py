@@ -23,11 +23,11 @@ class UploadStorageService:
     MAX_BYTES = 200 * 1024 * 1024
     CHUNK_SIZE = 1024 * 1024
     _MIME_TYPES = {
-        "image/jpeg": ("image", ".jpg"),
-        "image/png": ("image", ".png"),
-        "image/webp": ("image", ".webp"),
-        "video/mp4": ("video", ".mp4"),
-        "video/quicktime": ("video", ".mov"),
+        "image/jpeg": ("image", ".jpg", {".jpg", ".jpeg"}),
+        "image/png": ("image", ".png", {".png"}),
+        "image/webp": ("image", ".webp", {".webp"}),
+        "video/mp4": ("video", ".mp4", {".mp4"}),
+        "video/quicktime": ("video", ".mov", {".mov"}),
     }
 
     def __init__(
@@ -50,6 +50,9 @@ class UploadStorageService:
     ) -> StoredUpload:
         if declared_mime_type not in self._MIME_TYPES:
             raise UploadStorageError("unsupported upload media type")
+        display_name = self._sanitize_display_name(original_name)
+        if Path(display_name).suffix.lower() not in self._MIME_TYPES[declared_mime_type][2]:
+            raise UploadStorageError("file extension does not match upload media type")
 
         directory = self._safe_directory(tenant_id, job_id)
         temp_path = directory / f"{uuid.uuid4().hex}.part"
@@ -61,13 +64,13 @@ class UploadStorageService:
             if detected_mime_type != declared_mime_type:
                 raise UploadStorageError("declared media type does not match file signature")
 
-            file_type, extension = self._MIME_TYPES[declared_mime_type]
+            file_type, extension, _ = self._MIME_TYPES[declared_mime_type]
             final_name = f"{uuid.uuid4().hex}{extension}"
             final_path = directory / final_name
             self._assert_within_root(final_path)
             os.replace(temp_path, final_path)
             return StoredUpload(
-                file_name=self._sanitize_display_name(original_name),
+                file_name=display_name,
                 file_type=file_type,
                 mime_type=declared_mime_type,
                 file_size=size,
@@ -117,7 +120,13 @@ class UploadStorageService:
     def _sanitize_display_name(self, original_name: str) -> str:
         name = Path(original_name or "upload").name
         name = re.sub(r"[\x00-\x1f\x7f]", "", name).strip()
-        return (name or "upload")[:255]
+        name = name or "upload"
+        suffix = Path(name).suffix
+        if len(name) <= 255:
+            return name
+        if suffix and len(suffix) < 255:
+            return name[: 255 - len(suffix)] + suffix
+        return name[:255]
 
     def _assert_within_root(self, path: Path) -> None:
         try:

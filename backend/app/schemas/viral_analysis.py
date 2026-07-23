@@ -1,10 +1,11 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
 
 ViralSourceType = Literal["upload", "link", "text"]
 ViralAnalysisGoal = Literal["hook", "structure", "rhythm", "script", "selling", "reuse"]
+ViralAnalysisStatus = Literal["pending", "processing", "completed", "failed", "cancelled"]
 
 
 class ViralAnalysisJobCreate(BaseModel):
@@ -23,7 +24,10 @@ class ViralAnalysisStructuredResult(BaseModel):
     selling_points: str = Field(default="", max_length=5000)
     reuse_suggestions: str = Field(default="", max_length=10000)
     rewritten_script: str = Field(default="", max_length=10000)
-    tags: list[str] = Field(default_factory=list, max_length=20)
+    tags: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(
+        default_factory=list,
+        max_length=20,
+    )
 
 
 class ViralAnalysisMaterialUpload(BaseModel):

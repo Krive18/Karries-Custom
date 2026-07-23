@@ -43,6 +43,16 @@ def test_parse_structured_result_rejects_invalid_provider_payload(raw):
         parse_structured_result(raw)
 
 
+@pytest.mark.parametrize("tag", ["", "x" * 101])
+def test_parse_structured_result_rejects_invalid_tag_item(tag):
+    with pytest.raises(ViralAnalysisResponseError):
+        parse_structured_result(
+            json.dumps(
+                {"hook_summary": "hook", "structure_summary": "structure", "tags": [tag]}
+            )
+        )
+
+
 def test_text_only_capability_requires_supplement_text():
     with pytest.raises(ViralAnalysisCapabilityError, match="supplement_text"):
         ViralAnalysisCapabilityError.require_text_input("")
@@ -162,6 +172,13 @@ def test_viral_analysis_requires_auth(app_client_without_db):
     assert response.status_code == 401
 
 
+def test_developer_viral_routes_are_not_in_openapi_schema(app_client_without_db):
+    response = app_client_without_db.get("/openapi.json")
+
+    assert response.status_code == 200
+    assert not any(path.startswith("/api/developer/viral-analysis") for path in response.json()["paths"])
+
+
 def test_user_runs_text_analysis_and_saves_idempotent_video_draft(
     monkeypatch, mysql_conn, mysql_app_client
 ):
@@ -176,6 +193,9 @@ def test_user_runs_text_analysis_and_saves_idempotent_video_draft(
     assert data["credit_cost"] == 3
     assert data["result"]["hook_summary"]
     assert data["result"]["tags"] == ["小红书运营", "视频拆解"]
+    assert "ai_provider" not in data
+    assert "ai_model" not in data
+    assert "error_message" not in data
 
     first = mysql_app_client.post(f"/api/viral-analysis/jobs/{job_id}/save-draft", headers=headers)
     second = mysql_app_client.post(f"/api/viral-analysis/jobs/{job_id}/save-draft", headers=headers)
@@ -312,14 +332,19 @@ def test_usage_write_failure_rolls_back_success_result_and_job_state(
     assert usage_count["total"] == 0
 
 
-def test_developer_detail_writes_audit_record(mysql_conn, mysql_app_client):
+def test_developer_detail_writes_audit_record(monkeypatch, mysql_conn, mysql_app_client):
+    _configure_ai(monkeypatch)
     headers = _auth_headers(mysql_conn, mysql_app_client, "developer", tenant_id=19)
     job_id = _create_job(mysql_app_client, headers, "developer")
     developer = _developer_headers(mysql_conn, mysql_app_client, "developer")
 
+    # Add a safe usage record through the public workflow before developer diagnosis.
+    assert mysql_app_client.post(f"/api/viral-analysis/jobs/{job_id}/run", headers=headers).status_code == 200
+
     response = mysql_app_client.get(f"/api/developer/viral-analysis/jobs/{job_id}", headers=developer)
 
     assert response.status_code == 200
+    assert response.json()["data"]["latest_ai_usage"]["provider"] == "deepseek"
     with mysql_conn.cursor() as cursor:
         cursor.execute(
             "select action, target_type, target_id from admin_audit_log order by id desc limit 1"
@@ -364,3 +389,84 @@ def test_upload_rejects_non_upload_source_job(mysql_conn, mysql_app_client):
     )
 
     assert response.status_code == 409
+
+
+def test_upload_race_cleanup_removes_written_file_after_state_conflict(
+    monkeypatch, tmp_path, mysql_conn, mysql_app_client
+):
+    from app.repositories import viral_analysis_repository
+
+    headers = _auth_headers(mysql_conn, mysql_app_client, "upload-race")
+    job_id = _create_job(mysql_app_client, headers, "upload-race", source_type="upload")
+    monkeypatch.setattr(mysql_app_client.app.state.config, "data_dir", tmp_path)
+
+    def fail_after_write(_self, *_args, **_kwargs):
+        raise ViralAnalysisStateError("processing")
+
+    monkeypatch.setattr(viral_analysis_repository.ViralAnalysisRepository, "add_material", fail_after_write)
+    response = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/upload",
+        headers=headers,
+        files={"file": ("reference.jpg", b"\xff\xd8\xff\xe0jpeg-data", "image/jpeg")},
+    )
+
+    assert response.status_code == 409
+    assert list(tmp_path.rglob("*.jpg")) == []
+    assert list(tmp_path.rglob("*.part")) == []
+
+
+def test_snapshot_configuration_failure_finalizes_failed_job_without_leaking_cause(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    from app.services import viral_analysis_service
+
+    headers = _auth_headers(mysql_conn, mysql_app_client, "snapshot-failure")
+    job_id = _create_job(mysql_app_client, headers, "snapshot-failure")
+
+    def fail_snapshot(_self):
+        raise RuntimeError("sk-private-configuration-error")
+
+    monkeypatch.setattr(viral_analysis_service.ViralAnalysisService, "_provider_from_settings_snapshot", fail_snapshot)
+    response = mysql_app_client.post(f"/api/viral-analysis/jobs/{job_id}/run", headers=headers)
+
+    assert response.status_code == 502
+    assert "sk-private" not in response.text
+    with mysql_conn.cursor() as cursor:
+        cursor.execute("select status from viral_analysis_job where id = %s", (job_id,))
+        job = cursor.fetchone()
+        cursor.execute(
+            "select status, error_message from ai_usage_log where business_type = 'viral_analysis'"
+        )
+        usage = cursor.fetchone()
+    assert job["status"] == "failed"
+    assert usage["status"] == "failed"
+    assert "sk-private" not in usage["error_message"]
+
+
+def test_admin_and_developer_lists_filter_on_server_and_keep_external_fields_safe(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    _configure_ai(monkeypatch)
+    first_headers = _auth_headers(mysql_conn, mysql_app_client, "filter-first", tenant_id=31)
+    second_headers = _auth_headers(mysql_conn, mysql_app_client, "filter-second", tenant_id=31)
+    first_job = _create_job(mysql_app_client, first_headers, "needle")
+    second_job = _create_job(mysql_app_client, second_headers, "other")
+    assert mysql_app_client.post(f"/api/viral-analysis/jobs/{first_job}/run", headers=first_headers).status_code == 200
+    admin = _management_headers(mysql_conn, mysql_app_client, "filter", tenant_id=31)
+    developer = _developer_headers(mysql_conn, mysql_app_client, "filter")
+
+    admin_response = mysql_app_client.get(
+        "/api/admin/viral-analysis/jobs",
+        headers=admin,
+        params={"status": "completed", "keyword": "needle"},
+    )
+    developer_response = mysql_app_client.get(
+        "/api/developer/viral-analysis/jobs",
+        headers=developer,
+        params={"tenant_id": 31, "status": "completed"},
+    )
+
+    assert [item["id"] for item in admin_response.json()["data"]["items"]] == [first_job]
+    assert all("ai_provider" not in item for item in admin_response.json()["data"]["items"])
+    assert [item["id"] for item in developer_response.json()["data"]["items"]] == [first_job]
+    assert second_job not in [item["id"] for item in developer_response.json()["data"]["items"]]

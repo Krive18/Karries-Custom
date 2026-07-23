@@ -60,3 +60,23 @@ class AIUsageRepository:
                 except Exception:
                     pass
             raise
+
+    def get_latest_for_business(
+        self,
+        tenant_id: int,
+        business_type: str,
+        business_id: int,
+    ) -> dict | None:
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                select id, status, provider, model_name, latency_ms, input_chars,
+                       output_chars, credit_cost, error_message, create_time
+                from ai_usage_log
+                where tenant_id = %s and business_type = %s and business_id = %s
+                order by id desc
+                limit 1
+                """,
+                (tenant_id, business_type, business_id),
+            )
+            return cursor.fetchone()

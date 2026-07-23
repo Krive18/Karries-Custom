@@ -529,6 +529,84 @@ def test_viral_analysis_schema_declares_processing_lease_columns():
     assert "create table if not exists viral_analysis_job" in schema
     assert "processing_token varchar(64) not null default ''" in schema
     assert "processing_started_time bigint unsigned not null default 0" in schema
+    assert "raw_result_json mediumtext not null" in schema
+    assert (
+        "key idx_viral_job_tenant_user_time_id (tenant_id, user_id, create_time, id)"
+        in schema
+    )
+    assert (
+        "key idx_viral_job_tenant_status_time_id (tenant_id, status, create_time, id)"
+        in schema
+    )
+    assert "key idx_viral_job_tenant_time_id (tenant_id, create_time, id)" in schema
+    assert "key idx_viral_job_time_id (create_time, id)" in schema
+
+
+def test_migrate_upgrades_viral_result_json_column_and_query_indexes(mysql_conn):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "alter table viral_analysis_result modify column raw_result_json text not null comment 'old'"
+        )
+        for index_name in (
+            "idx_viral_job_tenant_user_time_id",
+            "idx_viral_job_tenant_status_time_id",
+            "idx_viral_job_tenant_time_id",
+            "idx_viral_job_time_id",
+        ):
+            cursor.execute(f"alter table viral_analysis_job drop index `{index_name}`")
+        cursor.execute(
+            "alter table viral_analysis_job add key idx_viral_job_tenant_user_time "
+            "(tenant_id, user_id, create_time)"
+        )
+        cursor.execute(
+            "alter table viral_analysis_job add key idx_viral_job_tenant_status_time "
+            "(tenant_id, status, create_time)"
+        )
+        cursor.execute("alter table viral_analysis_job add key idx_viral_job_source_type (source_type)")
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    column = fetch_one(
+        mysql_conn,
+        """
+        select column_type as column_type, is_nullable as is_nullable, column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'viral_analysis_result'
+          and column_name = 'raw_result_json'
+        """,
+    )
+    assert column["column_type"] == "mediumtext"
+    assert column["is_nullable"] == "NO"
+    assert column["column_comment"] == "AI 原始结构化结果"
+
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select index_name as index_name, column_name as column_name, seq_in_index as seq_in_index
+        from information_schema.statistics
+        where table_schema = database() and table_name = 'viral_analysis_job'
+        """,
+    )
+    indexes = {}
+    for row in rows:
+        indexes.setdefault(row["index_name"], []).append((row["seq_in_index"], row["column_name"]))
+    assert "idx_viral_job_tenant_user_time" not in indexes
+    assert "idx_viral_job_tenant_status_time" not in indexes
+    assert "idx_viral_job_source_type" not in indexes
+    assert [column_name for _, column_name in sorted(indexes["idx_viral_job_tenant_user_time_id"])] == [
+        "tenant_id", "user_id", "create_time", "id"
+    ]
+    assert [column_name for _, column_name in sorted(indexes["idx_viral_job_tenant_status_time_id"])] == [
+        "tenant_id", "status", "create_time", "id"
+    ]
+    assert [column_name for _, column_name in sorted(indexes["idx_viral_job_tenant_time_id"])] == [
+        "tenant_id", "create_time", "id"
+    ]
+    assert [column_name for _, column_name in sorted(indexes["idx_viral_job_time_id"])] == [
+        "create_time", "id"
+    ]
 
 
 def test_migrate_backfills_inspiration_session_context_columns(mysql_conn):
@@ -657,9 +735,10 @@ def test_migrate_declares_ai_module_indexes(mysql_conn):
         ("inspiration_message", "idx_inspiration_message_tenant_session_id"),
         ("content_draft_source", "uk_content_draft_source_business"),
         ("content_draft_source", "idx_content_draft_source_draft_id"),
-        ("viral_analysis_job", "idx_viral_job_tenant_user_time"),
-        ("viral_analysis_job", "idx_viral_job_tenant_status_time"),
-        ("viral_analysis_job", "idx_viral_job_source_type"),
+        ("viral_analysis_job", "idx_viral_job_tenant_user_time_id"),
+        ("viral_analysis_job", "idx_viral_job_tenant_status_time_id"),
+        ("viral_analysis_job", "idx_viral_job_tenant_time_id"),
+        ("viral_analysis_job", "idx_viral_job_time_id"),
         ("viral_analysis_job", "idx_viral_job_material_file_id"),
         ("viral_analysis_result", "uk_viral_result_job_id"),
         ("viral_analysis_result", "idx_viral_result_tenant_id"),

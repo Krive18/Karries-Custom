@@ -26,6 +26,12 @@ def _ensure_tenant_compatibility(cursor) -> None:
                 f"add column {column_name} {definition}"
             )
 
+    if _column_type(cursor, "viral_analysis_result", "raw_result_json") != "mediumtext":
+        cursor.execute(
+            "alter table `viral_analysis_result` modify column raw_result_json "
+            "mediumtext not null comment 'AI 原始结构化结果'"
+        )
+
     for column_name, definition in (
         (
             "tone",
@@ -91,6 +97,9 @@ def _ensure_tenant_compatibility(cursor) -> None:
         ("inspiration_session", "idx_inspiration_session_tenant_status_time"),
         ("inspiration_message", "idx_inspiration_message_session_time"),
         ("inspiration_message", "idx_inspiration_message_tenant_user_time"),
+        ("viral_analysis_job", "idx_viral_job_tenant_user_time"),
+        ("viral_analysis_job", "idx_viral_job_tenant_status_time"),
+        ("viral_analysis_job", "idx_viral_job_source_type"),
     ):
         _drop_index_if_exists(cursor, table_name, index_name)
 
@@ -109,6 +118,26 @@ def _ensure_tenant_compatibility(cursor) -> None:
             "inspiration_message",
             "idx_inspiration_message_tenant_session_id",
             "tenant_id, session_id, id",
+        ),
+        (
+            "viral_analysis_job",
+            "idx_viral_job_tenant_user_time_id",
+            "tenant_id, user_id, create_time, id",
+        ),
+        (
+            "viral_analysis_job",
+            "idx_viral_job_tenant_status_time_id",
+            "tenant_id, status, create_time, id",
+        ),
+        (
+            "viral_analysis_job",
+            "idx_viral_job_tenant_time_id",
+            "tenant_id, create_time, id",
+        ),
+        (
+            "viral_analysis_job",
+            "idx_viral_job_time_id",
+            "create_time, id",
         ),
     ):
         if not _index_exists(cursor, table_name, index_name):
@@ -144,6 +173,21 @@ def _column_comment(cursor, table_name: str, column_name: str) -> str:
     )
     row = cursor.fetchone()
     return "" if row is None else str(row["column_comment"])
+
+
+def _column_type(cursor, table_name: str, column_name: str) -> str:
+    cursor.execute(
+        """
+        select column_type as column_type
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = %s
+          and column_name = %s
+        """,
+        (table_name, column_name),
+    )
+    row = cursor.fetchone()
+    return "" if row is None else str(row["column_type"]).lower()
 
 
 def _index_exists(cursor, table_name: str, index_name: str) -> bool:
