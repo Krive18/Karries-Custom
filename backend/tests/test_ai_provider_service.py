@@ -84,8 +84,20 @@ def test_provider_rejects_missing_key(monkeypatch):
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     service = AIProviderService(FakeSettingRepository())
 
-    with pytest.raises(AIProviderError, match="AI 服务尚未配置"):
+    with pytest.raises(AIProviderError, match="AI 服务尚未配置") as exc_info:
         service.generate_text("system", "user")
+
+    assert exc_info.value.code == "not_configured"
+
+
+def test_provider_error_rejects_unsupported_code():
+    with pytest.raises(ValueError, match="unsupported AI provider error code"):
+        AIProviderError("raw_provider_error", "unsafe message")
+
+
+def test_provider_error_code_allowlist_is_immutable():
+    with pytest.raises(AttributeError):
+        AIProviderError.CODES.add("raw_provider_error")
 
 
 def test_provider_rejects_disabled_copywriting_setting():
@@ -98,8 +110,10 @@ def test_provider_rejects_disabled_copywriting_setting():
         )
     )
 
-    with pytest.raises(AIProviderError, match="AI 服务未启用"):
+    with pytest.raises(AIProviderError, match="AI 服务未启用") as exc_info:
         service.generate_text("system", "user")
+
+    assert exc_info.value.code == "disabled"
 
 
 def test_provider_hides_key_when_transport_fails():
@@ -115,6 +129,7 @@ def test_provider_hides_key_when_transport_fails():
         service.generate_text("system", "user")
 
     assert "sk-private-secret" not in str(exc_info.value)
+    assert exc_info.value.code == "transport"
 
 
 def test_provider_hides_transport_secret_from_formatted_traceback():
@@ -146,3 +161,19 @@ def test_provider_rejects_invalid_response_without_leaking_key():
         service.generate_text("system", "user")
 
     assert "sk-private-secret" not in str(exc_info.value)
+    assert exc_info.value.code == "invalid_response"
+
+
+def test_provider_classifies_timeout_with_safe_code():
+    def timeout_transport(*_args):
+        raise TimeoutError("private upstream timeout")
+
+    service = AIProviderService(
+        FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),
+        transport=timeout_transport,
+    )
+
+    with pytest.raises(AIProviderError, match="AI 服务调用失败") as exc_info:
+        service.generate_text("system", "user")
+
+    assert exc_info.value.code == "timeout"

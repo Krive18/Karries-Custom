@@ -52,5 +52,8 @@ class AIUsageRepository:
             self.conn.commit()
             return usage_id
         except Exception:
-            self.conn.rollback()
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
             raise

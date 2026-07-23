@@ -4,8 +4,17 @@ import pytest
 
 from app.integrations.deepseek import TextGenerationResult
 from app.repositories.ai_usage_repository import AIUsageRepository
+from app.services.ai_provider_service import AIProviderError, AIProviderService
 from app.services.ai_usage_service import AIUsageService
 from app.services.credit_charge_service import CreditChargeService
+
+
+class FakeSettingRepository:
+    def __init__(self, values=None):
+        self.values = values or {}
+
+    def get(self, key, default=""):
+        return self.values.get(key, default)
 
 
 class FakeUsageCursor:
@@ -50,7 +59,7 @@ class FakeUsageCursor:
 
 
 class FakeUsageConnection:
-    def __init__(self, fail_execute=False, fail_commit=False):
+    def __init__(self, fail_execute=False, fail_commit=False, fail_rollback=False):
         self.rows = []
         self.queries = []
         self.commits = 0
@@ -58,6 +67,7 @@ class FakeUsageConnection:
         self.next_id = 1
         self.fail_execute = fail_execute
         self.fail_commit = fail_commit
+        self.fail_rollback = fail_rollback
 
     def cursor(self):
         return FakeUsageCursor(self)
@@ -69,6 +79,8 @@ class FakeUsageConnection:
 
     def rollback(self):
         self.rollbacks += 1
+        if self.fail_rollback:
+            raise RuntimeError("database rollback failed")
 
 
 def test_usage_service_records_success_with_generation_metrics():
@@ -179,6 +191,40 @@ def test_usage_service_uses_safe_summary_for_untrusted_failure_message(error_mes
     assert "Bearer" not in conn.rows[0]["error_message"]
 
 
+def test_usage_service_records_provider_error_categories_without_original_error():
+    conn = FakeUsageConnection()
+    usage = AIUsageService(AIUsageRepository(conn))
+
+    timeout_provider = AIProviderService(
+        FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),
+        transport=lambda *_args: (_ for _ in ()).throw(TimeoutError("private timeout")),
+    )
+    invalid_provider = AIProviderService(
+        FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),
+        transport=lambda *_args: {"choices": []},
+    )
+
+    for provider, expected_summary in (
+        (timeout_provider, "AI provider timeout"),
+        (invalid_provider, "AI provider returned invalid response"),
+    ):
+        with pytest.raises(AIProviderError) as exc_info:
+            provider.generate_text("private system prompt", "private user prompt")
+
+        usage.record_failure(
+            tenant_id=2,
+            user_id=7,
+            business_type="inspiration_chat",
+            business_id=0,
+            provider="deepseek",
+            model_name="deepseek-chat",
+            error_message=str(exc_info.value),
+            error_code=exc_info.value.code,
+        )
+        assert conn.rows[-1]["error_message"] == expected_summary
+        assert "private" not in conn.rows[-1]["error_message"]
+
+
 def test_usage_repository_rolls_back_when_execute_fails():
     conn = FakeUsageConnection(fail_execute=True)
     repository = AIUsageRepository(conn)
@@ -202,6 +248,30 @@ def test_usage_repository_rolls_back_when_execute_fails():
     assert conn.rollbacks == 1
 
 
+def test_usage_repository_preserves_execute_failure_when_rollback_fails():
+    conn = FakeUsageConnection(fail_execute=True, fail_rollback=True)
+    repository = AIUsageRepository(conn)
+
+    with pytest.raises(RuntimeError, match="database execute failed") as exc_info:
+        repository.create(
+            tenant_id=2,
+            user_id=7,
+            business_type="inspiration_chat",
+            business_id=0,
+            provider="deepseek",
+            model_name="deepseek-chat",
+            status="failed",
+            credit_cost=0,
+            latency_ms=0,
+            input_chars=0,
+            output_chars=0,
+            error_message="AI provider request failed",
+        )
+
+    assert str(exc_info.value) == "database execute failed"
+    assert conn.rollbacks == 1
+
+
 def test_usage_repository_rolls_back_when_commit_fails():
     conn = FakeUsageConnection(fail_commit=True)
     repository = AIUsageRepository(conn)
@@ -222,6 +292,30 @@ def test_usage_repository_rolls_back_when_commit_fails():
             error_message="AI provider request failed",
         )
 
+    assert conn.rollbacks == 1
+
+
+def test_usage_repository_preserves_commit_failure_when_rollback_fails():
+    conn = FakeUsageConnection(fail_commit=True, fail_rollback=True)
+    repository = AIUsageRepository(conn)
+
+    with pytest.raises(RuntimeError, match="database commit failed") as exc_info:
+        repository.create(
+            tenant_id=2,
+            user_id=7,
+            business_type="inspiration_chat",
+            business_id=0,
+            provider="deepseek",
+            model_name="deepseek-chat",
+            status="failed",
+            credit_cost=0,
+            latency_ms=0,
+            input_chars=0,
+            output_chars=0,
+            error_message="AI provider request failed",
+        )
+
+    assert str(exc_info.value) == "database commit failed"
     assert conn.rollbacks == 1
 
 

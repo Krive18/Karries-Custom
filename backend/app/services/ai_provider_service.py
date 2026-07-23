@@ -7,7 +7,21 @@ from app.services.ai_settings_service import get_ai_setting_key, get_ai_settings
 
 
 class AIProviderError(Exception):
-    pass
+    CODES = frozenset(
+        {
+            "not_configured",
+            "disabled",
+            "timeout",
+            "transport",
+            "invalid_response",
+        }
+    )
+
+    def __init__(self, code: str, message: str) -> None:
+        if code not in self.CODES:
+            raise ValueError("unsupported AI provider error code")
+        self.code = code
+        super().__init__(message)
 
 
 class AIProviderService:
@@ -24,13 +38,13 @@ class AIProviderService:
     ) -> TextGenerationResult:
         settings = get_ai_settings_view(self.settings_repo).copywriting
         if not settings.enabled:
-            raise AIProviderError("AI 服务未启用")
+            raise AIProviderError("disabled", "AI 服务未启用")
 
         api_key = get_ai_setting_key(self.settings_repo, "copywriting") or os.getenv(
             "DEEPSEEK_API_KEY", ""
         )
         if not api_key:
-            raise AIProviderError("AI 服务尚未配置")
+            raise AIProviderError("not_configured", "AI 服务尚未配置")
 
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(
@@ -46,6 +60,8 @@ class AIProviderService:
         try:
             return client.generate(messages, temperature)
         except (KeyError, IndexError, TypeError, ValueError):
-            raise AIProviderError("AI 服务响应无效") from None
+            raise AIProviderError("invalid_response", "AI 服务响应无效") from None
+        except TimeoutError:
+            raise AIProviderError("timeout", "AI 服务调用失败") from None
         except Exception:
-            raise AIProviderError("AI 服务调用失败") from None
+            raise AIProviderError("transport", "AI 服务调用失败") from None

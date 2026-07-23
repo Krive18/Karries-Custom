@@ -43,6 +43,7 @@ class AIUsageService:
         error_message: str,
         latency_ms: int = 0,
         input_chars: int = 0,
+        error_code: str | None = None,
     ) -> int:
         return self.repository.create(
             tenant_id=tenant_id,
@@ -56,18 +57,30 @@ class AIUsageService:
             latency_ms=latency_ms,
             input_chars=input_chars,
             output_chars=0,
-            error_message=_sanitize_error_message(error_message),
+            error_message=_sanitize_error_message(error_message, error_code),
         )
 
 
-def _sanitize_error_message(error_message: str) -> str:
+ERROR_SUMMARIES = {
+    "not_configured": "AI provider is not configured",
+    "disabled": "AI provider is disabled",
+    "timeout": "AI provider timeout",
+    "transport": "AI provider transport failed",
+    "invalid_response": "AI provider returned invalid response",
+}
+
+
+def _sanitize_error_message(error_message: str, error_code: str | None = None) -> str:
+    if error_code in ERROR_SUMMARIES:
+        return ERROR_SUMMARIES[error_code]
+
     normalized = re.sub(r"\s+", " ", str(error_message)).strip().lower()
     if "timeout" in normalized:
-        return "AI provider timeout"
+        return ERROR_SUMMARIES["timeout"]
     if "ai 服务尚未配置" in normalized:
-        return "AI provider is not configured"
+        return ERROR_SUMMARIES["not_configured"]
     if "ai 服务未启用" in normalized:
-        return "AI provider is disabled"
+        return ERROR_SUMMARIES["disabled"]
     if "ai 服务响应无效" in normalized:
-        return "AI provider returned invalid response"
+        return ERROR_SUMMARIES["invalid_response"]
     return "AI provider request failed"
