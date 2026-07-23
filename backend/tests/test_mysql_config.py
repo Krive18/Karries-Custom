@@ -15,6 +15,7 @@ def clear_mysql_env(monkeypatch):
         "XHS_ENV",
         "APP_ENV",
         "XHS_AUTH_TOKEN_SECRET",
+        "AI_SETTINGS_ENCRYPTION_KEY",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -67,11 +68,21 @@ def test_default_config_allows_custom_auth_secret_in_production(monkeypatch):
     clear_mysql_env(monkeypatch)
     monkeypatch.setenv("XHS_ENV", "production")
     monkeypatch.setenv("XHS_AUTH_TOKEN_SECRET", "production-secret")
+    monkeypatch.setenv("AI_SETTINGS_ENCRYPTION_KEY", "production-encryption-secret")
 
     config = default_config()
 
     assert config.environment == "production"
     assert config.auth.token_secret == "production-secret"
+
+
+def test_default_config_requires_ai_encryption_key_in_production(monkeypatch):
+    clear_mysql_env(monkeypatch)
+    monkeypatch.setenv("XHS_ENV", "production")
+    monkeypatch.setenv("XHS_AUTH_TOKEN_SECRET", "production-secret")
+
+    with pytest.raises(ValueError, match="AI_SETTINGS_ENCRYPTION_KEY"):
+        default_config()
 
 
 def test_default_config_reads_worker_api_token(monkeypatch):
