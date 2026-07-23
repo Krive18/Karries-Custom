@@ -61,6 +61,20 @@ function toScheduledTask(task: TaskView, accounts: AccountView[]): ScheduledTask
   };
 }
 
+function isDeveloperRole(user: AuthUser | null) {
+  return user?.user_role === "platform_admin" || user?.user_role === "developer_admin";
+}
+
+function allowedPortalsFor(user: AuthUser | null): PortalKey[] {
+  if (isDeveloperRole(user)) return ["developer"];
+  if (user?.user_role === "client_owner" || user?.user_role === "client_admin") return ["user", "manager"];
+  return ["user"];
+}
+
+function initialPageFor(portal: PortalKey): PageKey {
+  return portal === "developer" ? "developerAIJobs" : portal === "manager" ? "managerOverview" : "create";
+}
+
 
 export function App() {
   const [activePortal, setActivePortal] = useState<PortalKey>("user");
@@ -87,15 +101,18 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (authState !== "ready") return;
+    if (authState !== "ready" || isDeveloperRole(authUser)) return;
     void loadData();
-  }, [authState, loadData]);
+  }, [authState, authUser, loadData]);
 
   useEffect(() => {
     let active = true;
     void api.getCurrentUser().then((user) => {
       if (active) {
+        const initialPortal = allowedPortalsFor(user)[0];
         setAuthUser(user);
+        setActivePortal(initialPortal);
+        setActivePage(initialPageFor(initialPortal));
         setAuthState("ready");
       }
     }).catch((error: unknown) => {
@@ -107,15 +124,7 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const allowedPortals = useMemo<PortalKey[]>(() => {
-    if (authUser?.user_role === "platform_admin" || authUser?.user_role === "developer_admin") {
-      return ["developer"];
-    }
-    if (authUser?.user_role === "client_owner" || authUser?.user_role === "client_admin") {
-      return ["user", "manager"];
-    }
-    return ["user"];
-  }, [authUser?.user_role]);
+  const allowedPortals = useMemo<PortalKey[]>(() => allowedPortalsFor(authUser), [authUser]);
 
   const handleCreateTask = useCallback(async (payload: TaskCreateRequest) => {
     const createdTask = await api.createTask(payload);
@@ -153,7 +162,7 @@ export function App() {
   useEffect(() => {
     if (!allowedPortals.includes(activePortal)) {
       setActivePortal(allowedPortals[0]);
-      setActivePage(allowedPortals[0] === "developer" ? "developerAIJobs" : "create");
+      setActivePage(initialPageFor(allowedPortals[0]));
     }
   }, [activePortal, allowedPortals]);
 

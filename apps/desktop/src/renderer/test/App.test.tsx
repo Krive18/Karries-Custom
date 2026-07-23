@@ -712,6 +712,9 @@ describe("KARRIES desktop workspace", () => {
 
     expect(await screen.findByRole("button", { name: /开发者端/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /用户端/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "素材智能解析" })).not.toBeInTheDocument();
+    expect(mockedApi.listAccounts).not.toHaveBeenCalled();
+    expect(mockedApi.listTasks).not.toHaveBeenCalled();
   });
 
   it("creates, uploads, and runs a viral analysis task in order", async () => {
@@ -787,6 +790,46 @@ describe("KARRIES desktop workspace", () => {
     });
     expect(screen.getByText("当前详情结果")).toBeInTheDocument();
     expect(screen.queryByText("旧详情结果")).not.toBeInTheDocument();
+  });
+
+  it("clears previous viral actions while the newly selected detail is loading", async () => {
+    const completed = { ...viralJob, id: 72, title: "已完成任务" };
+    const pending = { ...viralJob, id: 73, title: "等待加载任务", status: "pending" as const, result: null };
+    const pendingDetail = deferred<typeof pending>();
+    mockedApi.listViralAnalysisJobs.mockResolvedValue({ items: [completed, pending], page: 1, page_size: 20, total: 2 });
+    mockedApi.getViralAnalysisJob.mockImplementation((jobId: number) => jobId === completed.id ? Promise.resolve(completed) : pendingDetail.promise);
+    await renderAuthenticatedApp();
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: /已完成任务/ }));
+    expect(await screen.findByRole("button", { name: "保存视频草稿" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /等待加载任务/ }));
+    expect(await screen.findByText("正在加载任务详情")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存视频草稿" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "取消任务" })).not.toBeInTheDocument();
+
+    await act(async () => {
+      pendingDetail.resolve(pending);
+      await pendingDetail.promise;
+    });
+    expect(await screen.findByRole("button", { name: "取消任务" })).toBeEnabled();
+  });
+
+  it("refreshes the selected viral detail after a run failure", async () => {
+    const pending = { ...viralJob, status: "pending" as const, result: null };
+    const failed = { ...pending, status: "failed" as const };
+    mockedApi.listViralAnalysisJobs
+      .mockResolvedValueOnce({ items: [pending], page: 1, page_size: 20, total: 1 })
+      .mockResolvedValueOnce({ items: [failed], page: 1, page_size: 20, total: 1 });
+    mockedApi.getViralAnalysisJob.mockResolvedValue(pending);
+    mockedApi.runViralAnalysisJob.mockRejectedValueOnce(new Error("provider failed"));
+    await renderAuthenticatedApp();
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "开始解析" }));
+
+    expect(await screen.findByRole("button", { name: "重试解析" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "取消任务" })).toBeDisabled();
   });
 
   it("blocks a viral run without observation text", async () => {
