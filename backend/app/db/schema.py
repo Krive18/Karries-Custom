@@ -383,10 +383,10 @@ SCHEMA_STATEMENTS = [
         id bigint unsigned not null auto_increment comment '主键',
         tenant_id bigint unsigned not null comment '所属租户 ID',
         user_id bigint unsigned not null comment '创建用户 ID',
-        title varchar(200) not null default '' comment '会话标题',
+        title varchar(200) not null comment '会话标题',
         linked_product_id bigint unsigned not null default 0 comment '关联产品 ID',
         linked_xhs_account_id bigint unsigned not null default 0 comment '关联小红书账号 ID',
-        goal_type varchar(50) not null default '' comment '对话目标',
+        goal_type varchar(50) not null comment '对话目标',
         status varchar(20) not null default 'active' comment '会话状态，active 或 archived',
         message_count int unsigned not null default 0 comment '消息数量',
         total_credit_cost int not null default 0 comment '累计消耗算力',
@@ -395,7 +395,8 @@ SCHEMA_STATEMENTS = [
         primary key (id),
         key idx_inspiration_session_tenant_user_time (tenant_id, user_id, update_time),
         key idx_inspiration_session_tenant_status_time (tenant_id, status, update_time),
-        key idx_inspiration_session_product (linked_product_id)
+        key idx_inspiration_session_product (linked_product_id),
+        key idx_inspiration_session_xhs_account (linked_xhs_account_id)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='灵感对话会话'
     """,
     """
@@ -424,7 +425,7 @@ SCHEMA_STATEMENTS = [
         id bigint unsigned not null auto_increment comment '主键',
         tenant_id bigint unsigned not null comment '所属租户 ID',
         user_id bigint unsigned not null comment '创建用户 ID',
-        title varchar(200) not null default '' comment '任务标题',
+        title varchar(200) not null comment '任务标题',
         source_type varchar(20) not null comment '来源类型，upload、link 或 text',
         source_url varchar(2000) not null default '' comment '参考链接',
         material_file_id bigint unsigned not null default 0 comment '素材文件 ID',
@@ -440,7 +441,8 @@ SCHEMA_STATEMENTS = [
         primary key (id),
         key idx_viral_job_tenant_user_time (tenant_id, user_id, create_time),
         key idx_viral_job_tenant_status_time (tenant_id, status, create_time),
-        key idx_viral_job_source_type (source_type)
+        key idx_viral_job_source_type (source_type),
+        key idx_viral_job_material_file_id (material_file_id)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='爆款解析任务'
     """,
     """
@@ -471,7 +473,7 @@ SCHEMA_STATEMENTS = [
         file_name varchar(255) not null comment '文件名',
         file_type varchar(20) not null comment '文件类型，image、video、document 或 other',
         mime_type varchar(100) not null comment 'MIME 类型',
-        file_size bigint unsigned not null default 0 comment '文件大小',
+        file_size bigint unsigned not null comment '文件大小',
         storage_path varchar(1000) not null comment '对象存储路径或本地开发路径',
         create_time bigint unsigned not null comment '创建时间戳',
         primary key (id),

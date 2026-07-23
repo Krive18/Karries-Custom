@@ -26,6 +26,20 @@ def _ensure_tenant_compatibility(cursor) -> None:
                 f"add key `{index_name}` (tenant_id)"
             )
 
+    for table_name, index_name, column_name in (
+        (
+            "inspiration_session",
+            "idx_inspiration_session_xhs_account",
+            "linked_xhs_account_id",
+        ),
+        ("viral_analysis_job", "idx_viral_job_material_file_id", "material_file_id"),
+    ):
+        if not _index_exists(cursor, table_name, index_name):
+            cursor.execute(
+                f"alter table `{table_name}` "
+                f"add key `{index_name}` ({column_name})"
+            )
+
 
 def _column_exists(cursor, table_name: str, column_name: str) -> bool:
     cursor.execute(
