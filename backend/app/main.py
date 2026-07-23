@@ -12,6 +12,7 @@ from app.api.admin_inspiration import router as admin_inspiration_router
 from app.api.auth import router as auth_router
 from app.api.ai import router as ai_router
 from app.api.content_drafts import router as content_drafts_router
+from app.api.developer_viral_analysis import router as developer_viral_analysis_router
 from app.api.inspiration import router as inspiration_router
 from app.api.matrix_plans import router as matrix_plans_router
 from app.api.products import router as products_router
@@ -23,6 +24,8 @@ from app.api.video_edit import router as video_edit_router
 from app.api.wallet import router as wallet_router
 from app.api.worker_matrix_publish import router as worker_matrix_publish_router
 from app.api.xhs_accounts import router as xhs_accounts_router
+from app.api.admin_viral_analysis import router as admin_viral_analysis_router
+from app.api.viral_analysis import router as viral_analysis_router
 from app.core.config import default_config
 from app.core.responses import fail, ok
 from app.db.connection import connect
@@ -101,10 +104,13 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(admin_router)
     app.include_router(admin_inspiration_router)
+    app.include_router(admin_viral_analysis_router)
     app.include_router(ai_router)
     app.include_router(accounts_router)
     app.include_router(content_drafts_router)
     app.include_router(inspiration_router)
+    app.include_router(viral_analysis_router)
+    app.include_router(developer_viral_analysis_router)
     app.include_router(matrix_plans_router)
     app.include_router(products_router)
     app.include_router(runtime_router)

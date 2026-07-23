@@ -523,6 +523,14 @@ def test_ai_schema_declares_inspiration_workflow_mapping_and_indexes():
     ) in schema
 
 
+def test_viral_analysis_schema_declares_processing_lease_columns():
+    schema = "\n".join(SCHEMA_STATEMENTS)
+
+    assert "create table if not exists viral_analysis_job" in schema
+    assert "processing_token varchar(64) not null default ''" in schema
+    assert "processing_started_time bigint unsigned not null default 0" in schema
+
+
 def test_migrate_backfills_inspiration_session_context_columns(mysql_conn):
     with mysql_conn.cursor() as cursor:
         cursor.execute("drop table inspiration_session")

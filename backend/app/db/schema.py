@@ -450,6 +450,8 @@ SCHEMA_STATEMENTS = [
         analysis_goal text not null comment '解析目标',
         supplement_text text not null comment '补充说明、口播稿或观察笔记',
         status varchar(20) not null default 'pending' comment '任务状态，pending、processing、completed、failed、cancelled',
+        processing_token varchar(64) not null default '' comment '当前解析操作令牌',
+        processing_started_time bigint unsigned not null default 0 comment '当前解析开始时间戳',
         ai_provider varchar(50) not null default '' comment 'AI 服务商',
         ai_model varchar(100) not null default '' comment '模型名称',
         credit_cost int not null default 0 comment '消耗算力',

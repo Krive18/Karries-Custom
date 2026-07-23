@@ -12,6 +12,22 @@ def migrate(conn) -> None:
 def _ensure_tenant_compatibility(cursor) -> None:
     for column_name, definition in (
         (
+            "processing_token",
+            "varchar(64) not null default '' comment '当前解析操作令牌'",
+        ),
+        (
+            "processing_started_time",
+            "bigint unsigned not null default 0 comment '当前解析开始时间戳'",
+        ),
+    ):
+        if not _column_exists(cursor, "viral_analysis_job", column_name):
+            cursor.execute(
+                "alter table `viral_analysis_job` "
+                f"add column {column_name} {definition}"
+            )
+
+    for column_name, definition in (
+        (
             "tone",
             "varchar(100) not null default '自然真诚' comment '文案语气'",
         ),

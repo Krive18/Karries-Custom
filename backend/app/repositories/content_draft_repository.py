@@ -1,6 +1,6 @@
 import json
 import time
-from typing import Any
+from typing import Any, Literal
 
 import pymysql
 
@@ -68,6 +68,8 @@ class ContentDraftRepository:
         ai_provider: str,
         model_name: str,
         context: dict,
+        content_type: Literal["image_text", "video"] = "image_text",
+        tags: list[str] | None = None,
     ) -> int:
         now = int(time.time())
         material = {"source_id": source_id, "context": context}
@@ -81,7 +83,7 @@ class ContentDraftRepository:
                         status, ai_provider, model_name, prompt_json,
                         create_time, update_time
                     )
-                    values (%s, %s, %s, %s, 'image_text', %s, %s, '[]', %s,
+                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s,
                             1, %s, %s, %s, %s, %s)
                     """,
                     (
@@ -89,8 +91,10 @@ class ContentDraftRepository:
                         int(context.get("linked_product_id", 0)),
                         int(context.get("linked_xhs_account_id", 0)),
                         source_type,
+                        content_type,
                         title,
                         body,
+                        self._dump_json(tags or []),
                         self._dump_json(material),
                         ai_provider,
                         model_name,
