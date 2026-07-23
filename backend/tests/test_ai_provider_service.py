@@ -151,6 +151,29 @@ def test_provider_hides_transport_secret_from_formatted_traceback():
     assert "custom-secret-value" not in formatted_traceback
 
 
+def test_provider_detaches_transport_exception_context():
+    def failing_transport(*_args):
+        raise RuntimeError("Authorization: Bearer object-secret")
+
+    service = AIProviderService(
+        FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),
+        transport=failing_transport,
+    )
+
+    with pytest.raises(AIProviderError) as exc_info:
+        service.generate_text("system", "user")
+
+    error = exc_info.value
+    formatted_traceback = "".join(
+        traceback.format_exception(exc_info.type, error, exc_info.tb)
+    )
+    assert error.__cause__ is None
+    assert error.__context__ is None
+    assert "object-secret" not in repr(error)
+    assert "object-secret" not in str(error)
+    assert "object-secret" not in formatted_traceback
+
+
 def test_provider_rejects_invalid_response_without_leaking_key():
     service = AIProviderService(
         FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),

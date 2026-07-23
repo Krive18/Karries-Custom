@@ -57,11 +57,16 @@ class AIProviderService:
             model=settings.model,
             transport=self.transport,
         )
+        provider_error: AIProviderError | None = None
         try:
             return client.generate(messages, temperature)
         except (KeyError, IndexError, TypeError, ValueError):
-            raise AIProviderError("invalid_response", "AI 服务响应无效") from None
+            provider_error = AIProviderError("invalid_response", "AI 服务响应无效")
         except TimeoutError:
-            raise AIProviderError("timeout", "AI 服务调用失败") from None
+            provider_error = AIProviderError("timeout", "AI 服务调用失败")
         except Exception:
-            raise AIProviderError("transport", "AI 服务调用失败") from None
+            provider_error = AIProviderError("transport", "AI 服务调用失败")
+
+        if provider_error is not None:
+            raise provider_error
+        raise RuntimeError("unreachable AI provider state")
