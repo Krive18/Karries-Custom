@@ -12,18 +12,19 @@ class UserRepository:
         max_uses: int,
         expires_time: int,
         remark: str,
+        tenant_id: int = 1,
     ) -> int:
         now = int(time.time())
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
                 insert into invite_code (
-                    code, initial_credits, max_uses, used_count,
+                    tenant_id, code, initial_credits, max_uses, used_count,
                     expires_time, status, remark, create_time, update_time
                 )
-                values (%s, %s, %s, 0, %s, 1, %s, %s, %s)
+                values (%s, %s, %s, %s, 0, %s, 1, %s, %s, %s)
                 """,
-                (code, initial_credits, max_uses, expires_time, remark, now, now),
+                (tenant_id, code, initial_credits, max_uses, expires_time, remark, now, now),
             )
             invite_id = int(cursor.lastrowid)
         self.conn.commit()
@@ -33,7 +34,7 @@ class UserRepository:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
-                select id, code, initial_credits, max_uses, used_count,
+                select id, tenant_id, code, initial_credits, max_uses, used_count,
                        expires_time, status, remark, create_time, update_time
                 from invite_code
                 where code = %s
@@ -77,18 +78,19 @@ class UserRepository:
         password_hash: str,
         user_role: str,
         invite_code: str,
+        tenant_id: int = 1,
     ) -> int:
         now = int(time.time())
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
                 insert into app_user (
-                    login_name, nickname, password_hash, user_role, status,
+                    tenant_id, login_name, nickname, password_hash, user_role, status,
                     invite_code, last_login_time, create_time, update_time
                 )
-                values (%s, %s, %s, %s, 1, %s, 0, %s, %s)
+                values (%s, %s, %s, %s, %s, 1, %s, 0, %s, %s)
                 """,
-                (login_name, nickname, password_hash, user_role, invite_code, now, now),
+                (tenant_id, login_name, nickname, password_hash, user_role, invite_code, now, now),
             )
             user_id = int(cursor.lastrowid)
         self.conn.commit()
@@ -98,7 +100,7 @@ class UserRepository:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
-                select id, login_name, nickname, password_hash, user_role, status,
+                select id, tenant_id, login_name, nickname, password_hash, user_role, status,
                        invite_code, last_login_time, create_time, update_time
                 from app_user
                 where login_name = %s
@@ -111,7 +113,7 @@ class UserRepository:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
-                select id, login_name, nickname, password_hash, user_role, status,
+                select id, tenant_id, login_name, nickname, password_hash, user_role, status,
                        invite_code, last_login_time, create_time, update_time
                 from app_user
                 where id = %s

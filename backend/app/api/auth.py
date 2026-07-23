@@ -39,6 +39,7 @@ def me(
     return ok(
         AuthUser(
             id=user["id"],
+            tenant_id=user["tenant_id"],
             login_name=user["login_name"],
             nickname=user["nickname"],
             user_role=user["user_role"],

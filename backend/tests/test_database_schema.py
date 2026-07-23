@@ -19,6 +19,16 @@ SAAS_FOUNDATION_TABLES = {
     "video_edit_job",
 }
 
+AI_MODULE_TABLES = {
+    "tenant",
+    "ai_usage_log",
+    "inspiration_session",
+    "inspiration_message",
+    "viral_analysis_job",
+    "viral_analysis_result",
+    "viral_analysis_material",
+}
+
 
 def fetch_one(conn, sql, params=()):
     with conn.cursor() as cursor:
@@ -351,6 +361,92 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
     assert set(expected_definitions).issubset(set(definitions))
     for key, expected in expected_definitions.items():
         assert definitions[key] == expected
+
+
+def test_migrate_creates_ai_module_tables(mysql_conn):
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select table_name as table_name,
+               engine as engine,
+               table_collation as table_collation,
+               table_comment as table_comment
+        from information_schema.tables
+        where table_schema = database()
+          and table_name in (
+            'tenant', 'ai_usage_log', 'inspiration_session',
+            'inspiration_message', 'viral_analysis_job',
+            'viral_analysis_result', 'viral_analysis_material'
+          )
+        """,
+    )
+
+    assert {row["table_name"] for row in rows} == AI_MODULE_TABLES
+    assert all(row["engine"] == "InnoDB" for row in rows)
+    assert all(row["table_collation"].startswith("utf8mb4") for row in rows)
+    assert all(row["table_comment"] for row in rows)
+
+
+def test_migrate_declares_ai_module_column_comments_and_not_null(mysql_conn):
+    columns = fetch_all(
+        mysql_conn,
+        """
+        select table_name as table_name,
+               is_nullable as is_nullable,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name in (
+            'tenant', 'ai_usage_log', 'inspiration_session',
+            'inspiration_message', 'viral_analysis_job',
+            'viral_analysis_result', 'viral_analysis_material'
+          )
+        """,
+    )
+
+    assert columns
+    assert {column["table_name"] for column in columns} == AI_MODULE_TABLES
+    assert all(column["is_nullable"] == "NO" for column in columns)
+    assert all(column["column_comment"] for column in columns)
+
+
+def test_migrate_declares_ai_module_indexes(mysql_conn):
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select table_name as table_name, index_name as index_name
+        from information_schema.statistics
+        where table_schema = database()
+        and table_name in (
+            'app_user', 'invite_code',
+            'ai_usage_log', 'inspiration_session', 'inspiration_message',
+            'viral_analysis_job', 'viral_analysis_result',
+            'viral_analysis_material'
+          )
+        """,
+    )
+    indexes = {(row["table_name"], row["index_name"]) for row in rows}
+
+    expected_indexes = {
+        ("ai_usage_log", "idx_ai_usage_tenant_business_time"),
+        ("ai_usage_log", "idx_ai_usage_user_time"),
+        ("ai_usage_log", "idx_ai_usage_business"),
+        ("inspiration_session", "idx_inspiration_session_tenant_user_time"),
+        ("inspiration_session", "idx_inspiration_session_tenant_status_time"),
+        ("inspiration_session", "idx_inspiration_session_product"),
+        ("inspiration_message", "idx_inspiration_message_session_time"),
+        ("inspiration_message", "idx_inspiration_message_tenant_user_time"),
+        ("viral_analysis_job", "idx_viral_job_tenant_user_time"),
+        ("viral_analysis_job", "idx_viral_job_tenant_status_time"),
+        ("viral_analysis_job", "idx_viral_job_source_type"),
+        ("viral_analysis_result", "uk_viral_result_job_id"),
+        ("viral_analysis_result", "idx_viral_result_tenant_id"),
+        ("viral_analysis_material", "idx_viral_material_job_id"),
+        ("viral_analysis_material", "idx_viral_material_tenant_id"),
+        ("app_user", "idx_app_user_tenant_id"),
+        ("invite_code", "idx_invite_code_tenant_id"),
+    }
+    assert expected_indexes.issubset(indexes)
 
 
 def test_migrate_is_idempotent(mysql_conn):

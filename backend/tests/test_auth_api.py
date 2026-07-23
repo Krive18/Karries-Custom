@@ -1,7 +1,7 @@
 import pytest
 
 from app.core.config import default_config
-from app.schemas.auth import RegisterRequest
+from app.schemas.auth import AuthUser, RegisterRequest
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthError, AuthService
 
@@ -44,6 +44,7 @@ class FakeAuthConnection:
         self.existing_user = None
         self.invite = {
             "id": 1,
+            "tenant_id": 1,
             "code": "INV-A",
             "initial_credits": 66,
             "max_uses": 1,
@@ -77,6 +78,19 @@ def test_register_schema_accepts_optional_nickname_and_six_character_password():
     )
 
     assert payload.nickname == ""
+
+
+def test_auth_user_includes_tenant_id():
+    user = AuthUser(
+        id=7,
+        tenant_id=3,
+        login_name="tenant_user",
+        nickname="Tenant User",
+        user_role="customer",
+        wallet_balance=0,
+    )
+
+    assert user.model_dump()["tenant_id"] == 3
 
 
 def test_register_rolls_back_when_invite_update_loses_race():
@@ -124,6 +138,32 @@ def test_register_with_invite_code_returns_token_user_and_wallet(mysql_conn, mys
     assert payload["data"]["user"]["login_name"] == "operator_a"
     assert payload["data"]["user"]["wallet_balance"] == 66
     assert "password" not in str(payload["data"]).lower()
+
+
+def test_register_inherits_tenant_from_invite_code(mysql_conn, mysql_app_client):
+    repo = UserRepository(mysql_conn)
+    repo.create_invite_code(
+        "TENANT-INVITE",
+        initial_credits=0,
+        max_uses=2,
+        expires_time=0,
+        remark="tenant test",
+        tenant_id=7,
+    )
+
+    response = mysql_app_client.post(
+        "/api/auth/register",
+        json={
+            "login_name": "tenant_user",
+            "nickname": "Tenant User",
+            "password": "matrix-secret",
+            "invite_code": "TENANT-INVITE",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["user"]["tenant_id"] == 7
+    assert repo.get_by_login_name("tenant_user")["tenant_id"] == 7
 
 
 def test_register_rejects_invalid_invite_code(mysql_app_client):
@@ -264,6 +304,7 @@ def test_me_returns_current_user(mysql_conn, mysql_app_client):
     assert payload["success"] is True
     assert payload["data"]["login_name"] == "operator_me"
     assert payload["data"]["wallet_balance"] == 12
+    assert payload["data"]["tenant_id"] == 1
 
 
 def test_me_requires_bearer_token(app_client_without_db):

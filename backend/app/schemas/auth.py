@@ -15,6 +15,7 @@ class LoginRequest(BaseModel):
 
 class AuthUser(BaseModel):
     id: int
+    tenant_id: int
     login_name: str
     nickname: str
     user_role: str

@@ -61,6 +61,7 @@ SCHEMA_STATEMENTS = [
     """
     create table if not exists app_user (
         id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null default 1 comment '所属租户 ID',
         login_name varchar(100) not null comment '登录账号',
         nickname varchar(100) not null default '' comment '用户昵称',
         password_hash varchar(255) not null comment '密码哈希',
@@ -72,12 +73,14 @@ SCHEMA_STATEMENTS = [
         update_time bigint unsigned not null comment '更新时间戳',
         primary key (id),
         unique key uk_app_user_login_name (login_name),
+        key idx_app_user_tenant_id (tenant_id),
         key idx_app_user_status (status)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='平台用户'
     """,
     """
     create table if not exists invite_code (
         id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null default 1 comment '所属租户 ID',
         code varchar(64) not null comment '邀请码',
         initial_credits int not null default 0 comment '注册后赠送积分',
         max_uses int not null default 1 comment '最大使用次数',
@@ -89,6 +92,7 @@ SCHEMA_STATEMENTS = [
         update_time bigint unsigned not null comment '更新时间戳',
         primary key (id),
         unique key uk_invite_code_code (code),
+        key idx_invite_code_tenant_id (tenant_id),
         key idx_invite_code_status (status)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='客户注册邀请码'
     """,
@@ -338,5 +342,141 @@ SCHEMA_STATEMENTS = [
         key idx_video_edit_job_expected_delivery_time (expected_delivery_time),
         key idx_video_edit_job_status_time (status, create_time)
     ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='Manual-backed intelligent video editing work order'
+    """,
+    """
+    create table if not exists tenant (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_code varchar(64) not null comment '租户唯一编码',
+        tenant_name varchar(100) not null comment '租户名称',
+        status tinyint unsigned not null default 1 comment '状态，1-启用，2-停用',
+        create_time bigint unsigned not null comment '创建时间戳',
+        update_time bigint unsigned not null comment '更新时间戳',
+        primary key (id),
+        unique key uk_tenant_code (tenant_code),
+        key idx_tenant_status (status)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='客户租户'
+    """,
+    """
+    create table if not exists ai_usage_log (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null comment '所属租户 ID',
+        user_id bigint unsigned not null comment '调用用户 ID',
+        business_type varchar(50) not null comment '业务类型',
+        business_id bigint unsigned not null default 0 comment '关联业务 ID',
+        provider varchar(50) not null comment 'AI 服务商',
+        model_name varchar(100) not null comment '模型名称',
+        status varchar(20) not null comment '调用状态，success 或 failed',
+        credit_cost int not null default 0 comment '本次预估消耗算力',
+        latency_ms int unsigned not null default 0 comment '调用耗时毫秒',
+        input_chars int unsigned not null default 0 comment '输入字符数量',
+        output_chars int unsigned not null default 0 comment '输出字符数量',
+        error_message varchar(1000) not null default '' comment '脱敏后的错误信息',
+        create_time bigint unsigned not null comment '创建时间戳',
+        primary key (id),
+        key idx_ai_usage_tenant_business_time (tenant_id, business_type, create_time),
+        key idx_ai_usage_user_time (user_id, create_time),
+        key idx_ai_usage_business (business_type, business_id)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='AI 调用用量记录'
+    """,
+    """
+    create table if not exists inspiration_session (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null comment '所属租户 ID',
+        user_id bigint unsigned not null comment '创建用户 ID',
+        title varchar(200) not null default '' comment '会话标题',
+        linked_product_id bigint unsigned not null default 0 comment '关联产品 ID',
+        linked_xhs_account_id bigint unsigned not null default 0 comment '关联小红书账号 ID',
+        goal_type varchar(50) not null default '' comment '对话目标',
+        status varchar(20) not null default 'active' comment '会话状态，active 或 archived',
+        message_count int unsigned not null default 0 comment '消息数量',
+        total_credit_cost int not null default 0 comment '累计消耗算力',
+        create_time bigint unsigned not null comment '创建时间戳',
+        update_time bigint unsigned not null comment '更新时间戳',
+        primary key (id),
+        key idx_inspiration_session_tenant_user_time (tenant_id, user_id, update_time),
+        key idx_inspiration_session_tenant_status_time (tenant_id, status, update_time),
+        key idx_inspiration_session_product (linked_product_id)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='灵感对话会话'
+    """,
+    """
+    create table if not exists inspiration_message (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null comment '所属租户 ID',
+        session_id bigint unsigned not null comment '会话 ID',
+        user_id bigint unsigned not null comment '用户 ID',
+        role varchar(20) not null comment '消息角色，user 或 assistant',
+        content text not null comment '消息内容',
+        context_json text not null comment '上下文快照 JSON',
+        ai_provider varchar(50) not null default '' comment 'AI 服务商',
+        ai_model varchar(100) not null default '' comment '模型名称',
+        credit_cost int not null default 0 comment '本条消息消耗算力',
+        latency_ms int unsigned not null default 0 comment '响应耗时毫秒',
+        status varchar(20) not null default 'success' comment '消息状态，success 或 failed',
+        error_message varchar(1000) not null default '' comment '失败原因',
+        create_time bigint unsigned not null comment '创建时间戳',
+        primary key (id),
+        key idx_inspiration_message_session_time (session_id, create_time),
+        key idx_inspiration_message_tenant_user_time (tenant_id, user_id, create_time)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='灵感对话消息'
+    """,
+    """
+    create table if not exists viral_analysis_job (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null comment '所属租户 ID',
+        user_id bigint unsigned not null comment '创建用户 ID',
+        title varchar(200) not null default '' comment '任务标题',
+        source_type varchar(20) not null comment '来源类型，upload、link 或 text',
+        source_url varchar(2000) not null default '' comment '参考链接',
+        material_file_id bigint unsigned not null default 0 comment '素材文件 ID',
+        analysis_goal text not null comment '解析目标',
+        supplement_text text not null comment '补充说明、口播稿或观察笔记',
+        status varchar(20) not null default 'pending' comment '任务状态，pending、processing、completed、failed、cancelled',
+        ai_provider varchar(50) not null default '' comment 'AI 服务商',
+        ai_model varchar(100) not null default '' comment '模型名称',
+        credit_cost int not null default 0 comment '消耗算力',
+        error_message varchar(1000) not null default '' comment '失败原因',
+        create_time bigint unsigned not null comment '创建时间戳',
+        update_time bigint unsigned not null comment '更新时间戳',
+        primary key (id),
+        key idx_viral_job_tenant_user_time (tenant_id, user_id, create_time),
+        key idx_viral_job_tenant_status_time (tenant_id, status, create_time),
+        key idx_viral_job_source_type (source_type)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='爆款解析任务'
+    """,
+    """
+    create table if not exists viral_analysis_result (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null comment '所属租户 ID',
+        job_id bigint unsigned not null comment '任务 ID',
+        hook_summary text not null comment '前三秒钩子总结',
+        structure_summary text not null comment '视频结构总结',
+        shot_rhythm text not null comment '镜头节奏',
+        script_breakdown text not null comment '脚本拆解',
+        selling_points text not null comment '卖点表达',
+        reuse_suggestions text not null comment '可复用建议',
+        rewritten_script text not null comment '改写后的自有脚本',
+        tags text not null comment '推荐标签 JSON',
+        raw_result_json text not null comment 'AI 原始结构化结果',
+        create_time bigint unsigned not null comment '创建时间戳',
+        primary key (id),
+        unique key uk_viral_result_job_id (job_id),
+        key idx_viral_result_tenant_id (tenant_id)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='爆款解析结果'
+    """,
+    """
+    create table if not exists viral_analysis_material (
+        id bigint unsigned not null auto_increment comment '主键',
+        tenant_id bigint unsigned not null comment '所属租户 ID',
+        job_id bigint unsigned not null comment '任务 ID',
+        file_name varchar(255) not null comment '文件名',
+        file_type varchar(20) not null comment '文件类型，image、video、document 或 other',
+        mime_type varchar(100) not null comment 'MIME 类型',
+        file_size bigint unsigned not null default 0 comment '文件大小',
+        storage_path varchar(1000) not null comment '对象存储路径或本地开发路径',
+        create_time bigint unsigned not null comment '创建时间戳',
+        primary key (id),
+        key idx_viral_material_job_id (job_id),
+        key idx_viral_material_tenant_id (tenant_id)
+    ) engine=InnoDB default charset=utf8mb4 collate=utf8mb4_0900_ai_ci comment='爆款解析素材'
     """,
 ]

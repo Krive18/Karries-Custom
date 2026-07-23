@@ -42,7 +42,11 @@ class AuthService:
         wallet_balance = int(wallet["balance"]) if wallet is not None else 0
         expires_in = self.config.auth.access_token_seconds
         token = create_access_token(
-            {"user_id": user["id"], "role": user["user_role"]},
+            {
+                "user_id": user["id"],
+                "tenant_id": user["tenant_id"],
+                "role": user["user_role"],
+            },
             self.config.auth.token_secret,
             expires_in,
         )
@@ -51,6 +55,7 @@ class AuthService:
             expires_in=expires_in,
             user=AuthUser(
                 id=user["id"],
+                tenant_id=user["tenant_id"],
                 login_name=user["login_name"],
                 nickname=user["nickname"],
                 user_role=user["user_role"],
@@ -71,7 +76,7 @@ class AuthService:
 
                 cursor.execute(
                     """
-                    select id, code, initial_credits, max_uses, used_count,
+                    select id, tenant_id, code, initial_credits, max_uses, used_count,
                            expires_time, status, remark, create_time, update_time
                     from invite_code
                     where code = %s
@@ -84,15 +89,17 @@ class AuthService:
                     raise AuthError("INVALID_INVITE_CODE", "invalid invite code", 400)
 
                 initial_credits = int(invite["initial_credits"])
+                tenant_id = int(invite["tenant_id"])
                 cursor.execute(
                     """
                     insert into app_user (
-                        login_name, nickname, password_hash, user_role, status,
+                        tenant_id, login_name, nickname, password_hash, user_role, status,
                         invite_code, last_login_time, create_time, update_time
                     )
-                    values (%s, %s, %s, 'customer', 1, %s, 0, %s, %s)
+                    values (%s, %s, %s, %s, 'customer', 1, %s, 0, %s, %s)
                     """,
                     (
+                        tenant_id,
                         payload.login_name,
                         payload.nickname,
                         hash_password(payload.password),

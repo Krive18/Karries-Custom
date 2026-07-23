@@ -16,6 +16,12 @@ from app.main import create_app
 
 
 MYSQL_TABLES = (
+    "viral_analysis_result",
+    "viral_analysis_material",
+    "viral_analysis_job",
+    "inspiration_message",
+    "inspiration_session",
+    "ai_usage_log",
     "video_edit_job",
     "matrix_publish_item",
     "matrix_publish_plan",
@@ -31,6 +37,7 @@ MYSQL_TABLES = (
     "invite_code",
     "admin_audit_log",
     "app_user",
+    "tenant",
     "publish_log",
     "publish_task",
     "account",
