@@ -4,6 +4,8 @@ import { api } from "./api/client";
 import { AppShell } from "./components/AppShell";
 import { DeveloperVideoJobsPage } from "./pages/DeveloperVideoJobsPage";
 import { ManagerOverviewPage } from "./pages/ManagerOverviewPage";
+import { ManagerInspirationPage } from "./pages/ManagerInspirationPage";
+import { InspirationPage } from "./pages/InspirationPage";
 import { SmartCreatePage } from "./pages/SmartCreatePage";
 import { PublishTasksPage } from "./pages/PublishTasksPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -117,8 +119,14 @@ export function App() {
     if (activePage === "videoEdit") {
       return <VideoEditPage />;
     }
+    if (activePage === "inspiration") {
+      return <InspirationPage />;
+    }
     if (activePage === "managerOverview") {
       return <ManagerOverviewPage />;
+    }
+    if (activePage === "managerInspiration") {
+      return <ManagerInspirationPage />;
     }
     if (activePage === "developerVideoJobs") {
       return <DeveloperVideoJobsPage />;

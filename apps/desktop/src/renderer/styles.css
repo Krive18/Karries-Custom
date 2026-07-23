@@ -12,7 +12,7 @@
 
 body {
   margin: 0;
-  min-width: 1120px;
+  min-width: 320px;
   min-height: 100vh;
   background:
     radial-gradient(circle at 76% -8%, rgba(191, 139, 83, 0.16), transparent 28%),
@@ -913,4 +913,359 @@ textarea {
   margin-top: 4px;
   color: #86705f;
   font-size: 13px;
+}
+
+.inspiration-workspace {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.38fr) minmax(360px, 1fr) minmax(260px, 0.48fr);
+  gap: 16px;
+  max-width: 1400px;
+  align-items: stretch;
+}
+
+.inspiration-session-panel,
+.inspiration-message-panel,
+.inspiration-context-panel,
+.manager-inspiration-list,
+.manager-inspiration-detail {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(93, 64, 42, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 16px 36px rgba(67, 45, 28, 0.07);
+}
+
+.inspiration-session-panel,
+.inspiration-context-panel {
+  align-self: start;
+}
+
+.inspiration-session-panel .panel-title,
+.manager-inspiration-list .panel-title,
+.manager-inspiration-detail .panel-title {
+  margin-bottom: 12px;
+}
+
+.inspiration-session-panel .panel-title > span,
+.manager-inspiration-list .panel-title > span {
+  color: #806957;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.inspiration-session-list {
+  display: grid;
+  gap: 8px;
+}
+
+.inspiration-session-item {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(93, 64, 42, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 252, 247, 0.7);
+  color: #39291f;
+  text-align: left;
+}
+
+.inspiration-session-item:hover,
+.inspiration-session-item:focus-visible,
+.inspiration-session-item.active {
+  border-color: rgba(126, 83, 42, 0.38);
+  background: #fff3e1;
+  outline: none;
+}
+
+.inspiration-session-item strong {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspiration-session-item span {
+  color: #806957;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.inspiration-session-skeleton,
+.inspiration-message-skeleton {
+  display: grid;
+  gap: 10px;
+}
+
+.inspiration-session-skeleton span,
+.inspiration-message-skeleton span {
+  display: block;
+  height: 48px;
+  border-radius: 7px;
+  background: rgba(119, 83, 50, 0.11);
+  animation: inspiration-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.inspiration-message-skeleton span:nth-child(2) {
+  width: 76%;
+  justify-self: end;
+}
+
+.inspiration-message-skeleton span:nth-child(3) {
+  width: 62%;
+}
+
+@keyframes inspiration-pulse {
+  to { opacity: 0.45; }
+}
+
+.inspiration-message-panel {
+  display: grid;
+  grid-template-rows: auto minmax(280px, 1fr) auto;
+  min-height: 620px;
+}
+
+.inspiration-message-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(93, 64, 42, 0.1);
+}
+
+.inspiration-message-header h2 {
+  margin: 0;
+  color: #2f2117;
+  font-size: 18px;
+}
+
+.inspiration-message-header span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  color: #806957;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inspiration-message-list,
+.manager-message-list {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px 0;
+  overflow: auto;
+}
+
+.inspiration-message {
+  max-width: 88%;
+  padding: 12px 14px;
+  border: 1px solid rgba(93, 64, 42, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 252, 247, 0.76);
+}
+
+.inspiration-message.user {
+  justify-self: end;
+  background: #f4e8d8;
+}
+
+.inspiration-message p {
+  margin: 5px 0 0;
+  color: #3d2b20;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.inspiration-message-meta,
+.message-error {
+  color: #806957;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.message-error {
+  display: block;
+  margin-top: 8px;
+  color: #ad3f32;
+}
+
+.inspiration-message .table-action {
+  margin-top: 11px;
+}
+
+.inspiration-composer {
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(93, 64, 42, 0.1);
+}
+
+.inspiration-composer .primary-button {
+  justify-self: end;
+}
+
+.inspiration-context-panel .primary-button,
+.inspiration-context-panel .quiet-danger {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.context-id-grid,
+.context-summary-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.context-summary-list {
+  margin: 0;
+}
+
+.context-summary-list > div {
+  min-width: 0;
+  padding: 10px;
+  border-bottom: 1px solid rgba(93, 64, 42, 0.09);
+}
+
+.context-summary-list .wide {
+  grid-column: 1 / -1;
+}
+
+.context-summary-list dt {
+  color: #806957;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.context-summary-list dd {
+  margin: 5px 0 0;
+  color: #3b2a1f;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.inspiration-status-active { color: #2e6d45; background: #e7f2e6; }
+.inspiration-status-generating { color: #84641d; background: #fff6cf; }
+.inspiration-status-archived { color: #806957; background: #f0ebe5; }
+
+.compact-icon {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 7px;
+}
+
+.manager-inspiration-filters {
+  display: grid;
+  grid-template-columns: auto repeat(4, minmax(0, 1fr)) minmax(190px, 1.35fr);
+  align-items: end;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.manager-inspiration-filters > svg {
+  margin: 0 0 11px;
+  color: #7a4a19;
+}
+
+.manager-inspiration-workspace {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.52fr) minmax(460px, 1fr);
+  gap: 16px;
+  max-width: 1400px;
+}
+
+.manager-inspiration-detail {
+  min-height: 550px;
+}
+
+.manager-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(93, 64, 42, 0.1);
+}
+
+.manager-detail-meta span {
+  padding: 6px 8px;
+  border-radius: 7px;
+  background: #f8f1e8;
+  color: #6d523e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.manager-message-list .inspiration-message {
+  max-width: 100%;
+}
+
+@media (max-width: 1180px) {
+  .inspiration-workspace {
+    grid-template-columns: minmax(200px, 0.42fr) minmax(340px, 1fr);
+  }
+
+  .inspiration-context-panel {
+    grid-column: 1 / -1;
+  }
+
+  .manager-inspiration-filters {
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  }
+
+  .manager-keyword-filter {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 196px minmax(0, 1fr); }
+  .sidebar { padding: 20px 14px; }
+  .workspace { padding: 24px 20px 30px; }
+  .topbar { right: 18px; }
+  .top-ornament { right: 170px; width: 130px; }
+  .inspiration-workspace,
+  .manager-inspiration-workspace { grid-template-columns: 1fr; }
+  .inspiration-message-panel { min-height: 510px; }
+  .manager-inspiration-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .manager-inspiration-filters > svg { display: none; }
+  .manager-keyword-filter { grid-column: auto; }
+}
+
+@media (max-width: 640px) {
+  .shell { display: block; }
+  .sidebar { gap: 14px; padding: 14px; border-right: 0; border-bottom: 1px solid rgba(93, 64, 42, 0.12); }
+  .brand-lockup { grid-template-columns: 38px 1fr; min-height: 42px; }
+  .brand-mark { width: 38px; height: 38px; }
+  .portal-switcher { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .portal-tab { min-height: 48px; padding: 7px; }
+  .portal-tab span { display: none; }
+  .nav-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nav-item { min-height: 42px; padding: 0 10px; gap: 7px; font-size: 13px; }
+  .operator-card { display: none; }
+  .workspace { padding: 18px 12px 24px; overflow: visible; }
+  .topbar { position: static; justify-content: flex-end; margin-bottom: 10px; }
+  .top-ornament { display: none; }
+  .page-heading { padding: 2px 0 10px; }
+  .page-heading h1 { font-size: 25px; }
+  .horizontal-heading { display: grid; gap: 12px; padding-right: 0; }
+  .heading-actions { flex-wrap: wrap; }
+  .inspiration-workspace { gap: 12px; }
+  .inspiration-message-panel,
+  .inspiration-session-panel,
+  .inspiration-context-panel,
+  .manager-inspiration-list,
+  .manager-inspiration-detail { padding: 14px; }
+  .inspiration-message-panel { min-height: 460px; }
+  .inspiration-message { max-width: 96%; }
+  .context-id-grid,
+  .context-summary-list { grid-template-columns: 1fr; }
+  .context-summary-list .wide { grid-column: auto; }
+  .manager-inspiration-filters { grid-template-columns: 1fr; }
 }

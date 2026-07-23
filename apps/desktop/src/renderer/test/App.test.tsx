@@ -6,6 +6,11 @@ import { api } from "../api/client";
 
 
 vi.mock("../api/client", () => ({
+  ApiRequestError: class ApiRequestError extends Error {
+    constructor(message: string, public readonly code: string, public readonly status: number) {
+      super(message);
+    }
+  },
   api: {
     generateImageCopy: vi.fn(),
     listTasks: vi.fn(),
@@ -22,7 +27,15 @@ vi.mock("../api/client", () => ({
     listInternalVideoEditJobs: vi.fn(),
     claimInternalVideoEditJob: vi.fn(),
     deliverInternalVideoEditJob: vi.fn(),
-    getAdminSummary: vi.fn()
+    getAdminSummary: vi.fn(),
+    listInspirationSessions: vi.fn(),
+    createInspirationSession: vi.fn(),
+    getInspirationSession: vi.fn(),
+    sendInspirationMessage: vi.fn(),
+    saveInspirationMessageDraft: vi.fn(),
+    archiveInspirationSession: vi.fn(),
+    listAdminInspirationSessions: vi.fn(),
+    getAdminInspirationSession: vi.fn()
   }
 }));
 
@@ -106,6 +119,63 @@ const videoEditJob = {
   update_time: 0
 };
 
+const inspirationSession = {
+  id: 41,
+  tenant_id: 1,
+  user_id: 9,
+  title: "新品种草选题",
+  linked_product_id: 12,
+  linked_xhs_account_id: 7,
+  goal_type: "topic" as const,
+  tone: "自然真诚",
+  extra_requirement: "突出产品使用场景",
+  generation_token: "",
+  generation_started_time: 0,
+  status: "active" as const,
+  message_count: 2,
+  total_credit_cost: 1,
+  create_time: 1782570600,
+  update_time: 1782570660
+};
+
+const inspirationDetail = {
+  session: inspirationSession,
+  messages: [
+    {
+      id: 501,
+      tenant_id: 1,
+      session_id: 41,
+      user_id: 9,
+      role: "user" as const,
+      content: "给我 5 个新品选题",
+      context: {},
+      ai_provider: "",
+      ai_model: "",
+      credit_cost: 0,
+      latency_ms: 0,
+      status: "success" as const,
+      error_message: "",
+      create_time: 1782570600
+    },
+    {
+      id: 502,
+      tenant_id: 1,
+      session_id: 41,
+      user_id: 9,
+      role: "assistant" as const,
+      content: "这里是 AI 返回的运营建议",
+      context: {},
+      ai_provider: "deepseek",
+      ai_model: "deepseek-chat",
+      credit_cost: 1,
+      latency_ms: 80,
+      status: "success" as const,
+      error_message: "",
+      create_time: 1782570660
+    }
+  ]
+};
+
 
 beforeEach(() => {
   delete window.karriesPublisher;
@@ -134,6 +204,31 @@ beforeEach(() => {
     total_video_edit_jobs: 3,
     pending_video_edit_jobs: 1
   });
+  mockedApi.listInspirationSessions.mockResolvedValue({
+    items: [inspirationSession],
+    page: 1,
+    page_size: 20,
+    total: 1
+  });
+  mockedApi.createInspirationSession.mockResolvedValue(inspirationSession);
+  mockedApi.getInspirationSession.mockResolvedValue(inspirationDetail);
+  mockedApi.sendInspirationMessage.mockResolvedValue({
+    user_message: inspirationDetail.messages[0],
+    assistant_message: inspirationDetail.messages[1],
+    credit_cost: 1
+  });
+  mockedApi.saveInspirationMessageDraft.mockResolvedValue({ draft_id: 801 });
+  mockedApi.archiveInspirationSession.mockResolvedValue({
+    ...inspirationSession,
+    status: "archived"
+  });
+  mockedApi.listAdminInspirationSessions.mockResolvedValue({
+    items: [inspirationSession],
+    page: 1,
+    page_size: 20,
+    total: 1
+  });
+  mockedApi.getAdminInspirationSession.mockResolvedValue(inspirationDetail);
 });
 
 
@@ -334,5 +429,51 @@ describe("KARRIES desktop workspace", () => {
         })
       );
     });
+  });
+
+  it("creates an inspiration session, sends a message, and saves the assistant reply as a draft", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
+    expect(await screen.findByRole("heading", { name: "灵感对话" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "新建会话" }));
+    fireEvent.change(screen.getByLabelText("会话标题"), {
+      target: { value: "新品种草选题" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "创建会话" }));
+
+    await waitFor(() => {
+      expect(mockedApi.createInspirationSession).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "新品种草选题", goal_type: "topic" })
+      );
+    });
+    fireEvent.change(screen.getByLabelText("输入运营问题"), {
+      target: { value: "给我 5 个新品选题" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "发送" }));
+
+    expect(await screen.findByText("这里是 AI 返回的运营建议")).toBeInTheDocument();
+    expect(screen.getByText("本次预计消耗 1 算力")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "保存为内容草稿" }));
+    await waitFor(() => expect(mockedApi.saveInspirationMessageDraft).toHaveBeenCalledWith(502));
+    expect(await screen.findByText("已保存为内容草稿")).toBeInTheDocument();
+  });
+
+  it("shows read-only inspiration records in the manager portal and filters loaded sessions", async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /管理端/ }));
+    fireEvent.click(screen.getByRole("button", { name: "灵感对话记录" }));
+
+    expect(await screen.findByRole("heading", { name: "灵感对话记录" })).toBeInTheDocument();
+    expect(await screen.findByText("这里是 AI 返回的运营建议")).toBeInTheDocument();
+    expect(screen.getByText("总算力 1")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "保存为内容草稿" })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("关键词筛选"), {
+      target: { value: "不存在的关键词" }
+    });
+    expect(screen.getByText("没有符合筛选条件的会话记录")).toBeInTheDocument();
   });
 });

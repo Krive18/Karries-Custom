@@ -2,9 +2,11 @@ export type PortalKey = "user" | "manager" | "developer";
 
 export type PageKey =
   | "create"
+  | "inspiration"
   | "videoEdit"
   | "schedule"
   | "managerOverview"
+  | "managerInspiration"
   | "developerVideoJobs"
   | "settings";
 
@@ -167,6 +169,78 @@ export type AdminSummary = {
   total_matrix_plans: number;
   total_video_edit_jobs: number;
   pending_video_edit_jobs: number;
+};
+
+export type InspirationGoalType = "topic" | "title" | "body" | "script" | "strategy" | "optimize";
+export type InspirationSessionStatus = "active" | "generating" | "archived";
+export type InspirationMessageRole = "user" | "assistant";
+export type InspirationMessageStatus = "success" | "failed";
+
+export type InspirationSession = {
+  id: number;
+  tenant_id: number;
+  user_id: number;
+  title: string;
+  linked_product_id: number;
+  linked_xhs_account_id: number;
+  goal_type: InspirationGoalType;
+  tone: string;
+  extra_requirement: string;
+  generation_token: string;
+  generation_started_time: number;
+  status: InspirationSessionStatus;
+  message_count: number;
+  total_credit_cost: number;
+  create_time: number;
+  update_time: number;
+};
+
+export type InspirationMessage = {
+  id: number;
+  tenant_id: number;
+  session_id: number;
+  user_id: number;
+  role: InspirationMessageRole;
+  content: string;
+  context: Record<string, unknown>;
+  ai_provider: string;
+  ai_model: string;
+  credit_cost: number;
+  latency_ms: number;
+  status: InspirationMessageStatus;
+  error_message: string;
+  create_time: number;
+};
+
+export type InspirationSessionDetail = {
+  session: InspirationSession;
+  messages: InspirationMessage[];
+};
+
+export type PaginatedResult<T> = {
+  items: T[];
+  page: number;
+  page_size: number;
+  total: number;
+};
+
+export type InspirationSessionCreate = {
+  title: string;
+  linked_product_id: number;
+  linked_xhs_account_id: number;
+  goal_type: InspirationGoalType;
+  tone: string;
+  extra_requirement: string;
+};
+
+export type InspirationMessageCreate = {
+  content: string;
+};
+
+export type InspirationMessageResponse = {
+  user_message: InspirationMessage;
+  assistant_message: InspirationMessage;
+  credit_cost: number;
 };
 
 export type DesktopBridge = {

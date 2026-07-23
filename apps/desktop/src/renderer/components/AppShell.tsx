@@ -4,6 +4,7 @@ import {
   ChevronDown,
   Clock3,
   LayoutDashboard,
+  Lightbulb,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -32,12 +33,14 @@ const portalItems: Array<{ key: PortalKey; label: string; description: string }>
 const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; icon: typeof Sparkles }>> = {
   user: [
     { key: "create", label: "智能创作", icon: Sparkles },
+    { key: "inspiration", label: "灵感对话", icon: Lightbulb },
     { key: "videoEdit", label: "智能剪辑", icon: Scissors },
     { key: "schedule", label: "定时发布", icon: Clock3 },
     { key: "settings", label: "系统配置", icon: Settings }
   ],
   manager: [
     { key: "managerOverview", label: "运营总览", icon: LayoutDashboard },
+    { key: "managerInspiration", label: "灵感对话记录", icon: Lightbulb },
     { key: "schedule", label: "发布监控", icon: Clock3 }
   ],
   developer: [

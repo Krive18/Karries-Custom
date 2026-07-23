@@ -8,6 +8,12 @@ import type {
   ApiResponse,
   ImageCopyRequest,
   ImageCopyResult,
+  InspirationMessageCreate,
+  InspirationMessageResponse,
+  InspirationSession,
+  InspirationSessionCreate,
+  InspirationSessionDetail,
+  PaginatedResult,
   TaskCreateRequest,
   TaskView,
   VideoEditJobClaimRequest,
@@ -18,6 +24,17 @@ import type {
 
 
 const API_BASE = "http://127.0.0.1:8765";
+
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = "ApiRequestError";
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = window.localStorage.getItem("karries_access_token");
@@ -32,7 +49,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   const body = (await response.json()) as ApiResponse<T>;
   if (!response.ok || !body.success) {
-    throw new Error(body.error?.message || `请求失败: ${path}`);
+    throw new ApiRequestError(
+      body.error?.message || `请求失败: ${path}`,
+      body.error?.code || "REQUEST_FAILED",
+      response.status
+    );
   }
   return body.data;
 }
@@ -89,5 +110,35 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload)
     }),
-  getAdminSummary: () => request<AdminSummary>("/api/admin/summary")
+  getAdminSummary: () => request<AdminSummary>("/api/admin/summary"),
+  listInspirationSessions: (params?: URLSearchParams) =>
+    request<PaginatedResult<InspirationSession>>(
+      `/api/inspiration/sessions${params?.size ? `?${params.toString()}` : ""}`
+    ),
+  createInspirationSession: (payload: InspirationSessionCreate) =>
+    request<InspirationSession>("/api/inspiration/sessions", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  getInspirationSession: (sessionId: number) =>
+    request<InspirationSessionDetail>(`/api/inspiration/sessions/${sessionId}`),
+  sendInspirationMessage: (sessionId: number, payload: InspirationMessageCreate) =>
+    request<InspirationMessageResponse>(`/api/inspiration/sessions/${sessionId}/messages`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  saveInspirationMessageDraft: (messageId: number) =>
+    request<{ draft_id: number }>(`/api/inspiration/messages/${messageId}/save-draft`, {
+      method: "POST"
+    }),
+  archiveInspirationSession: (sessionId: number) =>
+    request<InspirationSession>(`/api/inspiration/sessions/${sessionId}/archive`, {
+      method: "POST"
+    }),
+  listAdminInspirationSessions: (params?: URLSearchParams) =>
+    request<PaginatedResult<InspirationSession>>(
+      `/api/admin/inspiration/sessions${params?.size ? `?${params.toString()}` : ""}`
+    ),
+  getAdminInspirationSession: (sessionId: number) =>
+    request<InspirationSessionDetail>(`/api/admin/inspiration/sessions/${sessionId}`)
 };
