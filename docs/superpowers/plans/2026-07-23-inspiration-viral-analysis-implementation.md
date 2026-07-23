@@ -540,8 +540,12 @@ git commit -m "feat: add inspiration user and manager pages"
 - Create: `backend/app/api/viral_analysis.py`
 - Create: `backend/app/api/admin_viral_analysis.py`
 - Create: `backend/app/api/developer_viral_analysis.py`
+- Modify: `backend/app/db/schema.py`
+- Modify: `backend/app/db/migrations.py`
 - Modify: `backend/app/repositories/content_draft_repository.py`
 - Modify: `backend/app/main.py`
+- Modify: `backend/tests/conftest.py`
+- Modify: `backend/tests/test_database_schema.py`
 - Create: `backend/tests/test_viral_analysis_api.py`
 - Create: `backend/tests/test_upload_storage_service.py`
 
@@ -591,7 +595,23 @@ FAILED = "failed"
 CANCELLED = "cancelled"
 ```
 
-`run` 只允许 `pending` 或 `failed`；`cancel` 只允许 `pending`。状态更新必须基于 `where id = %s and tenant_id = %s and user_id = %s and status = %s`，并检查 `rowcount`。
+`viral_analysis_job` 增加：
+
+```sql
+processing_token varchar(64) not null default '' comment '当前解析操作令牌',
+processing_started_time bigint unsigned not null default 0 comment '当前解析开始时间戳',
+```
+
+同时补齐幂等 migration、字段注释和真实 MySQL schema 测试。`run` 只允许
+`pending` 或 `failed`；再次运行前可把超过 10 分钟的 `processing` 租约原子恢复为
+`failed`。claim 生成 UUID token 并写入开始时间；成功或失败 finalize 必须基于
+`where id = %s and tenant_id = %s and user_id = %s and status = 'processing' and processing_token = %s`
+并检查 `rowcount`，随后清空 token 和开始时间。旧请求晚到不得覆盖新任务结果。
+`cancel` 只允许 `pending`。
+
+Provider HTTP 必须在数据库事务外。成功 finalize 时，结构化结果、job 状态、算力和
+成功 usage 在一个事务中提交；Provider 或结构化校验失败时，job failed 状态和失败
+usage 在一个事务中提交。任一步失败必须整体回滚。
 
 - [ ] **Step 4: 实现安全上传**
 
@@ -638,7 +658,7 @@ target_id=job_id
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend\tests\test_upload_storage_service.py backend\tests\test_viral_analysis_api.py -q
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
-git add backend/app/schemas/viral_analysis.py backend/app/repositories/viral_analysis_repository.py backend/app/services/viral_analysis_service.py backend/app/services/upload_storage_service.py backend/app/api/viral_analysis.py backend/app/api/admin_viral_analysis.py backend/app/api/developer_viral_analysis.py backend/app/repositories/content_draft_repository.py backend/app/main.py backend/tests/test_viral_analysis_api.py backend/tests/test_upload_storage_service.py
+git add backend/app/schemas/viral_analysis.py backend/app/repositories/viral_analysis_repository.py backend/app/services/viral_analysis_service.py backend/app/services/upload_storage_service.py backend/app/api/viral_analysis.py backend/app/api/admin_viral_analysis.py backend/app/api/developer_viral_analysis.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/repositories/content_draft_repository.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_viral_analysis_api.py backend/tests/test_upload_storage_service.py
 git commit -m "feat: add viral analysis task workflow"
 ```
 
