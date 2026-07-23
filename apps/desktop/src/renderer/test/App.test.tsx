@@ -19,9 +19,8 @@ vi.mock("../api/client", () => ({
     listAccounts: vi.fn(),
     createAccount: vi.fn(),
     checkRuntime: vi.fn(),
-    getAISettings: vi.fn(),
-    saveAISetting: vi.fn(),
-    clearAISettingKey: vi.fn(),
+    listXHSAccounts: vi.fn(),
+    createXHSAccount: vi.fn(),
     listVideoEditJobs: vi.fn(),
     createVideoEditJob: vi.fn(),
     listInternalVideoEditJobs: vi.fn(),
@@ -83,22 +82,30 @@ const taskView = {
 };
 
 
-const aiSettings = {
-  vision: {
-    provider: "doubao",
-    base_url: "https://vision.example/chat/completions",
-    model: "doubao-vision-pro",
-    enabled: true,
-    has_key: false,
-    masked_key: ""
-  },
-  copywriting: {
-    provider: "deepseek",
-    base_url: "https://api.deepseek.com/chat/completions",
-    model: "deepseek-chat",
-    enabled: true,
-    has_key: true,
-    masked_key: "sk-c********cret"
+const xhsAccount = {
+  id: 27,
+  user_id: 9,
+  display_name: "禾一斯品牌主号",
+  account_group: "品牌号",
+  status: 1,
+  daily_limit: 2,
+  min_interval_minutes: 360,
+  last_publish_time: 0,
+  today_publish_count: 0,
+  login_state_path: "",
+  create_time: 0,
+  update_time: 0,
+  profile: {
+    domain_name: "女装穿搭",
+    persona: "专业穿搭顾问",
+    target_audience: "25-35 岁通勤女性",
+    content_style: "自然真实",
+    tone: "自然真诚",
+    common_phrases: "",
+    forbidden_phrases: "",
+    tag_preferences: "[]",
+    word_count_preference: 300,
+    topic_preferences: ""
   }
 };
 
@@ -242,9 +249,8 @@ beforeEach(() => {
   mockedApi.createTask.mockResolvedValue(taskView);
   mockedApi.submitTask.mockResolvedValue({ ...taskView, status: 5, submitted_time: 1782570601 });
   mockedApi.checkRuntime.mockResolvedValue({});
-  mockedApi.getAISettings.mockResolvedValue(aiSettings);
-  mockedApi.saveAISetting.mockResolvedValue(aiSettings);
-  mockedApi.clearAISettingKey.mockResolvedValue(aiSettings);
+  mockedApi.listXHSAccounts.mockResolvedValue([xhsAccount]);
+  mockedApi.createXHSAccount.mockResolvedValue(xhsAccount);
   mockedApi.listVideoEditJobs.mockResolvedValue([]);
   mockedApi.createVideoEditJob.mockResolvedValue(videoEditJob);
   mockedApi.listInternalVideoEditJobs.mockResolvedValue([videoEditJob]);
@@ -309,7 +315,7 @@ describe("KARRIES desktop workspace", () => {
     expect(screen.getByRole("button", { name: "智能创作" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "智能剪辑" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "定时发布" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "系统配置" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "账号管理" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "素材智能解析" })).toBeInTheDocument();
     expect(screen.getByText("本地素材")).toBeInTheDocument();
     expect(screen.getByText("AI 解析结果")).toBeInTheDocument();
@@ -464,35 +470,36 @@ describe("KARRIES desktop workspace", () => {
     expect(await screen.findByText("已提交平台")).toBeInTheDocument();
   });
 
-  it("switches to system settings", async () => {
+  it("opens real Xiaohongshu account management", async () => {
     await renderAuthenticatedApp();
 
-    fireEvent.click(screen.getByRole("button", { name: "系统配置" }));
+    fireEvent.click(screen.getByRole("button", { name: "账号管理" }));
 
-    expect(screen.getByRole("heading", { name: "系统配置" })).toBeInTheDocument();
-    expect(await screen.findByText("视觉识图 API")).toBeInTheDocument();
-    expect(screen.getByText("文案生成 API")).toBeInTheDocument();
-    expect(screen.getByText("小红书账号管理")).toBeInTheDocument();
-    expect(screen.getByText("运行环境检测")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "小红书账号管理" })).toBeInTheDocument();
+    expect(await screen.findByText("禾一斯品牌主号")).toBeInTheDocument();
+    expect(screen.getByText("女装穿搭")).toBeInTheDocument();
+    expect(screen.queryByText("DeepSeek")).not.toBeInTheDocument();
   });
 
-  it("loads ai settings and saves the vision provider config", async () => {
+  it("creates a Xiaohongshu account profile", async () => {
     await renderAuthenticatedApp();
 
-    fireEvent.click(screen.getByRole("button", { name: "系统配置" }));
-    expect(await screen.findByText("视觉识图 API")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText("视觉 API KEY"), {
-      target: { value: "sk-vision-secret" }
+    fireEvent.click(screen.getByRole("button", { name: "账号管理" }));
+    await screen.findByText("禾一斯品牌主号");
+    fireEvent.click(screen.getByRole("button", { name: "新增账号" }));
+    fireEvent.change(screen.getByLabelText("账号名称"), {
+      target: { value: "禾一斯门店号" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "保存视觉配置" }));
+    fireEvent.change(screen.getByLabelText("账号领域"), {
+      target: { value: "门店穿搭" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存账号" }));
 
     await waitFor(() => {
-      expect(mockedApi.saveAISetting).toHaveBeenCalledWith(
-        "vision",
+      expect(mockedApi.createXHSAccount).toHaveBeenCalledWith(
         expect.objectContaining({
-          provider: "doubao",
-          api_key: "sk-vision-secret"
+          display_name: "禾一斯门店号",
+          profile: expect.objectContaining({ domain_name: "门店穿搭" })
         })
       );
     });

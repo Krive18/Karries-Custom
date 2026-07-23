@@ -2,9 +2,6 @@ import type {
   AccountCreateRequest,
   AccountView,
   AdminSummary,
-  AISettingSlot,
-  AISettingUpdate,
-  AISettingsView,
   ApiResponse,
   ImageCopyRequest,
   ImageCopyResult,
@@ -23,7 +20,9 @@ import type {
   VideoEditJobDeliverRequest,
   VideoEditJobView,
   ViralAnalysisJob,
-  ViralAnalysisJobCreate
+  ViralAnalysisJobCreate,
+  XHSAccountCreate,
+  XHSAccountView
 } from "../types";
 
 
@@ -83,15 +82,11 @@ export const api = {
     request<TaskView>(`/api/tasks/${taskId}/submit`, {
       method: "POST"
     }),
-  getAISettings: () => request<AISettingsView>("/api/settings/ai"),
-  saveAISetting: (slot: AISettingSlot, payload: AISettingUpdate) =>
-    request<AISettingsView>(`/api/settings/ai/${slot}`, {
-      method: "PUT",
+  listXHSAccounts: () => request<XHSAccountView[]>("/api/xhs-accounts"),
+  createXHSAccount: (payload: XHSAccountCreate) =>
+    request<XHSAccountView>("/api/xhs-accounts", {
+      method: "POST",
       body: JSON.stringify(payload)
-    }),
-  clearAISettingKey: (slot: AISettingSlot) =>
-    request<AISettingsView>(`/api/settings/ai/${slot}/key`, {
-      method: "DELETE"
     }),
   generateImageCopy: (payload: ImageCopyRequest) =>
     request<ImageCopyResult>("/api/ai/image-copy", {

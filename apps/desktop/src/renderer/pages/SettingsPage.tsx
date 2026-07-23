@@ -1,251 +1,259 @@
-import { useEffect, useState } from "react";
-import { CheckCircle2, KeyRound, MonitorCheck, Plus, ScanLine } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { Loader2, Plus, RefreshCw, UsersRound } from "lucide-react";
 
 import { api } from "../api/client";
-import type { AISettingSlot, AISettingsView, AISettingUpdate } from "../types";
+import type {
+  XHSAccountCreate,
+  XHSAccountProfile,
+  XHSAccountView
+} from "../types";
 
 
-const defaultAISettings: AISettingsView = {
-  vision: {
-    provider: "doubao",
-    base_url: "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
-    model: "doubao-vision-pro",
-    enabled: true,
-    has_key: false,
-    masked_key: ""
-  },
-  copywriting: {
-    provider: "deepseek",
-    base_url: "https://api.deepseek.com/chat/completions",
-    model: "deepseek-chat",
-    enabled: true,
-    has_key: false,
-    masked_key: ""
-  }
+const emptyProfile: XHSAccountProfile = {
+  domain_name: "",
+  persona: "",
+  target_audience: "",
+  content_style: "",
+  tone: "",
+  common_phrases: "",
+  forbidden_phrases: "",
+  tag_preferences: "[]",
+  word_count_preference: 300,
+  topic_preferences: ""
 };
 
-type AISettingDraft = AISettingUpdate;
-
-type SettingCardProps = {
-  title: string;
-  slot: AISettingSlot;
-  keyLabel: string;
-  saveLabel: string;
-  providerOptions: string[];
-  statusText: string;
-  draft: AISettingDraft;
-  onDraftChange: (draft: AISettingDraft) => void;
-  onSave: (slot: AISettingSlot) => void;
-  onClear: (slot: AISettingSlot) => void;
+const emptyDraft: XHSAccountCreate = {
+  display_name: "",
+  account_group: "",
+  daily_limit: 1,
+  min_interval_minutes: 360,
+  profile: emptyProfile
 };
-
-
-function toDraft(settings: AISettingsView, slot: AISettingSlot): AISettingDraft {
-  const setting = settings[slot];
-  return {
-    provider: setting.provider,
-    api_key: "",
-    base_url: setting.base_url,
-    model: setting.model,
-    enabled: setting.enabled
-  };
-}
 
 
 export function SettingsPage() {
-  const [settings, setSettings] = useState<AISettingsView>(defaultAISettings);
-  const [visionDraft, setVisionDraft] = useState<AISettingDraft>(() => toDraft(defaultAISettings, "vision"));
-  const [copyDraft, setCopyDraft] = useState<AISettingDraft>(() => toDraft(defaultAISettings, "copywriting"));
+  const [accounts, setAccounts] = useState<XHSAccountView[]>([]);
+  const [draft, setDraft] = useState<XHSAccountCreate>(emptyDraft);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    api.getAISettings()
-      .then((nextSettings) => {
-        setSettings(nextSettings);
-        setVisionDraft(toDraft(nextSettings, "vision"));
-        setCopyDraft(toDraft(nextSettings, "copywriting"));
-      })
-      .catch((error) => {
-        setMessage(error instanceof Error ? error.message : "AI 配置加载失败");
-      });
-  }, []);
-
-  async function saveSetting(slot: AISettingSlot) {
-    const draft = slot === "vision" ? visionDraft : copyDraft;
+  async function loadAccounts() {
+    setLoading(true);
+    setMessage("");
     try {
-      const nextSettings = await api.saveAISetting(slot, draft);
-      setSettings(nextSettings);
-      setVisionDraft(toDraft(nextSettings, "vision"));
-      setCopyDraft(toDraft(nextSettings, "copywriting"));
-      setMessage(slot === "vision" ? "视觉识图配置已保存" : "文案生成配置已保存");
+      setAccounts(await api.listXHSAccounts());
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "AI 配置保存失败");
+      setMessage(error instanceof Error ? error.message : "账号加载失败");
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function clearKey(slot: AISettingSlot) {
+  useEffect(() => {
+    void loadAccounts();
+  }, []);
+
+  function updateProfile(field: keyof XHSAccountProfile, value: string | number) {
+    setDraft((current) => ({
+      ...current,
+      profile: { ...current.profile, [field]: value }
+    }));
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draft.display_name.trim()) {
+      setMessage("请填写小红书账号名称");
+      return;
+    }
+    setSaving(true);
+    setMessage("");
     try {
-      const nextSettings = await api.clearAISettingKey(slot);
-      setSettings(nextSettings);
-      setVisionDraft(toDraft(nextSettings, "vision"));
-      setCopyDraft(toDraft(nextSettings, "copywriting"));
-      setMessage(slot === "vision" ? "视觉识图 Key 已清除" : "DeepSeek Key 已清除");
+      const account = await api.createXHSAccount({
+        ...draft,
+        display_name: draft.display_name.trim(),
+        account_group: draft.account_group.trim()
+      });
+      setAccounts((current) => [account, ...current]);
+      setDraft(emptyDraft);
+      setShowForm(false);
+      setMessage("账号资料已保存，可继续完善扫码登录状态");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "AI Key 清除失败");
+      setMessage(error instanceof Error ? error.message : "账号保存失败");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <section className="page-stack">
-      <div className="page-heading">
-        <h1>系统配置</h1>
-        <p>配置 AI 服务商、小红书账号和本机浏览器自动化运行环境。</p>
+      <div className="page-heading account-heading">
+        <div>
+          <h1>小红书账号管理</h1>
+          <p>统一维护矩阵账号、账号定位和发布频率，智能创作会按账号定位生成内容。</p>
+        </div>
+        <button className="primary-button" type="button" onClick={() => setShowForm((value) => !value)}>
+          <Plus size={18} aria-hidden="true" />
+          新增账号
+        </button>
       </div>
 
       {message ? <div className="form-message">{message}</div> : null}
 
-      <div className="settings-grid">
-        <SettingCard
-          title="视觉识图 API"
-          slot="vision"
-          keyLabel="视觉 API KEY"
-          saveLabel="保存视觉配置"
-          providerOptions={["doubao", "gpt", "gemini"]}
-          statusText={settings.vision.has_key ? `已保存 ${settings.vision.masked_key}` : "未保存"}
-          draft={visionDraft}
-          onDraftChange={setVisionDraft}
-          onSave={saveSetting}
-          onClear={clearKey}
-        />
-
-        <SettingCard
-          title="文案生成 API"
-          slot="copywriting"
-          keyLabel="DeepSeek API KEY"
-          saveLabel="保存文案配置"
-          providerOptions={["deepseek"]}
-          statusText={settings.copywriting.has_key ? `已保存 ${settings.copywriting.masked_key}` : "未保存"}
-          draft={copyDraft}
-          onDraftChange={setCopyDraft}
-          onSave={saveSetting}
-          onClear={clearKey}
-        />
-
-        <section className="panel account-panel">
+      {showForm ? (
+        <form className="panel account-create-panel" onSubmit={handleSubmit}>
           <div className="panel-title">
-            <h2>小红书账号管理</h2>
-            <span className="key-status connected">账号 2</span>
+            <h2>新增矩阵账号</h2>
+            <span className="key-status">账号资料</span>
           </div>
-          <div className="account-actions">
-            <button className="primary-button compact" type="button">
-              <Plus size={17} aria-hidden="true" />
-              新增账号
-            </button>
-            <button className="secondary-button compact" type="button">
-              <ScanLine size={17} aria-hidden="true" />
-              扫码登录
-            </button>
-          </div>
-          <div className="account-list">
-            <div>
-              <strong>品牌运营号</strong>
-              <span>浏览器扫码登录 · 待检查</span>
-            </div>
-            <div>
-              <strong>禾一斯门店号</strong>
-              <span>浏览器扫码登录 · 已保存</span>
-            </div>
-          </div>
-        </section>
-
-        <section className="panel runtime-panel">
-          <div className="panel-title">
-            <h2>
-              <MonitorCheck size={18} aria-hidden="true" />
-              运行环境检测
-            </h2>
-          </div>
-          <div className="runtime-check-row">
-            <CheckCircle2 size={22} aria-hidden="true" />
-            <div>
-              <strong>浏览器自动化组件</strong>
-              <span>可通过环境检测接口确认本机组件状态</span>
-            </div>
+          <div className="form-grid">
+            <label>
+              账号名称
+              <input
+                value={draft.display_name}
+                onChange={(event) => setDraft({ ...draft, display_name: event.target.value })}
+                placeholder="例如：禾一斯品牌主号"
+              />
+            </label>
+            <label>
+              账号分组
+              <input
+                value={draft.account_group}
+                onChange={(event) => setDraft({ ...draft, account_group: event.target.value })}
+                placeholder="例如：品牌号、门店号"
+              />
+            </label>
+            <label>
+              账号领域
+              <input
+                value={draft.profile.domain_name}
+                onChange={(event) => updateProfile("domain_name", event.target.value)}
+                placeholder="例如：女装穿搭"
+              />
+            </label>
+            <label>
+              账号人设
+              <input
+                value={draft.profile.persona}
+                onChange={(event) => updateProfile("persona", event.target.value)}
+                placeholder="例如：专业但亲切的穿搭顾问"
+              />
+            </label>
+            <label>
+              目标人群
+              <input
+                value={draft.profile.target_audience}
+                onChange={(event) => updateProfile("target_audience", event.target.value)}
+                placeholder="例如：25-35 岁通勤女性"
+              />
+            </label>
+            <label>
+              内容语气
+              <input
+                value={draft.profile.tone}
+                onChange={(event) => updateProfile("tone", event.target.value)}
+                placeholder="例如：自然真诚、少营销话术"
+              />
+            </label>
+            <label>
+              每日发布上限
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={draft.daily_limit}
+                onChange={(event) => setDraft({ ...draft, daily_limit: Number(event.target.value) })}
+              />
+            </label>
+            <label>
+              最小发布间隔（分钟）
+              <input
+                type="number"
+                min={30}
+                max={1440}
+                value={draft.min_interval_minutes}
+                onChange={(event) => setDraft({ ...draft, min_interval_minutes: Number(event.target.value) })}
+              />
+            </label>
+            <label className="wide-field">
+              内容风格
+              <textarea
+                rows={3}
+                value={draft.profile.content_style}
+                onChange={(event) => updateProfile("content_style", event.target.value)}
+                placeholder="填写常用内容结构、表达方式和希望突出的特点"
+              />
+            </label>
           </div>
           <div className="primary-row">
-            <button className="primary-button" type="button">检测环境</button>
-            <button className="secondary-button" type="button">安装浏览器组件</button>
+            <button className="primary-button" type="submit" disabled={saving}>
+              {saving ? <Loader2 size={18} className="spin" aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}
+              保存账号
+            </button>
+            <button className="secondary-button" type="button" onClick={() => setShowForm(false)}>
+              取消
+            </button>
           </div>
-        </section>
-      </div>
-    </section>
-  );
-}
+        </form>
+      ) : null}
 
+      <section className="panel account-management-panel">
+        <div className="panel-title">
+          <h2>
+            <UsersRound size={19} aria-hidden="true" />
+            账号列表
+          </h2>
+          <button className="icon-button" type="button" title="刷新账号" onClick={() => void loadAccounts()}>
+            <RefreshCw size={17} aria-hidden="true" />
+          </button>
+        </div>
 
-function SettingCard({
-  title,
-  slot,
-  keyLabel,
-  saveLabel,
-  providerOptions,
-  statusText,
-  draft,
-  onDraftChange,
-  onSave,
-  onClear
-}: SettingCardProps) {
-  return (
-    <section className="panel config-panel">
-      <div className="panel-title">
-        <h2>
-          <KeyRound size={18} aria-hidden="true" />
-          {title}
-        </h2>
-        <span className={statusText.startsWith("已保存") ? "key-status connected" : "key-status"}>
-          {statusText}
-        </span>
-      </div>
-      <div className="form-grid single">
-        <label>
-          服务商
-          <select
-            value={draft.provider}
-            onChange={(event) => onDraftChange({ ...draft, provider: event.target.value })}
-          >
-            {providerOptions.map((provider) => (
-              <option key={provider} value={provider}>{provider}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {keyLabel}
-          <input
-            type="password"
-            value={draft.api_key}
-            placeholder="sk-..."
-            onChange={(event) => onDraftChange({ ...draft, api_key: event.target.value })}
-          />
-        </label>
-        <label>
-          接口地址
-          <input
-            value={draft.base_url}
-            onChange={(event) => onDraftChange({ ...draft, base_url: event.target.value })}
-          />
-        </label>
-        <label>
-          模型
-          <input
-            value={draft.model}
-            onChange={(event) => onDraftChange({ ...draft, model: event.target.value })}
-          />
-        </label>
-      </div>
-      <div className="primary-row">
-        <button className="primary-button" type="button" onClick={() => onSave(slot)}>{saveLabel}</button>
-        <button className="secondary-button" type="button" onClick={() => onClear(slot)}>清除 Key</button>
-      </div>
+        {loading ? (
+          <div className="empty-state-row">
+            <Loader2 size={20} className="spin" aria-hidden="true" />
+            正在加载账号
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="empty-state-row">暂未添加小红书账号，请先新增账号资料。</div>
+        ) : (
+          <div className="account-table-wrap">
+            <table className="data-table account-table">
+              <thead>
+                <tr>
+                  <th>账号</th>
+                  <th>分组</th>
+                  <th>账号定位</th>
+                  <th>发布频率</th>
+                  <th>登录状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accounts.map((account) => (
+                  <tr key={account.id}>
+                    <td>
+                      <strong>{account.display_name}</strong>
+                      <span>编号 #{account.id}</span>
+                    </td>
+                    <td>{account.account_group || "未分组"}</td>
+                    <td>
+                      <strong>{account.profile.domain_name || "待完善"}</strong>
+                      <span>{account.profile.persona || "尚未填写账号人设"}</span>
+                    </td>
+                    <td>每日 {account.daily_limit} 篇，间隔 {account.min_interval_minutes} 分钟</td>
+                    <td>
+                      <span className={account.login_state_path ? "status-pill success" : "status-pill pending"}>
+                        {account.login_state_path ? "已保存登录状态" : "待扫码登录"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </section>
   );
 }

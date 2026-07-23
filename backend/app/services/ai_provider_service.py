@@ -1,7 +1,11 @@
 import os
 from collections.abc import Iterable
 
-from app.integrations.deepseek import DeepSeekTextClient, TextGenerationResult
+from app.integrations.deepseek import (
+    DEEPSEEK_CHAT_COMPLETIONS_URL,
+    DeepSeekTextClient,
+    TextGenerationResult,
+)
 from app.repositories.setting_repository import SettingRepository
 from app.services.ai_settings_service import get_ai_setting_key, get_ai_settings_view
 
@@ -53,7 +57,7 @@ class AIProviderService:
         messages.append({"role": "user", "content": user_prompt})
         client = DeepSeekTextClient(
             api_key=api_key,
-            base_url=settings.base_url,
+            base_url=DEEPSEEK_CHAT_COMPLETIONS_URL,
             model=settings.model,
             transport=self.transport,
         )

@@ -1,3 +1,4 @@
+from app.core.secret_cipher import decrypt_secret
 from app.repositories.setting_repository import SettingRepository
 from app.schemas.settings import AISettingsView, AISettingView
 
@@ -31,7 +32,7 @@ def mask_key(value: str) -> str:
 
 
 def get_ai_setting_key(repo: SettingRepository, slot: str) -> str:
-    return repo.get(setting_key(slot, "api_key"))
+    return decrypt_secret(repo.get(setting_key(slot, "api_key")))
 
 
 def get_ai_settings_view(repo: SettingRepository) -> AISettingsView:
@@ -45,8 +46,8 @@ def _slot_view(repo: SettingRepository, slot: str) -> AISettingView:
     defaults = DEFAULT_AI_SETTINGS[slot]
     api_key = get_ai_setting_key(repo, slot)
     return AISettingView(
-        provider=repo.get(setting_key(slot, "provider"), defaults["provider"]),
-        base_url=repo.get(setting_key(slot, "base_url"), defaults["base_url"]),
+        provider=defaults["provider"],
+        base_url=defaults["base_url"],
         model=repo.get(setting_key(slot, "model"), defaults["model"]),
         enabled=repo.get(setting_key(slot, "enabled"), defaults["enabled"]) == "true",
         has_key=bool(api_key),

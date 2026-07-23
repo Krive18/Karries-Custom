@@ -39,7 +39,7 @@ const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; i
     { key: "viralAnalysis", label: "爆款解析", icon: ScanSearch },
     { key: "videoEdit", label: "智能剪辑", icon: Scissors },
     { key: "schedule", label: "定时发布", icon: Clock3 },
-    { key: "settings", label: "系统配置", icon: Settings }
+    { key: "settings", label: "账号管理", icon: Settings }
   ],
   manager: [
     { key: "managerOverview", label: "运营总览", icon: LayoutDashboard },

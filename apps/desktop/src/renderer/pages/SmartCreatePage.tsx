@@ -14,18 +14,9 @@ import { api } from "../api/client";
 import type {
   AccountView,
   ImageCopyResult,
-  ProviderOption,
   TaskCreateRequest
 } from "../types";
 import { brandAssets } from "../assets";
-
-
-const providers: ProviderOption[] = [
-  { label: "DeepSeek", value: "deepseek", models: ["deepseek-chat", "deepseek-reasoner"] },
-  { label: "GPT", value: "gpt", models: ["gpt-4.1", "gpt-4.1-mini"] },
-  { label: "豆包", value: "doubao", models: ["doubao-vision-pro", "doubao-lite"] },
-  { label: "Gemini", value: "gemini", models: ["gemini-1.5-pro", "gemini-1.5-flash"] }
-];
 
 
 type SmartCreatePageProps = {
@@ -130,8 +121,6 @@ function isImageMaterial(material: MaterialItem) {
 
 export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps) {
   const [materials, setMaterials] = useState<MaterialItem[]>([]);
-  const [provider, setProvider] = useState(providers[0].value);
-  const [model, setModel] = useState(providers[0].models[0]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | "">("");
   const [customDirection, setCustomDirection] = useState("");
   const [publishType, setPublishType] = useState("图文笔记");
@@ -143,11 +132,6 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
   const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const selectedProvider = useMemo(
-    () => providers.find((item) => item.value === provider) ?? providers[0],
-    [provider],
-  );
-
   const imageFiles = useMemo(
     () => materials.filter(isImageMaterial),
     [materials],
@@ -158,12 +142,6 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
       setSelectedAccountId(accounts[0].id);
     }
   }, [accounts, selectedAccountId]);
-
-  function handleProviderChange(nextProvider: string) {
-    const option = providers.find((item) => item.value === nextProvider) ?? providers[0];
-    setProvider(option.value);
-    setModel(option.models[0]);
-  }
 
   function updateFiles(nextFiles: FileList | File[]) {
     setMaterials((Array.from(nextFiles) as BrowserMaterialFile[]).map(materialFromFile));
@@ -219,7 +197,7 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
     }
     const accountId = Number(selectedAccountId || accounts[0]?.id);
     if (!accountId) {
-      setErrorMessage("请先在系统配置中新增小红书账号");
+      setErrorMessage("请先在账号管理中新增小红书账号");
       return;
     }
 
@@ -382,20 +360,8 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
             </select>
           </label>
           <label>
-            AI 服务商
-            <select value={provider} onChange={(event) => handleProviderChange(event.target.value)}>
-              {providers.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            模型
-            <select value={model} onChange={(event) => setModel(event.target.value)}>
-              {selectedProvider.models.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
+            AI 智能体
+            <input value="点绘环球 AI 智能体" readOnly />
           </label>
           <label>
             计划发布时间

@@ -3,6 +3,8 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from app.core.secret_cipher import validate_secret_encryption_configuration
+
 
 class MysqlConfig(BaseModel):
     host: str
@@ -39,6 +41,7 @@ def default_config() -> AppConfig:
     token_secret = os.environ.get("XHS_AUTH_TOKEN_SECRET", "dev-insecure-change-me")
     if environment not in {"development", "dev", "local", "test"} and token_secret == "dev-insecure-change-me":
         raise ValueError("XHS_AUTH_TOKEN_SECRET must be set outside development and test")
+    validate_secret_encryption_configuration()
 
     return AppConfig(
         environment=environment,

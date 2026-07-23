@@ -71,7 +71,7 @@ def test_provider_uses_database_key_before_environment(monkeypatch):
 
     assert result.content == "configured reply"
     assert result.model_name == "deepseek-reasoner"
-    assert captured["url"] == "https://deepseek.example/chat/completions"
+    assert captured["url"] == "https://api.deepseek.com/chat/completions"
     assert captured["authorization"] == "Bearer sk-database"
     assert captured["payload"]["messages"] == [
         {"role": "system", "content": "system"},

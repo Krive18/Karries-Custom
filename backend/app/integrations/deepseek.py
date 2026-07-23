@@ -9,6 +9,7 @@ from app.schemas.vision import VisionAnalysisResult
 
 
 Transport = Callable[[str, dict[str, str], dict[str, Any], int], dict[str, Any]]
+DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
 
 
 @dataclass(frozen=True)
@@ -25,12 +26,14 @@ class DeepSeekTextClient:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.deepseek.com/chat/completions",
+        base_url: str = DEEPSEEK_CHAT_COMPLETIONS_URL,
         model: str = "deepseek-chat",
         transport: Transport | None = None,
     ) -> None:
+        if base_url != DEEPSEEK_CHAT_COMPLETIONS_URL:
+            raise ValueError("unsupported DeepSeek endpoint")
         self.api_key = api_key
-        self.base_url = base_url
+        self.base_url = DEEPSEEK_CHAT_COMPLETIONS_URL
         self.model = model
         self.transport = transport or _post_json
 
@@ -70,12 +73,14 @@ class DeepSeekImageCopyClient:
     def __init__(
         self,
         api_key: str | None = None,
-        base_url: str = "https://api.deepseek.com/chat/completions",
+        base_url: str = DEEPSEEK_CHAT_COMPLETIONS_URL,
         model: str = "deepseek-chat",
         transport: Transport | None = None,
     ) -> None:
+        if base_url != DEEPSEEK_CHAT_COMPLETIONS_URL:
+            raise ValueError("unsupported DeepSeek endpoint")
         self.api_key = api_key or ""
-        self.base_url = base_url
+        self.base_url = DEEPSEEK_CHAT_COMPLETIONS_URL
         self.model = model
         self.transport = transport or _post_json
 
@@ -168,5 +173,11 @@ def _post_json(
         headers=headers,
         method="POST",
     )
-    with urlrequest.urlopen(request, timeout=timeout) as response:
+    opener = urlrequest.build_opener(_RejectRedirectHandler())
+    with opener.open(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+class _RejectRedirectHandler(urlrequest.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None

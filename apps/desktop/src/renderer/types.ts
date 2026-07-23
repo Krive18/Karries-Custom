@@ -28,12 +28,6 @@ export type ScheduledTask = {
   lastError: string;
 };
 
-export type ProviderOption = {
-  label: string;
-  value: string;
-  models: string[];
-};
-
 export type ApiResponse<T> = {
   success: boolean;
   data: T;
@@ -95,28 +89,45 @@ export type ImageCopyResult = {
   tags: string[];
 };
 
-export type AISettingSlot = "vision" | "copywriting";
-
-export type AISettingView = {
-  provider: string;
-  base_url: string;
-  model: string;
-  enabled: boolean;
-  has_key: boolean;
-  masked_key: string;
+export type XHSAccountProfile = {
+  domain_name: string;
+  persona: string;
+  target_audience: string;
+  content_style: string;
+  tone: string;
+  common_phrases: string;
+  forbidden_phrases: string;
+  tag_preferences: string;
+  word_count_preference: number;
+  topic_preferences: string;
 };
 
-export type AISettingsView = {
-  vision: AISettingView;
-  copywriting: AISettingView;
+export type XHSAccountView = {
+  id: number;
+  user_id: number;
+  display_name: string;
+  account_group: string;
+  status: number;
+  daily_limit: number;
+  min_interval_minutes: number;
+  last_publish_time: number;
+  today_publish_count: number;
+  login_state_path: string;
+  create_time: number;
+  update_time: number;
+  profile: XHSAccountProfile & {
+    id?: number;
+    create_time?: number;
+    update_time?: number;
+  };
 };
 
-export type AISettingUpdate = {
-  provider: string;
-  api_key: string;
-  base_url: string;
-  model: string;
-  enabled: boolean;
+export type XHSAccountCreate = {
+  display_name: string;
+  account_group: string;
+  daily_limit: number;
+  min_interval_minutes: number;
+  profile: XHSAccountProfile;
 };
 
 export type VideoEditMaterial = {
