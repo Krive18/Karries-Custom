@@ -85,16 +85,19 @@ class InspirationService:
             if existing is None:
                 raise InspirationSessionNotFoundError
             context = self._context_from_session(existing)
-            session, user_message = self.repository.claim_and_store_user_message(
-                tenant_id, user_id, session_id, payload.content, context
+            session, user_message, generation_token = (
+                self.repository.claim_and_store_user_message(
+                    tenant_id, user_id, session_id, payload.content, context
+                )
             )
             self.conn.commit()
         except Exception:
             self.conn.rollback()
             raise
 
-        history = self.repository.list_successful_history(tenant_id, user_id, session_id)
-        history = history[:-1] if history and history[-1][0] == "user" else history
+        history = self.repository.list_successful_history(
+            tenant_id, user_id, session_id, user_message["id"]
+        )
         provider_settings, provider = self._provider_from_settings_snapshot()
         # History and settings reads are completed before the provider HTTP request.
         self.conn.commit()
@@ -114,6 +117,7 @@ class InspirationService:
                 provider_settings.provider,
                 provider_settings.model,
                 exc,
+                generation_token,
             )
             raise InspirationProviderError from exc
 
@@ -126,6 +130,7 @@ class InspirationService:
                 context=context,
                 ai_provider=result.provider,
                 ai_model=result.model_name,
+                generation_token=generation_token,
                 credit_cost=credit_cost,
                 latency_ms=result.latency_ms,
                 status="success",
@@ -194,6 +199,7 @@ class InspirationService:
         provider: str,
         model_name: str,
         error: AIProviderError,
+        generation_token: str,
     ) -> None:
         try:
             self.repository.finalize_generation(
@@ -204,6 +210,7 @@ class InspirationService:
                 context=context,
                 ai_provider=provider,
                 ai_model=model_name,
+                generation_token=generation_token,
                 credit_cost=0,
                 latency_ms=0,
                 status="failed",

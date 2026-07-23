@@ -1,10 +1,15 @@
 from types import SimpleNamespace
+import time
 
 import pymysql
 import pytest
 
 from app.core.security import create_access_token
 from app.integrations.deepseek import TextGenerationResult
+from app.repositories.inspiration_repository import (
+    InspirationRepository,
+    InspirationSessionStateError,
+)
 from app.repositories.user_repository import UserRepository
 
 
@@ -192,8 +197,13 @@ def test_generating_session_rejects_concurrent_send_and_archive(mysql_conn, mysq
     session_id = create_session(mysql_app_client, headers)
     with mysql_conn.cursor() as cursor:
         cursor.execute(
-            "update inspiration_session set status = 'generating' where id = %s",
-            (session_id,),
+            """
+            update inspiration_session
+            set status = 'generating', generation_token = 'live-token',
+                generation_started_time = %s
+            where id = %s
+            """,
+            (int(time.time()), session_id),
         )
     mysql_conn.commit()
 
@@ -210,6 +220,189 @@ def test_generating_session_rejects_concurrent_send_and_archive(mysql_conn, mysq
     assert send_response.json()["error"]["code"] == "SESSION_GENERATING"
     assert archive_response.status_code == 409
     assert archive_response.json()["error"]["code"] == "SESSION_GENERATING"
+
+
+def test_expired_generation_lease_can_send_again(monkeypatch, mysql_conn, mysql_app_client):
+    configure_ai(monkeypatch)
+    headers = auth_headers(mysql_conn, mysql_app_client, "expired-send")
+    session_id = create_session(mysql_app_client, headers)
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            update inspiration_session
+            set status = 'generating', generation_token = 'stale-token',
+                generation_started_time = 1
+            where id = %s
+            """,
+            (session_id,),
+        )
+    mysql_conn.commit()
+
+    response = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json={"content": "Recover this generation"},
+    )
+
+    assert response.status_code == 200
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select status, generation_token, generation_started_time
+            from inspiration_session where id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone() == {
+            "status": "active",
+            "generation_token": "",
+            "generation_started_time": 0,
+        }
+
+
+def test_expired_generation_lease_can_archive(mysql_conn, mysql_app_client):
+    headers = auth_headers(mysql_conn, mysql_app_client, "expired-archive")
+    session_id = create_session(mysql_app_client, headers)
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            update inspiration_session
+            set status = 'generating', generation_token = 'stale-token',
+                generation_started_time = 1
+            where id = %s
+            """,
+            (session_id,),
+        )
+    mysql_conn.commit()
+
+    response = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/archive", headers=headers
+    )
+
+    assert response.status_code == 200
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select status, generation_token, generation_started_time
+            from inspiration_session where id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone() == {
+            "status": "archived",
+            "generation_token": "",
+            "generation_started_time": 0,
+        }
+
+
+def test_failed_finalization_generation_is_recoverable_after_lease(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    from app.services import inspiration_service
+
+    configure_ai(monkeypatch)
+
+    class FailingUsageService:
+        def __init__(self, _repository):
+            pass
+
+        def record_success(self, **_kwargs):
+            raise RuntimeError("usage write failed")
+
+    monkeypatch.setattr(inspiration_service, "AIUsageService", FailingUsageService)
+    headers = auth_headers(mysql_conn, mysql_app_client, "failed-lease")
+    session_id = create_session(mysql_app_client, headers)
+
+    with pytest.raises(RuntimeError, match="usage write failed"):
+        mysql_app_client.post(
+            f"/api/inspiration/sessions/{session_id}/messages",
+            headers=headers,
+            json={"content": "This finalization will fail"},
+        )
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select status, generation_token, generation_started_time
+            from inspiration_session where id = %s
+            """,
+            (session_id,),
+        )
+        failed_state = cursor.fetchone()
+        assert failed_state["status"] == "generating"
+        assert failed_state["generation_token"]
+        cursor.execute(
+            """
+            update inspiration_session set generation_started_time = 1 where id = %s
+            """,
+            (session_id,),
+        )
+    mysql_conn.commit()
+
+    response = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/archive", headers=headers
+    )
+
+    assert response.status_code == 200
+
+
+def test_late_generation_token_cannot_finalize_new_operation(
+    mysql_conn, mysql_app_client
+):
+    headers = auth_headers(mysql_conn, mysql_app_client, "late-token")
+    session_id = create_session(mysql_app_client, headers)
+    started_at = int(time.time())
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "select tenant_id, user_id from inspiration_session where id = %s",
+            (session_id,),
+        )
+        owner = cursor.fetchone()
+        cursor.execute(
+            """
+            update inspiration_session
+            set status = 'generating', generation_token = 'new-token',
+                generation_started_time = %s
+            where id = %s
+            """,
+            (started_at, session_id),
+        )
+    mysql_conn.commit()
+
+    with pytest.raises(InspirationSessionStateError):
+        InspirationRepository(mysql_conn).finalize_generation(
+            tenant_id=owner["tenant_id"],
+            user_id=owner["user_id"],
+            session_id=session_id,
+            content="late assistant response",
+            context={},
+            ai_provider="deepseek",
+            ai_model="deepseek-chat",
+            generation_token="old-token",
+            credit_cost=1,
+            latency_ms=1,
+            status="success",
+        )
+    mysql_conn.rollback()
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select status, generation_token, generation_started_time
+            from inspiration_session where id = %s
+            """,
+            (session_id,),
+        )
+        assert cursor.fetchone() == {
+            "status": "generating",
+            "generation_token": "new-token",
+            "generation_started_time": started_at,
+        }
+        cursor.execute(
+            "select count(*) as total from inspiration_message where session_id = %s",
+            (session_id,),
+        )
+        assert cursor.fetchone()["total"] == 0
 
 
 def test_session_rejects_linked_resources_owned_by_another_user(mysql_conn, mysql_app_client):
@@ -373,7 +566,7 @@ class _WorkflowRepository:
             "goal_type": "topic",
             "tone": "natural",
             "extra_requirement": "",
-        }, {"id": 20, "role": "user", "content": "ideas"}
+        }, {"id": 20, "role": "user", "content": "ideas"}, "generation-token"
 
     def get_session_for_user(self, *_args):
         return {
@@ -387,6 +580,7 @@ class _WorkflowRepository:
         }
 
     def list_successful_history(self, *_args):
+        self.history_args = _args
         return [("user", "ideas")]
 
     def finalize_generation(self, *_args, **_kwargs):
@@ -438,6 +632,8 @@ def test_success_finalization_commits_assistant_session_and_usage_together(monke
 
     assert result["assistant_message"]["id"] == 21
     assert len(repo.finalized) == 1
+    assert repo.finalized[0][1]["generation_token"] == "generation-token"
+    assert repo.history_args[-1] == 20
     assert usage_calls[0]["commit"] is False
     assert conn.commits == 3
     assert conn.rollbacks == 0
@@ -483,6 +679,45 @@ def test_failed_finalization_rolls_back_assistant_session_and_usage(monkeypatch)
         )
 
     assert len(repo.finalized) == 1
+    assert conn.rollbacks == 1
+
+
+def test_service_rolls_back_when_late_generation_token_cannot_finalize(monkeypatch):
+    from app.repositories.inspiration_repository import InspirationSessionStateError
+    from app.services import inspiration_service
+
+    conn = _WorkflowConnection()
+    repo = _WorkflowRepository(conn)
+
+    def reject_stale_finalize(*_args, **_kwargs):
+        raise InspirationSessionStateError("generating")
+
+    repo.finalize_generation = reject_stale_finalize
+    monkeypatch.setattr(inspiration_service, "InspirationRepository", lambda _conn: repo)
+    service = inspiration_service.InspirationService(conn)
+    monkeypatch.setattr(
+        service,
+        "_provider_from_settings_snapshot",
+        lambda: (
+            SimpleNamespace(provider="deepseek", model="deepseek-chat"),
+            SimpleNamespace(
+                generate_text=lambda *_args, **_kwargs: TextGenerationResult(
+                    content="assistant reply",
+                    provider="deepseek",
+                    model_name="deepseek-chat",
+                    latency_ms=3,
+                    input_chars=8,
+                    output_chars=15,
+                )
+            ),
+        ),
+    )
+
+    with pytest.raises(InspirationSessionStateError):
+        service.send_message(
+            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+        )
+
     assert conn.rollbacks == 1
 
 

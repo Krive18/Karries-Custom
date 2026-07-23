@@ -1,5 +1,6 @@
 import json
 import time
+import uuid
 from typing import Any
 
 from app.schemas.inspiration import InspirationSessionCreate
@@ -16,6 +17,8 @@ class InspirationSessionStateError(ValueError):
 
 
 class InspirationRepository:
+    GENERATION_LEASE_SECONDS = 5 * 60
+
     def __init__(self, conn) -> None:
         self.conn = conn
 
@@ -133,19 +136,21 @@ class InspirationRepository:
         session_id: int,
         content: str,
         context: dict,
-    ) -> tuple[dict, dict]:
-        session = self.get_session_for_user(tenant_id, user_id, session_id)
-        if session is None:
-            raise InspirationSessionNotFoundError
+    ) -> tuple[dict, dict, str]:
         now = int(time.time())
+        generation_token = uuid.uuid4().hex
         with self.conn.cursor() as cursor:
+            self._recover_expired_generation(
+                cursor, tenant_id, user_id, session_id, now
+            )
             cursor.execute(
                 """
                 update inspiration_session
-                set status = 'generating', update_time = %s
+                set status = 'generating', generation_token = %s,
+                    generation_started_time = %s, update_time = %s
                 where tenant_id = %s and user_id = %s and id = %s and status = 'active'
                 """,
-                (now, tenant_id, user_id, session_id),
+                (generation_token, now, now, tenant_id, user_id, session_id),
             )
             if cursor.rowcount != 1:
                 current = self._get_session_for_user(
@@ -174,14 +179,16 @@ class InspirationRepository:
                 """,
                 (tenant_id, user_id, session_id),
             )
-        session["status"] = "generating"
+        session = self.get_session_for_user(tenant_id, user_id, session_id)
+        if session is None:
+            raise InspirationSessionNotFoundError
         return session, {
             "id": message_id,
             "role": "user",
             "content": content,
             "context": context,
             "status": "success",
-        }
+        }, generation_token
 
     def finalize_generation(
         self,
@@ -192,6 +199,7 @@ class InspirationRepository:
         context: dict,
         ai_provider: str,
         ai_model: str,
+        generation_token: str,
         credit_cost: int,
         latency_ms: int,
         status: str,
@@ -228,12 +236,15 @@ class InspirationRepository:
                 """
                 update inspiration_session
                 set status = 'active',
+                    generation_token = '',
+                    generation_started_time = 0,
                     message_count = message_count + 1,
                     total_credit_cost = total_credit_cost + %s,
                     update_time = %s
-                where tenant_id = %s and user_id = %s and id = %s and status = 'generating'
+                where tenant_id = %s and user_id = %s and id = %s
+                  and status = 'generating' and generation_token = %s
                 """,
-                (credit_cost, now, tenant_id, user_id, session_id),
+                (credit_cost, now, tenant_id, user_id, session_id, generation_token),
             )
             if cursor.rowcount != 1:
                 current = self._get_session_for_user(
@@ -247,17 +258,23 @@ class InspirationRepository:
     def archive_active_session(
         self, tenant_id: int, user_id: int, session_id: int
     ) -> dict:
-        session = self.get_session_for_user(tenant_id, user_id, session_id)
-        if session is None:
-            raise InspirationSessionNotFoundError
-        if session["status"] != "active":
-            raise InspirationSessionStateError(session["status"])
         now = int(time.time())
         with self.conn.cursor() as cursor:
+            self._recover_expired_generation(
+                cursor, tenant_id, user_id, session_id, now
+            )
+            session = self._get_session_for_user(
+                tenant_id, user_id, session_id, lock=True
+            )
+            if session is None:
+                raise InspirationSessionNotFoundError
+            if session["status"] != "active":
+                raise InspirationSessionStateError(session["status"])
             cursor.execute(
                 """
                 update inspiration_session
-                set status = 'archived', update_time = %s
+                set status = 'archived', generation_token = '',
+                    generation_started_time = 0, update_time = %s
                 where tenant_id = %s and user_id = %s and id = %s and status = 'active'
                 """,
                 (now, tenant_id, user_id, session_id),
@@ -283,7 +300,11 @@ class InspirationRepository:
         )
 
     def list_successful_history(
-        self, tenant_id: int, user_id: int, session_id: int
+        self,
+        tenant_id: int,
+        user_id: int,
+        session_id: int,
+        excluded_message_id: int,
     ) -> list[tuple[str, str]]:
         with self.conn.cursor() as cursor:
             cursor.execute(
@@ -292,10 +313,11 @@ class InspirationRepository:
                 from inspiration_message
                 where tenant_id = %s and user_id = %s and session_id = %s
                   and status = 'success'
+                  and id <> %s
                 order by id desc
                 limit 20
                 """,
-                (tenant_id, user_id, session_id),
+                (tenant_id, user_id, session_id, excluded_message_id),
             )
             rows = list(reversed(cursor.fetchall()))
         return [(row["role"], row["content"]) for row in rows]
@@ -323,7 +345,8 @@ class InspirationRepository:
         return """
             select id, tenant_id, user_id, title, linked_product_id,
                    linked_xhs_account_id, goal_type, tone, extra_requirement,
-                   status, message_count, total_credit_cost, create_time, update_time
+                   generation_token, generation_started_time, status, message_count,
+                   total_credit_cost, create_time, update_time
             from inspiration_session
             """
 
@@ -346,6 +369,8 @@ class InspirationRepository:
             "goal_type": row["goal_type"],
             "tone": row["tone"],
             "extra_requirement": row["extra_requirement"],
+            "generation_token": row["generation_token"],
+            "generation_started_time": row["generation_started_time"],
             "status": row["status"],
             "message_count": row["message_count"],
             "total_credit_cost": row["total_credit_cost"],
@@ -373,6 +398,21 @@ class InspirationRepository:
 
     def _dump_json(self, value: Any) -> str:
         return json.dumps(value, ensure_ascii=False)
+
+    def _recover_expired_generation(
+        self, cursor, tenant_id: int, user_id: int, session_id: int, now: int
+    ) -> None:
+        cursor.execute(
+            """
+            update inspiration_session
+            set status = 'active', generation_token = '', generation_started_time = 0,
+                update_time = %s
+            where tenant_id = %s and user_id = %s and id = %s
+              and status = 'generating'
+              and (generation_started_time = 0 or generation_started_time <= %s)
+            """,
+            (now, tenant_id, user_id, session_id, now - self.GENERATION_LEASE_SECONDS),
+        )
 
     def _load_json(self, raw_value: str) -> dict:
         try:

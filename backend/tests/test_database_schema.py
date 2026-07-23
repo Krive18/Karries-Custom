@@ -424,13 +424,17 @@ def test_migrate_persists_inspiration_session_context_columns(mysql_conn):
         from information_schema.columns
         where table_schema = database()
           and table_name = 'inspiration_session'
-          and column_name in ('tone', 'extra_requirement')
+          and column_name in (
+              'tone', 'extra_requirement', 'generation_token', 'generation_started_time'
+          )
         """,
     )
 
     assert {column["column_name"] for column in columns} == {
         "tone",
         "extra_requirement",
+        "generation_token",
+        "generation_started_time",
     }
     by_name = {column["column_name"]: column for column in columns}
     assert by_name["tone"] == {
@@ -447,6 +451,20 @@ def test_migrate_persists_inspiration_session_context_columns(mysql_conn):
         "column_default": "",
         "column_comment": "补充创作要求",
     }
+    assert by_name["generation_token"] == {
+        "column_name": "generation_token",
+        "column_type": "varchar(64)",
+        "is_nullable": "NO",
+        "column_default": "",
+        "column_comment": "当前生成操作令牌",
+    }
+    assert by_name["generation_started_time"] == {
+        "column_name": "generation_started_time",
+        "column_type": "bigint unsigned",
+        "is_nullable": "NO",
+        "column_default": "0",
+        "column_comment": "当前生成开始时间戳",
+    }
 
 
 def test_ai_schema_declares_persisted_inspiration_session_context():
@@ -455,6 +473,14 @@ def test_ai_schema_declares_persisted_inspiration_session_context():
     assert "tone varchar(100) not null default '自然真诚' comment '文案语气'" in schema
     assert (
         "extra_requirement varchar(1000) not null default '' comment '补充创作要求'"
+        in schema
+    )
+    assert (
+        "generation_token varchar(64) not null default '' comment '当前生成操作令牌'"
+        in schema
+    )
+    assert (
+        "generation_started_time bigint unsigned not null default 0 comment '当前生成开始时间戳'"
         in schema
     )
 
@@ -509,7 +535,9 @@ def test_migrate_backfills_inspiration_session_context_columns(mysql_conn):
         from information_schema.columns
         where table_schema = database()
           and table_name = 'inspiration_session'
-          and column_name in ('tone', 'extra_requirement')
+          and column_name in (
+              'tone', 'extra_requirement', 'generation_token', 'generation_started_time'
+          )
         """,
     )
     by_name = {column["column_name"]: column for column in columns}
@@ -522,6 +550,14 @@ def test_migrate_backfills_inspiration_session_context_columns(mysql_conn):
     assert by_name["extra_requirement"]["is_nullable"] == "NO"
     assert by_name["extra_requirement"]["column_default"] == ""
     assert by_name["extra_requirement"]["column_comment"] == "补充创作要求"
+    assert by_name["generation_token"]["column_type"] == "varchar(64)"
+    assert by_name["generation_token"]["is_nullable"] == "NO"
+    assert by_name["generation_token"]["column_default"] == ""
+    assert by_name["generation_token"]["column_comment"] == "当前生成操作令牌"
+    assert by_name["generation_started_time"]["column_type"] == "bigint unsigned"
+    assert by_name["generation_started_time"]["is_nullable"] == "NO"
+    assert by_name["generation_started_time"]["column_default"] == "0"
+    assert by_name["generation_started_time"]["column_comment"] == "当前生成开始时间戳"
     status_column = fetch_one(
         mysql_conn,
         """

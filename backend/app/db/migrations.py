@@ -19,6 +19,14 @@ def _ensure_tenant_compatibility(cursor) -> None:
             "extra_requirement",
             "varchar(1000) not null default '' comment '补充创作要求'",
         ),
+        (
+            "generation_token",
+            "varchar(64) not null default '' comment '当前生成操作令牌'",
+        ),
+        (
+            "generation_started_time",
+            "bigint unsigned not null default 0 comment '当前生成开始时间戳'",
+        ),
     ):
         if not _column_exists(cursor, "inspiration_session", column_name):
             cursor.execute(
