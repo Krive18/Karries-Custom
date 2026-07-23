@@ -43,7 +43,8 @@ export function SettingsPage() {
     setLoading(true);
     setMessage("");
     try {
-      setAccounts(await api.listXHSAccounts());
+      const result = await api.listXHSAccounts();
+      setAccounts(Array.isArray(result) ? result : []);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "账号加载失败");
     } finally {

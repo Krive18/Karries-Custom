@@ -312,7 +312,7 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
       <section className="panel parameter-panel">
         <div className="panel-title">
           <h2>创作参数</h2>
-          <span className={result ? "key-status connected" : "key-status"}>{result ? "已生成" : "未连接 Key"}</span>
+          <span className={result ? "key-status connected" : "key-status"}>{result ? "已生成" : "待生成"}</span>
         </div>
 
         {errorMessage ? <div className="form-message">{errorMessage}</div> : null}
