@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - 数据库固定使用 MySQL 8.0、`InnoDB`、`utf8mb4`、`utf8mb4_0900_ai_ci`。
-- 每张表必须有中文 `comment`，每个字段必须有中文 `comment`；字段默认 `NOT NULL` 并提供业务默认值。
+- 每张表必须有中文 `comment`，每个字段必须有中文 `comment`；业务字段默认 `NOT NULL`，仅在业务上存在安全默认语义时声明 `DEFAULT`，必填 ID、必填文本和由应用写入的时间戳不使用伪造的 `0` 或空值默认。
 - 主键统一为 `id bigint unsigned not null auto_increment`；唯一索引以 `uk_` 开头，普通索引以 `idx_` 开头。
 - 关系字段建立普通索引，不创建数据库外键约束；关系完整性由 Repository 和 Service 校验。
 - SQL 必须显式列出查询和写入字段，禁止 `select *`，禁止拼接用户输入，全部使用参数化查询。
