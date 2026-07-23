@@ -61,4 +61,13 @@ class AIUsageService:
 
 
 def _sanitize_error_message(error_message: str) -> str:
-    return re.sub(r"sk-[A-Za-z0-9_-]+", "[redacted]", str(error_message))[:1000]
+    normalized = re.sub(r"\s+", " ", str(error_message)).strip().lower()
+    if "timeout" in normalized:
+        return "AI provider timeout"
+    if "ai 服务尚未配置" in normalized:
+        return "AI provider is not configured"
+    if "ai 服务未启用" in normalized:
+        return "AI provider is disabled"
+    if "ai 服务响应无效" in normalized:
+        return "AI provider returned invalid response"
+    return "AI provider request failed"

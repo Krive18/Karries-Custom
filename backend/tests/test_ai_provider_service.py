@@ -1,3 +1,5 @@
+import traceback
+
 import pytest
 
 from app.integrations.deepseek import DeepSeekTextClient
@@ -113,6 +115,25 @@ def test_provider_hides_key_when_transport_fails():
         service.generate_text("system", "user")
 
     assert "sk-private-secret" not in str(exc_info.value)
+
+
+def test_provider_hides_transport_secret_from_formatted_traceback():
+    def failing_transport(*_args):
+        raise RuntimeError("Authorization: Bearer custom-secret-value")
+
+    service = AIProviderService(
+        FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),
+        transport=failing_transport,
+    )
+
+    with pytest.raises(AIProviderError) as exc_info:
+        service.generate_text("system", "user")
+
+    formatted_traceback = "".join(
+        traceback.format_exception(exc_info.type, exc_info.value, exc_info.tb)
+    )
+    assert str(exc_info.value) == "AI 服务调用失败"
+    assert "custom-secret-value" not in formatted_traceback
 
 
 def test_provider_rejects_invalid_response_without_leaking_key():

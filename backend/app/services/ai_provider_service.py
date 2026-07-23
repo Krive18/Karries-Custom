@@ -45,7 +45,7 @@ class AIProviderService:
         )
         try:
             return client.generate(messages, temperature)
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
-            raise AIProviderError("AI 服务响应无效") from exc
-        except Exception as exc:
-            raise AIProviderError("AI 服务调用失败") from exc
+        except (KeyError, IndexError, TypeError, ValueError):
+            raise AIProviderError("AI 服务响应无效") from None
+        except Exception:
+            raise AIProviderError("AI 服务调用失败") from None
