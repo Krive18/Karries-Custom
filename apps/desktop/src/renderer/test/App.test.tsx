@@ -343,6 +343,8 @@ describe("KARRIES desktop workspace", () => {
     fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     expect(await screen.findByRole("heading", { name: "管理端 · 运营总览" })).toBeInTheDocument();
     expect(await screen.findByText("待处理剪辑")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "团队运营范围" })).toBeInTheDocument();
+    expect(screen.queryByText("管理端后续能力")).not.toBeInTheDocument();
   });
 
   it("accepts dropped local material files", async () => {
@@ -873,6 +875,8 @@ describe("KARRIES desktop workspace", () => {
     fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     fireEvent.click(screen.getByRole("button", { name: "爆款解析记录" }));
     await screen.findByRole("heading", { name: "爆款解析记录" });
+    expect(screen.getByText("已完成", { selector: ".viral-status" })).toBeInTheDocument();
+    expect(screen.queryByText("completed")).not.toBeInTheDocument();
     const requestCountBeforeApply = mockedApi.listAdminViralAnalysisJobs.mock.calls.length;
     fireEvent.change(screen.getByLabelText("关键词"), { target: { value: "防晒" } });
     fireEvent.click(screen.getByRole("button", { name: "应用筛选" }));
@@ -904,6 +908,8 @@ describe("KARRIES desktop workspace", () => {
     expect(screen.queryByRole("button", { name: /管理端/ })).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "AI 任务排查" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "AI 任务排查" }));
+    expect(await screen.findByText("已完成", { selector: ".viral-status" })).toBeInTheDocument();
+    expect(screen.queryByText("completed")).not.toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
     expect(await screen.findByText("deepseek-chat")).toBeInTheDocument();
   });

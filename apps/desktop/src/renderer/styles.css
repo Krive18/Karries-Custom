@@ -12,7 +12,7 @@
 
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   background:
     radial-gradient(circle at 76% -8%, rgba(191, 139, 83, 0.16), transparent 28%),
@@ -1232,6 +1232,17 @@ textarea {
 }
 
 @media (max-width: 1180px) {
+  .page-grid,
+  .viral-user-workspace,
+  .manager-viral-workspace,
+  .developer-ai-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .result-panel {
+    grid-row: auto;
+  }
+
   .inspiration-workspace {
     grid-template-columns: minmax(200px, 0.42fr) minmax(340px, 1fr);
   }
@@ -1300,6 +1311,8 @@ textarea {
   .manager-inspiration-filters { grid-template-columns: 1fr; }
   .manager-inspiration-filters .primary-button { grid-column: auto; }
   .inspiration-pagination { flex-wrap: wrap; }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .wide-field { grid-column: auto; }
 }
 
 /* Viral analysis uses the same compact operational surfaces as inspiration. */

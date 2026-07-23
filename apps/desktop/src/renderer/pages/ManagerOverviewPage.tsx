@@ -62,8 +62,8 @@ export function ManagerOverviewPage() {
       </div>
 
       <section className="panel manager-note-panel">
-        <h2>管理端后续能力</h2>
-        <p>下一步可继续接入管理员授权、成员管理、账号发布健康度、内容审核记录和积分消耗统计。</p>
+        <h2>团队运营范围</h2>
+        <p>当前数据按禾一斯团队隔离统计，用于查看成员规模、账号矩阵、发布计划和待处理剪辑任务。</p>
       </section>
     </section>
   );
