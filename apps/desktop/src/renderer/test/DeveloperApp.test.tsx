@@ -64,7 +64,7 @@ it("rejects a customer role before loading internal data", async () => {
     tenant_id: 1,
     login_name: "operator",
     nickname: "运营",
-    user_role: "client_member",
+    user_role: "customer",
     wallet_balance: 0
   });
 
