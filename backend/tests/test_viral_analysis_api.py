@@ -470,3 +470,55 @@ def test_admin_and_developer_lists_filter_on_server_and_keep_external_fields_saf
     assert all("ai_provider" not in item for item in admin_response.json()["data"]["items"])
     assert [item["id"] for item in developer_response.json()["data"]["items"]] == [first_job]
     assert second_job not in [item["id"] for item in developer_response.json()["data"]["items"]]
+
+
+def test_admin_keyword_matches_supplement_and_structured_result_fields(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    _configure_ai(
+        monkeypatch,
+        json.dumps(
+            {
+                "hook_summary": "unique-hook-keyword",
+                "structure_summary": "structure",
+                "script_breakdown": "script",
+                "selling_points": "selling",
+                "reuse_suggestions": "reuse",
+                "rewritten_script": "rewritten",
+                "tags": ["viral"],
+            }
+        ),
+    )
+    user_headers = _auth_headers(mysql_conn, mysql_app_client, "keyword-results", tenant_id=32)
+    target_job = _create_job(
+        mysql_app_client,
+        user_headers,
+        "unrelated-title",
+        supplement_text="unique-supplement-keyword",
+    )
+    other_job = _create_job(mysql_app_client, user_headers, "unrelated-other")
+    foreign_headers = _auth_headers(mysql_conn, mysql_app_client, "keyword-foreign", tenant_id=33)
+    foreign_job = _create_job(mysql_app_client, foreign_headers, "unique-hook-keyword")
+    assert (
+        mysql_app_client.post(
+            f"/api/viral-analysis/jobs/{target_job}/run", headers=user_headers
+        ).status_code
+        == 200
+    )
+    admin_headers = _management_headers(mysql_conn, mysql_app_client, "keyword-results", tenant_id=32)
+
+    supplement_response = mysql_app_client.get(
+        "/api/admin/viral-analysis/jobs",
+        headers=admin_headers,
+        params={"keyword": "unique-supplement-keyword"},
+    )
+    result_response = mysql_app_client.get(
+        "/api/admin/viral-analysis/jobs",
+        headers=admin_headers,
+        params={"keyword": "unique-hook-keyword"},
+    )
+
+    assert [item["id"] for item in supplement_response.json()["data"]["items"]] == [target_job]
+    assert [item["id"] for item in result_response.json()["data"]["items"]] == [target_job]
+    assert other_job not in [item["id"] for item in result_response.json()["data"]["items"]]
+    assert foreign_job not in [item["id"] for item in result_response.json()["data"]["items"]]

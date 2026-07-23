@@ -322,8 +322,30 @@ class ViralAnalysisRepository:
             clauses.append("status = %s")
             params.append(status)
         if keyword is not None:
-            clauses.append("title like %s")
-            params.append(f"%{keyword}%")
+            match = f"%{keyword}%"
+            clauses.append(
+                """
+                (
+                    title like %s
+                    or supplement_text like %s
+                    or exists (
+                        select 1
+                        from viral_analysis_result
+                        where viral_analysis_result.tenant_id = viral_analysis_job.tenant_id
+                          and viral_analysis_result.job_id = viral_analysis_job.id
+                          and (
+                              viral_analysis_result.hook_summary like %s
+                              or viral_analysis_result.structure_summary like %s
+                              or viral_analysis_result.script_breakdown like %s
+                              or viral_analysis_result.selling_points like %s
+                              or viral_analysis_result.reuse_suggestions like %s
+                              or viral_analysis_result.rewritten_script like %s
+                          )
+                    )
+                )
+                """
+            )
+            params.extend([match] * 8)
         return "where " + " and ".join(clauses), tuple(params)
 
     def _get_job(self, where_sql: str, params: tuple) -> dict | None:

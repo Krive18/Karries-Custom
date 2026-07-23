@@ -23,6 +23,13 @@ class UploadBodyLimitMiddleware:
             return
 
         total_size = 0
+        response_started = False
+
+        async def tracked_send(message):
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
 
         async def limited_receive():
             nonlocal total_size
@@ -34,8 +41,10 @@ class UploadBodyLimitMiddleware:
             return message
 
         try:
-            await self.app(scope, limited_receive, send)
+            await self.app(scope, limited_receive, tracked_send)
         except UploadBodyTooLarge:
+            if response_started:
+                raise
             await self._send_too_large(send)
 
     def _is_upload_path(self, path: str) -> bool:

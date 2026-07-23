@@ -55,6 +55,10 @@ def create_app() -> FastAPI:
     app.state.conn = None
     app.state.connect_db = lambda: connect(config.mysql)
     app.add_middleware(
+        UploadBodyLimitMiddleware,
+        max_body_bytes=200 * 1024 * 1024 + 2 * 1024 * 1024,
+    )
+    app.add_middleware(
         CORSMiddleware,
         allow_origins=[
             "http://127.0.0.1:3000",
@@ -67,10 +71,6 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-    )
-    app.add_middleware(
-        UploadBodyLimitMiddleware,
-        max_body_bytes=200 * 1024 * 1024 + 2 * 1024 * 1024,
     )
 
     @app.exception_handler(RequestValidationError)
