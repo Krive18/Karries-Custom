@@ -48,6 +48,7 @@ def management_headers(mysql_conn, suffix: str, tenant_id: int) -> dict[str, str
     token = create_access_token(
         {"user_id": user_id, "role": "client_admin"},
         "dev-secret",
+        3600,
     )
     return {"Authorization": f"Bearer {token}"}
 
