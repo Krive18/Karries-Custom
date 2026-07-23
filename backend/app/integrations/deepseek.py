@@ -1,4 +1,6 @@
 import json
+import time
+from dataclasses import dataclass
 from typing import Any, Callable
 from urllib import request as urlrequest
 
@@ -7,6 +9,61 @@ from app.schemas.vision import VisionAnalysisResult
 
 
 Transport = Callable[[str, dict[str, str], dict[str, Any], int], dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class TextGenerationResult:
+    content: str
+    provider: str
+    model_name: str
+    latency_ms: int
+    input_chars: int
+    output_chars: int
+
+
+class DeepSeekTextClient:
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://api.deepseek.com/chat/completions",
+        model: str = "deepseek-chat",
+        transport: Transport | None = None,
+    ) -> None:
+        self.api_key = api_key
+        self.base_url = base_url
+        self.model = model
+        self.transport = transport or _post_json
+
+    def generate(
+        self,
+        messages: list[dict[str, str]],
+        temperature: float,
+    ) -> TextGenerationResult:
+        started_at = time.monotonic()
+        payload = self.transport(
+            self.base_url,
+            {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            {
+                "model": self.model,
+                "messages": messages,
+                "temperature": temperature,
+            },
+            60,
+        )
+        content = payload["choices"][0]["message"]["content"]
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("empty text generation response")
+        return TextGenerationResult(
+            content=content,
+            provider="deepseek",
+            model_name=self.model,
+            latency_ms=int((time.monotonic() - started_at) * 1000),
+            input_chars=sum(len(message.get("content", "")) for message in messages),
+            output_chars=len(content),
+        )
 
 
 class DeepSeekImageCopyClient:

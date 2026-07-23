@@ -1,0 +1,127 @@
+import pytest
+
+from app.integrations.deepseek import DeepSeekTextClient
+from app.services.ai_provider_service import AIProviderError, AIProviderService
+
+
+class FakeSettingRepository:
+    def __init__(self, values=None):
+        self.values = values or {}
+
+    def get(self, key, default=""):
+        return self.values.get(key, default)
+
+
+def test_text_client_sends_openai_compatible_messages():
+    calls = []
+
+    def fake_transport(url, headers, payload, timeout):
+        calls.append(
+            {
+                "url": url,
+                "headers": headers,
+                "payload": payload,
+                "timeout": timeout,
+            }
+        )
+        return {"choices": [{"message": {"content": "reply"}}]}
+
+    client = DeepSeekTextClient(api_key="sk-test", transport=fake_transport)
+
+    result = client.generate(
+        [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "hello"},
+        ],
+        temperature=0.4,
+    )
+
+    assert result.content == "reply"
+    assert result.provider == "deepseek"
+    assert result.model_name == "deepseek-chat"
+    assert result.input_chars == len("systemhello")
+    assert result.output_chars == len("reply")
+    assert calls[0]["payload"]["model"] == "deepseek-chat"
+    assert calls[0]["payload"]["messages"][1]["content"] == "hello"
+    assert calls[0]["payload"]["temperature"] == 0.4
+
+
+def test_provider_uses_database_key_before_environment(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-environment")
+    repo = FakeSettingRepository(
+        {
+            "ai.copywriting.api_key": "sk-database",
+            "ai.copywriting.base_url": "https://deepseek.example/chat/completions",
+            "ai.copywriting.model": "deepseek-reasoner",
+        }
+    )
+    captured = {}
+
+    def fake_transport(url, headers, payload, timeout):
+        captured["url"] = url
+        captured["authorization"] = headers["Authorization"]
+        captured["payload"] = payload
+        return {"choices": [{"message": {"content": "configured reply"}}]}
+
+    service = AIProviderService(repo, transport=fake_transport)
+
+    result = service.generate_text("system", "user", history=(("assistant", "earlier"),))
+
+    assert result.content == "configured reply"
+    assert result.model_name == "deepseek-reasoner"
+    assert captured["url"] == "https://deepseek.example/chat/completions"
+    assert captured["authorization"] == "Bearer sk-database"
+    assert captured["payload"]["messages"] == [
+        {"role": "system", "content": "system"},
+        {"role": "assistant", "content": "earlier"},
+        {"role": "user", "content": "user"},
+    ]
+
+
+def test_provider_rejects_missing_key(monkeypatch):
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    service = AIProviderService(FakeSettingRepository())
+
+    with pytest.raises(AIProviderError, match="AI 服务尚未配置"):
+        service.generate_text("system", "user")
+
+
+def test_provider_rejects_disabled_copywriting_setting():
+    service = AIProviderService(
+        FakeSettingRepository(
+            {
+                "ai.copywriting.api_key": "sk-database",
+                "ai.copywriting.enabled": "false",
+            }
+        )
+    )
+
+    with pytest.raises(AIProviderError, match="AI 服务未启用"):
+        service.generate_text("system", "user")
+
+
+def test_provider_hides_key_when_transport_fails():
+    def failing_transport(*_args):
+        raise RuntimeError("HTTP 401 for sk-private-secret")
+
+    service = AIProviderService(
+        FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),
+        transport=failing_transport,
+    )
+
+    with pytest.raises(AIProviderError, match="AI 服务调用失败") as exc_info:
+        service.generate_text("system", "user")
+
+    assert "sk-private-secret" not in str(exc_info.value)
+
+
+def test_provider_rejects_invalid_response_without_leaking_key():
+    service = AIProviderService(
+        FakeSettingRepository({"ai.copywriting.api_key": "sk-private-secret"}),
+        transport=lambda *_args: {"choices": []},
+    )
+
+    with pytest.raises(AIProviderError, match="AI 服务响应无效") as exc_info:
+        service.generate_text("system", "user")
+
+    assert "sk-private-secret" not in str(exc_info.value)
