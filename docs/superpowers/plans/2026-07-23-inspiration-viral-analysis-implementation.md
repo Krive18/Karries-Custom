@@ -534,6 +534,7 @@ git commit -m "feat: add inspiration user and manager pages"
 
 **Files:**
 - Create: `backend/app/schemas/viral_analysis.py`
+- Create: `backend/app/repositories/admin_audit_repository.py`
 - Create: `backend/app/repositories/viral_analysis_repository.py`
 - Create: `backend/app/services/viral_analysis_service.py`
 - Create: `backend/app/services/upload_storage_service.py`
@@ -651,6 +652,9 @@ target_type="viral_analysis_job"
 target_id=job_id
 ```
 
+审计写入通过独立 `AdminAuditRepository.create(...)` 完成，详情使用 JSON 序列化后写入
+`detail_json`，SQL 必须显式字段并参数化；开发者详情读取与审计写入均成功后再提交。
+
 保存草稿使用 `source_type="viral_analysis"`，不重复扣算力。
 
 - [ ] **Step 7: 运行 GREEN、回归并提交**
@@ -658,7 +662,7 @@ target_id=job_id
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend\tests\test_upload_storage_service.py backend\tests\test_viral_analysis_api.py -q
 .\.venv\Scripts\python.exe -m pytest backend\tests -q
-git add backend/app/schemas/viral_analysis.py backend/app/repositories/viral_analysis_repository.py backend/app/services/viral_analysis_service.py backend/app/services/upload_storage_service.py backend/app/api/viral_analysis.py backend/app/api/admin_viral_analysis.py backend/app/api/developer_viral_analysis.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/repositories/content_draft_repository.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_viral_analysis_api.py backend/tests/test_upload_storage_service.py
+git add backend/app/schemas/viral_analysis.py backend/app/repositories/admin_audit_repository.py backend/app/repositories/viral_analysis_repository.py backend/app/services/viral_analysis_service.py backend/app/services/upload_storage_service.py backend/app/api/viral_analysis.py backend/app/api/admin_viral_analysis.py backend/app/api/developer_viral_analysis.py backend/app/db/schema.py backend/app/db/migrations.py backend/app/repositories/content_draft_repository.py backend/app/main.py backend/tests/conftest.py backend/tests/test_database_schema.py backend/tests/test_viral_analysis_api.py backend/tests/test_upload_storage_service.py
 git commit -m "feat: add viral analysis task workflow"
 ```
 
