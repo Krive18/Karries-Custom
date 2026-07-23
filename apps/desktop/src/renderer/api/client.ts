@@ -13,13 +13,17 @@ import type {
   InspirationSession,
   InspirationSessionCreate,
   InspirationSessionDetail,
+  AuthUser,
+  DeveloperViralAnalysisJob,
   PaginatedResult,
   TaskCreateRequest,
   TaskView,
   VideoEditJobClaimRequest,
   VideoEditJobCreate,
   VideoEditJobDeliverRequest,
-  VideoEditJobView
+  VideoEditJobView,
+  ViralAnalysisJob,
+  ViralAnalysisJobCreate
 } from "../types";
 
 
@@ -38,8 +42,9 @@ export class ApiRequestError extends Error {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = window.localStorage.getItem("karries_access_token");
+  const isFormData = init?.body instanceof FormData;
   const headers = {
-    "Content-Type": "application/json",
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(init?.headers || {})
   };
@@ -60,6 +65,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 
 export const api = {
+  getCurrentUser: () => request<AuthUser>("/api/auth/me"),
   checkRuntime: () => request<Record<string, unknown>>("/api/runtime/check"),
   listAccounts: () => request<AccountView[]>("/api/accounts"),
   createAccount: (payload: AccountCreateRequest) =>
@@ -140,5 +146,38 @@ export const api = {
       `/api/admin/inspiration/sessions${params?.size ? `?${params.toString()}` : ""}`
     ),
   getAdminInspirationSession: (sessionId: number) =>
-    request<InspirationSessionDetail>(`/api/admin/inspiration/sessions/${sessionId}`)
+    request<InspirationSessionDetail>(`/api/admin/inspiration/sessions/${sessionId}`),
+  createViralAnalysisJob: (payload: ViralAnalysisJobCreate) =>
+    request<ViralAnalysisJob>("/api/viral-analysis/jobs", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  listViralAnalysisJobs: (params?: URLSearchParams) =>
+    request<PaginatedResult<ViralAnalysisJob>>(
+      `/api/viral-analysis/jobs${params?.size ? `?${params.toString()}` : ""}`
+    ),
+  getViralAnalysisJob: (jobId: number) => request<ViralAnalysisJob>(`/api/viral-analysis/jobs/${jobId}`),
+  uploadViralAnalysisMaterial: (jobId: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request(`/api/viral-analysis/jobs/${jobId}/upload`, { method: "POST", body });
+  },
+  runViralAnalysisJob: (jobId: number) =>
+    request<ViralAnalysisJob>(`/api/viral-analysis/jobs/${jobId}/run`, { method: "POST" }),
+  cancelViralAnalysisJob: (jobId: number) =>
+    request<ViralAnalysisJob>(`/api/viral-analysis/jobs/${jobId}/cancel`, { method: "POST" }),
+  saveViralAnalysisDraft: (jobId: number) =>
+    request<{ draft_id: number }>(`/api/viral-analysis/jobs/${jobId}/save-draft`, { method: "POST" }),
+  listAdminViralAnalysisJobs: (params?: URLSearchParams) =>
+    request<PaginatedResult<ViralAnalysisJob>>(
+      `/api/admin/viral-analysis/jobs${params?.size ? `?${params.toString()}` : ""}`
+    ),
+  getAdminViralAnalysisJob: (jobId: number) =>
+    request<ViralAnalysisJob>(`/api/admin/viral-analysis/jobs/${jobId}`),
+  listDeveloperViralAnalysisJobs: (params?: URLSearchParams) =>
+    request<PaginatedResult<DeveloperViralAnalysisJob>>(
+      `/api/developer/viral-analysis/jobs${params?.size ? `?${params.toString()}` : ""}`
+    ),
+  getDeveloperViralAnalysisJob: (jobId: number) =>
+    request<DeveloperViralAnalysisJob>(`/api/developer/viral-analysis/jobs/${jobId}`)
 };

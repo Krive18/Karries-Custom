@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Sparkles,
   Scissors,
+  ScanSearch,
   UserRound
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ import type { PageKey, PortalKey } from "../types";
 type AppShellProps = {
   activePage: PageKey;
   activePortal: PortalKey;
+  allowedPortals: PortalKey[];
   onNavigate: (page: PageKey) => void;
   onPortalChange: (portal: PortalKey) => void;
   children: ReactNode;
@@ -34,6 +36,7 @@ const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; i
   user: [
     { key: "create", label: "智能创作", icon: Sparkles },
     { key: "inspiration", label: "灵感对话", icon: Lightbulb },
+    { key: "viralAnalysis", label: "爆款解析", icon: ScanSearch },
     { key: "videoEdit", label: "智能剪辑", icon: Scissors },
     { key: "schedule", label: "定时发布", icon: Clock3 },
     { key: "settings", label: "系统配置", icon: Settings }
@@ -41,11 +44,11 @@ const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; i
   manager: [
     { key: "managerOverview", label: "运营总览", icon: LayoutDashboard },
     { key: "managerInspiration", label: "灵感对话记录", icon: Lightbulb },
+    { key: "managerViralAnalysis", label: "爆款解析记录", icon: ScanSearch },
     { key: "schedule", label: "发布监控", icon: Clock3 }
   ],
   developer: [
-    { key: "developerVideoJobs", label: "剪辑工单", icon: ShieldCheck },
-    { key: "settings", label: "系统配置", icon: Settings }
+    { key: "developerAIJobs", label: "AI 任务排查", icon: ShieldCheck }
   ]
 };
 
@@ -53,6 +56,7 @@ const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; i
 export function AppShell({
   activePage,
   activePortal,
+  allowedPortals,
   onNavigate,
   onPortalChange,
   children
@@ -71,7 +75,7 @@ export function AppShell({
         </div>
 
         <div className="portal-switcher" aria-label="端切换">
-          {portalItems.map((item) => (
+          {portalItems.filter((item) => allowedPortals.includes(item.key)).map((item) => (
             <button
               key={item.key}
               type="button"

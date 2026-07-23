@@ -3,15 +3,19 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api/client";
 import { AppShell } from "./components/AppShell";
 import { DeveloperVideoJobsPage } from "./pages/DeveloperVideoJobsPage";
+import { DeveloperAIJobsPage } from "./pages/DeveloperAIJobsPage";
 import { ManagerOverviewPage } from "./pages/ManagerOverviewPage";
 import { ManagerInspirationPage } from "./pages/ManagerInspirationPage";
 import { InspirationPage } from "./pages/InspirationPage";
+import { ManagerViralAnalysisPage } from "./pages/ManagerViralAnalysisPage";
 import { SmartCreatePage } from "./pages/SmartCreatePage";
 import { PublishTasksPage } from "./pages/PublishTasksPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VideoEditPage } from "./pages/VideoEditPage";
+import { ViralAnalysisPage } from "./pages/ViralAnalysisPage";
 import type {
   AccountView,
+  AuthUser,
   PageKey,
   PortalKey,
   ScheduledTask,
@@ -64,6 +68,7 @@ export function App() {
   const [accounts, setAccounts] = useState<AccountView[]>([]);
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [appError, setAppError] = useState("");
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -82,6 +87,22 @@ export function App() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    let active = true;
+    void api.getCurrentUser().then((user) => {
+      if (active) setAuthUser(user);
+    }).catch((error: unknown) => {
+      if (active) setAppError(error instanceof Error ? error.message : "登录信息加载失败");
+    });
+    return () => { active = false; };
+  }, []);
+
+  const allowedPortals: PortalKey[] = authUser?.user_role === "platform_admin" || authUser?.user_role === "developer_admin"
+    ? ["developer"]
+    : authUser?.user_role === "client_owner" || authUser?.user_role === "client_admin"
+      ? ["user", "manager"]
+      : ["user"];
 
   const handleCreateTask = useCallback(async (payload: TaskCreateRequest) => {
     const createdTask = await api.createTask(payload);
@@ -105,6 +126,7 @@ export function App() {
   }, [accounts]);
 
   const handlePortalChange = useCallback((portal: PortalKey) => {
+    if (!allowedPortals.includes(portal)) return;
     setActivePortal(portal);
     if (portal === "user") {
       setActivePage("create");
@@ -113,7 +135,14 @@ export function App() {
     } else {
       setActivePage("developerVideoJobs");
     }
-  }, []);
+  }, [allowedPortals]);
+
+  useEffect(() => {
+    if (!allowedPortals.includes(activePortal)) {
+      setActivePortal(allowedPortals[0]);
+      setActivePage(allowedPortals[0] === "developer" ? "developerAIJobs" : "create");
+    }
+  }, [activePortal, allowedPortals]);
 
   const page = useMemo(() => {
     if (activePage === "videoEdit") {
@@ -122,14 +151,23 @@ export function App() {
     if (activePage === "inspiration") {
       return <InspirationPage />;
     }
+    if (activePage === "viralAnalysis") {
+      return <ViralAnalysisPage onStartInspiration={() => setActivePage("inspiration")} />;
+    }
     if (activePage === "managerOverview") {
       return <ManagerOverviewPage />;
     }
     if (activePage === "managerInspiration") {
       return <ManagerInspirationPage />;
     }
+    if (activePage === "managerViralAnalysis") {
+      return <ManagerViralAnalysisPage />;
+    }
     if (activePage === "developerVideoJobs") {
       return <DeveloperVideoJobsPage />;
+    }
+    if (activePage === "developerAIJobs") {
+      return <DeveloperAIJobsPage />;
     }
     if (activePage === "schedule") {
       return (
@@ -156,6 +194,7 @@ export function App() {
     <AppShell
       activePage={activePage}
       activePortal={activePortal}
+      allowedPortals={allowedPortals}
       onNavigate={setActivePage}
       onPortalChange={handlePortalChange}
     >

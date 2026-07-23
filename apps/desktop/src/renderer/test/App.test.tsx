@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
-import { api } from "../api/client";
+import { ApiRequestError, api } from "../api/client";
 
 
 vi.mock("../api/client", () => ({
@@ -36,6 +36,18 @@ vi.mock("../api/client", () => ({
     archiveInspirationSession: vi.fn(),
     listAdminInspirationSessions: vi.fn(),
     getAdminInspirationSession: vi.fn()
+    ,getCurrentUser: vi.fn()
+    ,createViralAnalysisJob: vi.fn()
+    ,listViralAnalysisJobs: vi.fn()
+    ,getViralAnalysisJob: vi.fn()
+    ,uploadViralAnalysisMaterial: vi.fn()
+    ,runViralAnalysisJob: vi.fn()
+    ,cancelViralAnalysisJob: vi.fn()
+    ,saveViralAnalysisDraft: vi.fn()
+    ,listAdminViralAnalysisJobs: vi.fn()
+    ,getAdminViralAnalysisJob: vi.fn()
+    ,listDeveloperViralAnalysisJobs: vi.fn()
+    ,getDeveloperViralAnalysisJob: vi.fn()
   }
 }));
 
@@ -186,6 +198,25 @@ const secondInspirationSession = {
   total_credit_cost: 0
 };
 
+const viralResult = {
+  hook_summary: "前三秒抛出护肤痛点", structure_summary: "痛点、使用、对比、引导收藏", shot_rhythm: "每 2 秒切换一个信息点",
+  script_breakdown: "开头展示肤感，中段说明成分，结尾引导收藏", selling_points: "轻薄、不黏、适合通勤",
+  reuse_suggestions: "用真实通勤场景开场，再给出一条可执行的护肤建议", rewritten_script: "通勤前别再厚涂，轻薄防晒这样用。", tags: ["护肤", "通勤"], create_time: 1782570700
+};
+
+const viralJob = {
+  id: 71, tenant_id: 1, user_id: 9, title: "防晒爆款视频拆解", source_type: "text" as const, source_url: "", material_file_id: 0,
+  analysis_goal: ["hook", "structure", "script", "reuse"] as Array<"hook" | "structure" | "script" | "reuse">, supplement_text: "前三秒展示通勤前防晒痛点，中段说明肤感，结尾引导收藏。",
+  status: "completed" as const, credit_cost: 3, create_time: 1782570600, update_time: 1782570700, materials: [], result: viralResult
+};
+
+const developerViralJob = {
+  ...viralJob, ai_provider: "deepseek", ai_model: "deepseek-chat", error_message: "", latest_ai_usage: {
+    id: 201, status: "success" as const, provider: "deepseek", model_name: "deepseek-chat", latency_ms: 810,
+    input_chars: 88, output_chars: 356, credit_cost: 3, error_message: "", create_time: 1782570700
+  }
+};
+
 function deferred<T>() {
   let resolve: (value: T) => void = () => undefined;
   let reject: (reason?: unknown) => void = () => undefined;
@@ -200,6 +231,7 @@ function deferred<T>() {
 beforeEach(() => {
   vi.resetAllMocks();
   delete window.karriesPublisher;
+  mockedApi.getCurrentUser.mockResolvedValue({ id: 9, tenant_id: 1, login_name: "operator", nickname: "运营", user_role: "client_owner", wallet_balance: 30 });
   mockedApi.listAccounts.mockResolvedValue([account]);
   mockedApi.listTasks.mockResolvedValue([]);
   mockedApi.generateImageCopy.mockResolvedValue({
@@ -250,6 +282,17 @@ beforeEach(() => {
     total: 1
   });
   mockedApi.getAdminInspirationSession.mockResolvedValue(inspirationDetail);
+  mockedApi.createViralAnalysisJob.mockResolvedValue(viralJob);
+  mockedApi.listViralAnalysisJobs.mockResolvedValue({ items: [viralJob], page: 1, page_size: 20, total: 1 });
+  mockedApi.getViralAnalysisJob.mockResolvedValue(viralJob);
+  mockedApi.uploadViralAnalysisMaterial.mockResolvedValue({ id: 1 });
+  mockedApi.runViralAnalysisJob.mockResolvedValue(viralJob);
+  mockedApi.cancelViralAnalysisJob.mockResolvedValue({ ...viralJob, status: "cancelled" });
+  mockedApi.saveViralAnalysisDraft.mockResolvedValue({ draft_id: 901 });
+  mockedApi.listAdminViralAnalysisJobs.mockResolvedValue({ items: [viralJob], page: 1, page_size: 20, total: 1 });
+  mockedApi.getAdminViralAnalysisJob.mockResolvedValue(viralJob);
+  mockedApi.listDeveloperViralAnalysisJobs.mockResolvedValue({ items: [developerViralJob], page: 1, page_size: 20, total: 1 });
+  mockedApi.getDeveloperViralAnalysisJob.mockResolvedValue(developerViralJob);
 });
 
 
@@ -289,16 +332,12 @@ describe("KARRIES desktop workspace", () => {
     expect(await screen.findByText("待生成视频")).toBeInTheDocument();
   });
 
-  it("switches between manager and developer portals", async () => {
+  it("opens the manager portal for an authorized manager", async () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /管理端/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     expect(await screen.findByRole("heading", { name: "管理端 · 运营总览" })).toBeInTheDocument();
     expect(await screen.findByText("待处理剪辑")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /开发者端/ }));
-    expect(await screen.findByRole("heading", { name: "开发者端 · 剪辑工单" })).toBeInTheDocument();
-    expect(await screen.findByText("禾一斯小红书种草视频剪辑")).toBeInTheDocument();
   });
 
   it("accepts dropped local material files", () => {
@@ -491,7 +530,7 @@ describe("KARRIES desktop workspace", () => {
     });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /管理端/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     fireEvent.click(screen.getByRole("button", { name: "灵感对话记录" }));
 
     expect(await screen.findByRole("heading", { name: "灵感对话记录" })).toBeInTheDocument();
@@ -631,7 +670,7 @@ describe("KARRIES desktop workspace", () => {
       .mockResolvedValueOnce({ items: [], page: 1, page_size: 20, total: 0 });
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /管理端/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     fireEvent.click(screen.getByRole("button", { name: "灵感对话记录" }));
     await screen.findByText("这里是 AI 返回的运营建议");
     fireEvent.change(screen.getByLabelText("关键词筛选"), { target: { value: "不存在的关键词" } });
@@ -639,5 +678,105 @@ describe("KARRIES desktop workspace", () => {
 
     expect(await screen.findByText(/选择一条会话记录查看完整内容/)).toBeInTheDocument();
     expect(screen.getByText("没有符合筛选条件的会话记录")).toBeInTheDocument();
+  });
+
+  it("hides management and developer navigation from a customer", async () => {
+    mockedApi.getCurrentUser.mockResolvedValue({ id: 9, tenant_id: 1, login_name: "customer", nickname: "员工", user_role: "customer", wallet_balance: 0 });
+    render(<App />);
+    await screen.findByRole("button", { name: "智能创作" });
+    expect(screen.queryByRole("button", { name: /管理端/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /开发者端/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "AI 任务排查" })).not.toBeInTheDocument();
+  });
+
+  it("creates, uploads, and runs a viral analysis task in order", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "爆款解析" }));
+    fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "防晒爆款视频拆解" } });
+    fireEvent.change(screen.getByLabelText("素材来源"), { target: { value: "upload" } });
+    const file = new File(["video"], "reference.mp4", { type: "video/mp4" });
+    fireEvent.change(screen.getByLabelText("上传参考素材"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("补充口播稿或观察笔记"), { target: { value: viralJob.supplement_text } });
+    fireEvent.click(screen.getByRole("button", { name: "创建并开始解析" }));
+    await waitFor(() => expect(mockedApi.createViralAnalysisJob).toHaveBeenCalled());
+    expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenCalledWith(71, file);
+    expect(mockedApi.runViralAnalysisJob).toHaveBeenCalledWith(71);
+    expect(await screen.findByText("前三秒抛出护肤痛点")).toBeInTheDocument();
+  });
+
+  it("blocks a viral run without observation text and maps an upload limit error", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "爆款解析" }));
+    fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "空文本任务" } });
+    fireEvent.click(screen.getByRole("button", { name: "创建并开始解析" }));
+    expect(await screen.findByText(/当前尚未接入视频画面理解/)).toBeInTheDocument();
+    mockedApi.createViralAnalysisJob.mockRejectedValueOnce(new ApiRequestError("too large", "PAYLOAD_TOO_LARGE", 413));
+    fireEvent.change(screen.getByLabelText("补充口播稿或观察笔记"), { target: { value: viralJob.supplement_text } });
+    fireEvent.click(screen.getByRole("button", { name: "创建并开始解析" }));
+    expect(await screen.findByText(/超过 200 MB/)).toBeInTheDocument();
+  });
+
+  it("retries a failed viral task and saves its video draft", async () => {
+    const failed = { ...viralJob, status: "failed" as const, result: null };
+    mockedApi.getViralAnalysisJob.mockResolvedValue(failed);
+    mockedApi.listViralAnalysisJobs.mockResolvedValue({ items: [failed], page: 1, page_size: 20, total: 1 });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "爆款解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
+    await screen.findByRole("button", { name: "重试解析" });
+    fireEvent.click(screen.getByRole("button", { name: "重试解析" }));
+    await waitFor(() => expect(mockedApi.runViralAnalysisJob).toHaveBeenCalledWith(71));
+    mockedApi.getViralAnalysisJob.mockResolvedValue(viralJob);
+    fireEvent.click(screen.getByRole("button", { name: /防晒爆款视频拆解/ }));
+    await screen.findByRole("button", { name: "保存视频草稿" });
+    fireEvent.click(screen.getByRole("button", { name: "保存视频草稿" }));
+    await waitFor(() => expect(mockedApi.saveViralAnalysisDraft).toHaveBeenCalledWith(71));
+  });
+
+  it("creates an inspiration session before navigating from a viral result", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "爆款解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
+    await screen.findByRole("button", { name: "转入灵感对话" });
+    fireEvent.click(screen.getByRole("button", { name: "转入灵感对话" }));
+    await waitFor(() => expect(mockedApi.createInspirationSession).toHaveBeenCalledWith(expect.objectContaining({ goal_type: "script", extra_requirement: viralResult.reuse_suggestions })));
+    expect(await screen.findByRole("heading", { name: "灵感对话" })).toBeInTheDocument();
+  });
+
+  it("uses server-side manager filters for viral analysis", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析记录" }));
+    await screen.findByRole("heading", { name: "爆款解析记录" });
+    fireEvent.change(screen.getByLabelText("关键词"), { target: { value: "防晒" } });
+    fireEvent.click(screen.getByRole("button", { name: "应用筛选" }));
+    await waitFor(() => expect(mockedApi.listAdminViralAnalysisJobs).toHaveBeenLastCalledWith(expect.any(URLSearchParams)));
+    const params = mockedApi.listAdminViralAnalysisJobs.mock.calls.at(-1)?.[0] as URLSearchParams;
+    expect(params.get("keyword")).toBe("防晒");
+  });
+
+  it("sends upload data as FormData without a manually assigned content type", async () => {
+    const realClient = await vi.importActual<typeof import("../api/client")>("../api/client");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ success: true, data: { id: 1 }, error: null }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    window.localStorage.setItem("karries_access_token", "test-token");
+    await realClient.api.uploadViralAnalysisMaterial(71, new File(["video"], "reference.mp4", { type: "video/mp4" }));
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect(new Headers(init?.headers).has("Content-Type")).toBe(false);
+    expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer test-token");
+    fetchMock.mockRestore();
+    window.localStorage.removeItem("karries_access_token");
+  });
+
+  it("shows only the developer AI job portal for a developer role", async () => {
+    mockedApi.getCurrentUser.mockResolvedValue({ id: 1, tenant_id: 0, login_name: "dev", nickname: "开发", user_role: "developer_admin", wallet_balance: 0 });
+    render(<App />);
+    expect(await screen.findByRole("button", { name: /开发者端/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /用户端/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /管理端/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "AI 任务排查" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "AI 任务排查" }));
+    fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
+    expect(await screen.findByText("deepseek-chat")).toBeInTheDocument();
   });
 });

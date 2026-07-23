@@ -3,11 +3,14 @@ export type PortalKey = "user" | "manager" | "developer";
 export type PageKey =
   | "create"
   | "inspiration"
+  | "viralAnalysis"
   | "videoEdit"
   | "schedule"
   | "managerOverview"
   | "managerInspiration"
+  | "managerViralAnalysis"
   | "developerVideoJobs"
+  | "developerAIJobs"
   | "settings";
 
 export type ScheduledTask = {
@@ -242,6 +245,87 @@ export type InspirationMessageResponse = {
   user_message: InspirationMessage;
   assistant_message: InspirationMessage;
   credit_cost: number;
+};
+
+export type AuthUser = {
+  id: number;
+  tenant_id: number;
+  login_name: string;
+  nickname: string;
+  user_role: "customer" | "client_owner" | "client_admin" | "platform_admin" | "developer_admin";
+  wallet_balance: number;
+};
+
+export type ViralAnalysisStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
+export type ViralAnalysisSourceType = "upload" | "link" | "text";
+export type ViralAnalysisGoal = "hook" | "structure" | "rhythm" | "script" | "selling" | "reuse";
+
+export type ViralAnalysisResult = {
+  hook_summary: string;
+  structure_summary: string;
+  shot_rhythm: string;
+  script_breakdown: string;
+  selling_points: string;
+  reuse_suggestions: string;
+  rewritten_script: string;
+  tags: string[];
+  create_time: number;
+};
+
+export type ViralAnalysisMaterial = {
+  id: number;
+  job_id: number;
+  file_name: string;
+  file_type: "image" | "video" | "document" | "other";
+  mime_type: string;
+  file_size: number;
+  create_time: number;
+};
+
+export type ViralAnalysisJob = {
+  id: number;
+  tenant_id: number;
+  user_id: number;
+  title: string;
+  source_type: ViralAnalysisSourceType;
+  source_url: string;
+  material_file_id: number;
+  analysis_goal: ViralAnalysisGoal[];
+  supplement_text: string;
+  status: ViralAnalysisStatus;
+  credit_cost: number;
+  create_time: number;
+  update_time: number;
+  materials?: ViralAnalysisMaterial[];
+  result?: ViralAnalysisResult | null;
+};
+
+export type ViralAnalysisJobCreate = {
+  title: string;
+  source_type: ViralAnalysisSourceType;
+  source_url: string;
+  analysis_goal: ViralAnalysisGoal[];
+  supplement_text: string;
+};
+
+export type DeveloperAIUsage = {
+  id: number;
+  status: "success" | "failed";
+  provider: string;
+  model_name: string;
+  latency_ms: number;
+  input_chars: number;
+  output_chars: number;
+  credit_cost: number;
+  error_message: string;
+  create_time: number;
+};
+
+export type DeveloperViralAnalysisJob = ViralAnalysisJob & {
+  ai_provider: string;
+  ai_model: string;
+  error_message: string;
+  latest_ai_usage: DeveloperAIUsage | null;
 };
 
 export type DesktopBridge = {
