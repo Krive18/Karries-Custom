@@ -10,6 +10,16 @@ def migrate(conn) -> None:
 
 
 def _ensure_tenant_compatibility(cursor) -> None:
+    app_user_role_comment = (
+        "用户角色，customer、client_owner、client_admin、platform_admin 或 developer_admin"
+    )
+    if _column_comment(cursor, "app_user", "user_role") != app_user_role_comment:
+        cursor.execute(
+            "alter table `app_user` modify column user_role varchar(30) not null "
+            "default 'customer' comment %s",
+            (app_user_role_comment,),
+        )
+
     for column_name, definition in (
         (
             "processing_token",

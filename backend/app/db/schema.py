@@ -65,7 +65,7 @@ SCHEMA_STATEMENTS = [
         login_name varchar(100) not null comment '登录账号',
         nickname varchar(100) not null default '' comment '用户昵称',
         password_hash varchar(255) not null comment '密码哈希',
-        user_role varchar(30) not null default 'customer' comment '用户角色，customer 或 platform_admin',
+        user_role varchar(30) not null default 'customer' comment '用户角色，customer、client_owner、client_admin、platform_admin 或 developer_admin',
         status tinyint unsigned not null default 1 comment '状态，1-启用，2-禁用',
         invite_code varchar(64) not null default '' comment '注册使用的邀请码',
         last_login_time bigint unsigned not null default 0 comment '最近登录时间戳',

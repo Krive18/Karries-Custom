@@ -69,6 +69,8 @@ export function App() {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [appError, setAppError] = useState("");
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authState, setAuthState] = useState<"loading" | "ready" | "error">("loading");
+  const [authError, setAuthError] = useState("");
 
   const loadData = useCallback(async () => {
     try {
@@ -85,24 +87,35 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    if (authState !== "ready") return;
     void loadData();
-  }, [loadData]);
+  }, [authState, loadData]);
 
   useEffect(() => {
     let active = true;
     void api.getCurrentUser().then((user) => {
-      if (active) setAuthUser(user);
+      if (active) {
+        setAuthUser(user);
+        setAuthState("ready");
+      }
     }).catch((error: unknown) => {
-      if (active) setAppError(error instanceof Error ? error.message : "登录信息加载失败");
+      if (active) {
+        setAuthError(error instanceof Error ? error.message : "登录信息加载失败");
+        setAuthState("error");
+      }
     });
     return () => { active = false; };
   }, []);
 
-  const allowedPortals: PortalKey[] = authUser?.user_role === "platform_admin" || authUser?.user_role === "developer_admin"
-    ? ["developer"]
-    : authUser?.user_role === "client_owner" || authUser?.user_role === "client_admin"
-      ? ["user", "manager"]
-      : ["user"];
+  const allowedPortals = useMemo<PortalKey[]>(() => {
+    if (authUser?.user_role === "platform_admin" || authUser?.user_role === "developer_admin") {
+      return ["developer"];
+    }
+    if (authUser?.user_role === "client_owner" || authUser?.user_role === "client_admin") {
+      return ["user", "manager"];
+    }
+    return ["user"];
+  }, [authUser?.user_role]);
 
   const handleCreateTask = useCallback(async (payload: TaskCreateRequest) => {
     const createdTask = await api.createTask(payload);
@@ -133,7 +146,7 @@ export function App() {
     } else if (portal === "manager") {
       setActivePage("managerOverview");
     } else {
-      setActivePage("developerVideoJobs");
+      setActivePage("developerAIJobs");
     }
   }, [allowedPortals]);
 
@@ -189,6 +202,14 @@ export function App() {
       />
     );
   }, [accounts, activePage, handleCreateTask, handleSubmitTask, loadData, tasks]);
+
+  if (authState === "loading") {
+    return <main className="auth-gate" role="status">正在验证登录信息...</main>;
+  }
+
+  if (authState === "error") {
+    return <main className="auth-gate auth-gate-error"><h1>无法加载登录信息</h1><p>{authError}</p></main>;
+  }
 
   return (
     <AppShell

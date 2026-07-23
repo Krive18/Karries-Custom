@@ -1304,6 +1304,8 @@ textarea {
 
 /* Viral analysis uses the same compact operational surfaces as inspiration. */
 .viral-user-workspace, .manager-viral-workspace, .developer-ai-workspace { display: grid; grid-template-columns: minmax(320px, .7fr) minmax(420px, 1fr); gap: 16px; max-width: 1400px; }
+.auth-gate { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: #faf6f0; color: #3d2b20; font-weight: 700; text-align: center; }
+.auth-gate-error { align-content: center; gap: 8px; }.auth-gate-error h1, .auth-gate-error p { margin: 0; }
 .viral-create-panel { display: grid; align-content: start; gap: 14px; }
 .viral-detail-panel, .manager-viral-detail, .developer-ai-detail { min-width: 0; min-height: 520px; }
 .viral-file-field { display: grid; gap: 7px; }
@@ -1317,10 +1319,11 @@ textarea {
 .viral-detail-meta { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 14px; border-bottom: 1px solid rgba(93,64,42,.1); }
 .viral-detail-meta strong, .viral-detail-meta span { min-width: 0; overflow-wrap: anywhere; }
 .viral-detail-meta strong { color: #3d2b20; }
+.viral-upload-retry-note { margin: 12px 0 0; color: #8b4e24; font-size: 13px; line-height: 1.5; }
 .viral-status { display: inline-flex; align-items: center; justify-content: center; min-height: 26px; padding: 4px 8px; border-radius: 7px; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .viral-status.pending { color: #806126; background: #fbf0db; }.viral-status.processing { color: #67521a; background: #fff6cf; }.viral-status.completed { color: #2d6f48; background: #e5f3e8; }.viral-status.failed { color: #ad3f32; background: #fdebe8; }.viral-status.cancelled { color: #70655b; background: #eee9e3; }
 .viral-result { display: grid; gap: 11px; align-content: start; padding: 15px 0; }
-.viral-result-section { padding: 12px; border: 1px solid rgba(93,64,42,.1); border-radius: 7px; background: rgba(255,252,247,.75); }
+.viral-result-section { padding: 0 0 12px; border-bottom: 1px solid rgba(93,64,42,.1); }
 .viral-result-section h3 { display: flex; align-items: center; gap: 7px; margin: 0; color: #60411f; font-size: 14px; }.viral-result-section p { margin: 8px 0 0; color: #3d2b20; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; white-space: pre-wrap; }
 .viral-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; color: #806957; }.viral-tags span { padding: 4px 7px; border-radius: 7px; background: #f8f1e8; color: #6d523e; font-size: 12px; font-weight: 700; }
 .viral-result-empty { display: grid; min-height: 200px; place-items: center; }

@@ -901,6 +901,30 @@ def test_migrate_is_idempotent(mysql_conn):
     assert after == before
 
 
+def test_migrate_updates_app_user_role_comment_for_existing_database(mysql_conn):
+    expected_comment = "用户角色，customer、client_owner、client_admin、platform_admin 或 developer_admin"
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "alter table app_user modify column user_role varchar(30) not null "
+            "default 'customer' comment 'legacy role comment'"
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    row = fetch_one(
+        mysql_conn,
+        """
+        select column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'app_user'
+          and column_name = 'user_role'
+        """,
+    )
+    assert row["column_comment"] == expected_comment
+
+
 def test_matrix_publish_status_comments_include_cancelled_status(mysql_conn):
     rows = fetch_all(
         mysql_conn,

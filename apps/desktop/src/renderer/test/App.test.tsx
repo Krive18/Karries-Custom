@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../App";
@@ -295,10 +295,15 @@ beforeEach(() => {
   mockedApi.getDeveloperViralAnalysisJob.mockResolvedValue(developerViralJob);
 });
 
+async function renderAuthenticatedApp() {
+  render(<App />);
+  await screen.findByRole("button", { name: "智能创作" });
+}
+
 
 describe("KARRIES desktop workspace", () => {
-  it("opens on the smart creation workspace with the expected navigation", () => {
-    render(<App />);
+  it("opens on the smart creation workspace with the expected navigation", async () => {
+    await renderAuthenticatedApp();
 
     expect(screen.getByText("KARRIES")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "智能创作" })).toBeInTheDocument();
@@ -312,7 +317,7 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("submits a user video editing work order", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "智能剪辑" }));
     expect(await screen.findByRole("heading", { name: "智能剪辑" })).toBeInTheDocument();
@@ -333,15 +338,15 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("opens the manager portal for an authorized manager", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     expect(await screen.findByRole("heading", { name: "管理端 · 运营总览" })).toBeInTheDocument();
     expect(await screen.findByText("待处理剪辑")).toBeInTheDocument();
   });
 
-  it("accepts dropped local material files", () => {
-    render(<App />);
+  it("accepts dropped local material files", async () => {
+    await renderAuthenticatedApp();
 
     const uploadZone = screen.getByRole("button", { name: /拖入图片或视频到此处/ });
     const imageFile = new File(["image"], "look.png", { type: "image/png" });
@@ -358,7 +363,7 @@ describe("KARRIES desktop workspace", () => {
 
   it("loads existing backend tasks into the scheduled publishing page", async () => {
     mockedApi.listTasks.mockResolvedValue([taskView]);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "定时发布" }));
 
@@ -366,7 +371,7 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("generates copy through the backend ai api", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
     const uploadZone = screen.getByRole("button", { name: /拖入图片或视频到此处/ });
     const imageFile = new File(["image"], "look.png", { type: "image/png" });
 
@@ -391,7 +396,7 @@ describe("KARRIES desktop workspace", () => {
       version: "0.1.0",
       selectMaterials
     };
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "选择图片/视频" }));
 
@@ -408,7 +413,7 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("saves generated copy as a backend publish task", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
     const uploadZone = screen.getByRole("button", { name: /拖入图片或视频到此处/ });
     const imageFile = new File(["image"], "look.png", { type: "image/png" });
 
@@ -433,8 +438,8 @@ describe("KARRIES desktop workspace", () => {
     });
   });
 
-  it("switches to scheduled publishing tasks", () => {
-    render(<App />);
+  it("switches to scheduled publishing tasks", async () => {
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "定时发布" }));
 
@@ -445,7 +450,7 @@ describe("KARRIES desktop workspace", () => {
 
   it("submits a backend task from the task list", async () => {
     mockedApi.listTasks.mockResolvedValue([taskView]);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "定时发布" }));
     await screen.findByText("后端返回任务");
@@ -458,7 +463,7 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("switches to system settings", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "系统配置" }));
 
@@ -470,7 +475,7 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("loads ai settings and saves the vision provider config", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "系统配置" }));
     expect(await screen.findByText("视觉识图 API")).toBeInTheDocument();
@@ -492,7 +497,7 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("creates an inspiration session, sends a message, and saves the assistant reply as a draft", async () => {
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
     expect(await screen.findByRole("heading", { name: "灵感对话" })).toBeInTheDocument();
@@ -528,7 +533,7 @@ describe("KARRIES desktop workspace", () => {
         { ...inspirationDetail.messages[1], content_draft_id: 801 }
       ]
     });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     fireEvent.click(screen.getByRole("button", { name: "灵感对话记录" }));
@@ -554,7 +559,7 @@ describe("KARRIES desktop workspace", () => {
     mockedApi.listInspirationSessions
       .mockResolvedValueOnce({ items: [inspirationSession], page: 1, page_size: 20, total: 21 })
       .mockResolvedValueOnce({ items: [secondInspirationSession], page: 2, page_size: 20, total: 21 });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
     expect(await screen.findByText("第 1 页 / 共 21 条")).toBeInTheDocument();
@@ -571,7 +576,7 @@ describe("KARRIES desktop workspace", () => {
     mockedApi.listInspirationSessions
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(second.promise);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
     fireEvent.click(screen.getByRole("button", { name: "刷新" }));
@@ -590,7 +595,7 @@ describe("KARRIES desktop workspace", () => {
       items: [inspirationSession, secondInspirationSession], page: 1, page_size: 20, total: 2
     });
     mockedApi.getInspirationSession.mockImplementation((sessionId: number) => sessionId === 41 ? first.promise : second.promise);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
     await screen.findByRole("button", { name: /新品种草选题/ });
@@ -608,7 +613,7 @@ describe("KARRIES desktop workspace", () => {
     const reply = deferred<{ user_message: typeof inspirationDetail.messages[number]; assistant_message: typeof inspirationDetail.messages[number]; credit_cost: number }>();
     mockedApi.getInspirationSession.mockResolvedValue(inspirationDetail);
     mockedApi.sendInspirationMessage.mockReturnValue(reply.promise);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
     fireEvent.click(await screen.findByRole("button", { name: /新品种草选题/ }));
@@ -628,7 +633,7 @@ describe("KARRIES desktop workspace", () => {
     });
     mockedApi.getInspirationSession.mockImplementation((sessionId: number) => Promise.resolve(sessionId === 42 ? secondDetail : inspirationDetail));
     mockedApi.sendInspirationMessage.mockReturnValue(reply.promise);
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
     fireEvent.click(await screen.findByRole("button", { name: /新品种草选题/ }));
@@ -649,7 +654,7 @@ describe("KARRIES desktop workspace", () => {
     mockedApi.saveInspirationMessageDraft
       .mockRejectedValueOnce(new Error("草稿保存失败"))
       .mockResolvedValueOnce({ draft_id: 801 });
-    render(<App />);
+    await renderAuthenticatedApp();
 
     fireEvent.click(screen.getByRole("button", { name: "灵感对话" }));
     fireEvent.click(await screen.findByRole("button", { name: /新品种草选题/ }));
@@ -689,6 +694,26 @@ describe("KARRIES desktop workspace", () => {
     expect(screen.queryByRole("button", { name: "AI 任务排查" })).not.toBeInTheDocument();
   });
 
+  it("keeps every portal and business request behind the auth loading gate", async () => {
+    const login = deferred<{ id: number; tenant_id: number; login_name: string; nickname: string; user_role: "developer_admin"; wallet_balance: number }>();
+    mockedApi.getCurrentUser.mockReturnValue(login.promise);
+    render(<App />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("正在验证登录信息");
+    expect(screen.queryByRole("button", { name: /用户端/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /开发者端/ })).not.toBeInTheDocument();
+    expect(mockedApi.listAccounts).not.toHaveBeenCalled();
+    expect(mockedApi.listTasks).not.toHaveBeenCalled();
+
+    await act(async () => {
+      login.resolve({ id: 1, tenant_id: 0, login_name: "developer", nickname: "开发者", user_role: "developer_admin", wallet_balance: 0 });
+      await login.promise;
+    });
+
+    expect(await screen.findByRole("button", { name: /开发者端/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /用户端/ })).not.toBeInTheDocument();
+  });
+
   it("creates, uploads, and runs a viral analysis task in order", async () => {
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "爆款解析" }));
@@ -701,19 +726,76 @@ describe("KARRIES desktop workspace", () => {
     await waitFor(() => expect(mockedApi.createViralAnalysisJob).toHaveBeenCalled());
     expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenCalledWith(71, file);
     expect(mockedApi.runViralAnalysisJob).toHaveBeenCalledWith(71);
+    expect(mockedApi.createViralAnalysisJob.mock.invocationCallOrder[0]).toBeLessThan(mockedApi.uploadViralAnalysisMaterial.mock.invocationCallOrder[0]);
+    expect(mockedApi.uploadViralAnalysisMaterial.mock.invocationCallOrder[0]).toBeLessThan(mockedApi.runViralAnalysisJob.mock.invocationCallOrder[0]);
     expect(await screen.findByText("前三秒抛出护肤痛点")).toBeInTheDocument();
   });
 
-  it("blocks a viral run without observation text and maps an upload limit error", async () => {
+  it("retains the created task and retries an upload that is rejected with 413", async () => {
+    const pending = { ...viralJob, status: "pending" as const, result: null };
+    mockedApi.createViralAnalysisJob.mockResolvedValue(pending);
+    mockedApi.uploadViralAnalysisMaterial
+      .mockRejectedValueOnce(new ApiRequestError("too large", "PAYLOAD_TOO_LARGE", 413))
+      .mockResolvedValueOnce({ id: 1 });
+    await renderAuthenticatedApp();
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
+    fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "上传失败后重试" } });
+    fireEvent.change(screen.getByLabelText("素材来源"), { target: { value: "upload" } });
+    const file = new File(["video"], "retry.mp4", { type: "video/mp4" });
+    fireEvent.change(screen.getByLabelText("上传参考素材"), { target: { files: [file] } });
+    fireEvent.change(screen.getByLabelText("补充口播稿或观察笔记"), { target: { value: viralJob.supplement_text } });
+    fireEvent.click(screen.getByRole("button", { name: "创建并开始解析" }));
+
+    expect(await screen.findByText(/超过 200 MB/)).toBeInTheDocument();
+    expect(mockedApi.runViralAnalysisJob).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "重新上传并继续解析" }));
+
+    await waitFor(() => expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenCalledTimes(2));
+    expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenLastCalledWith(71, file);
+    expect(mockedApi.runViralAnalysisJob).toHaveBeenCalledWith(71);
+  });
+
+  it("only allows pending viral jobs to be cancelled", async () => {
+    const pending = { ...viralJob, status: "pending" as const, result: null };
+    mockedApi.listViralAnalysisJobs.mockResolvedValue({ items: [pending], page: 1, page_size: 20, total: 1 });
+    mockedApi.getViralAnalysisJob.mockResolvedValue(pending);
+    await renderAuthenticatedApp();
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
+    const cancelButton = await screen.findByRole("button", { name: "取消任务" });
+    expect(cancelButton).toBeEnabled();
+    fireEvent.click(cancelButton);
+    await waitFor(() => expect(mockedApi.cancelViralAnalysisJob).toHaveBeenCalledWith(71));
+    expect(screen.getByRole("button", { name: "取消任务" })).toBeDisabled();
+  });
+
+  it("does not let a stale viral detail response replace the selected task", async () => {
+    const first = { ...viralJob, id: 72, title: "旧请求任务", result: { ...viralResult, hook_summary: "旧详情结果" } };
+    const second = { ...viralJob, id: 73, title: "当前任务", result: { ...viralResult, hook_summary: "当前详情结果" } };
+    const firstDetail = deferred<typeof first>();
+    mockedApi.listViralAnalysisJobs.mockResolvedValue({ items: [first, second], page: 1, page_size: 20, total: 2 });
+    mockedApi.getViralAnalysisJob.mockImplementation((jobId: number) => jobId === first.id ? firstDetail.promise : Promise.resolve(second));
+    await renderAuthenticatedApp();
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: /旧请求任务/ }));
+    fireEvent.click(screen.getByRole("button", { name: /当前任务/ }));
+    expect(await screen.findByText("当前详情结果")).toBeInTheDocument();
+
+    await act(async () => {
+      firstDetail.resolve(first);
+      await firstDetail.promise;
+    });
+    expect(screen.getByText("当前详情结果")).toBeInTheDocument();
+    expect(screen.queryByText("旧详情结果")).not.toBeInTheDocument();
+  });
+
+  it("blocks a viral run without observation text", async () => {
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "爆款解析" }));
     fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "空文本任务" } });
     fireEvent.click(screen.getByRole("button", { name: "创建并开始解析" }));
     expect(await screen.findByText(/当前尚未接入视频画面理解/)).toBeInTheDocument();
-    mockedApi.createViralAnalysisJob.mockRejectedValueOnce(new ApiRequestError("too large", "PAYLOAD_TOO_LARGE", 413));
-    fireEvent.change(screen.getByLabelText("补充口播稿或观察笔记"), { target: { value: viralJob.supplement_text } });
-    fireEvent.click(screen.getByRole("button", { name: "创建并开始解析" }));
-    expect(await screen.findByText(/超过 200 MB/)).toBeInTheDocument();
+    expect(mockedApi.createViralAnalysisJob).not.toHaveBeenCalled();
   });
 
   it("retries a failed viral task and saves its video draft", async () => {
@@ -748,11 +830,14 @@ describe("KARRIES desktop workspace", () => {
     fireEvent.click(await screen.findByRole("button", { name: /管理端/ }));
     fireEvent.click(screen.getByRole("button", { name: "爆款解析记录" }));
     await screen.findByRole("heading", { name: "爆款解析记录" });
+    const requestCountBeforeApply = mockedApi.listAdminViralAnalysisJobs.mock.calls.length;
     fireEvent.change(screen.getByLabelText("关键词"), { target: { value: "防晒" } });
     fireEvent.click(screen.getByRole("button", { name: "应用筛选" }));
     await waitFor(() => expect(mockedApi.listAdminViralAnalysisJobs).toHaveBeenLastCalledWith(expect.any(URLSearchParams)));
+    expect(mockedApi.listAdminViralAnalysisJobs).toHaveBeenCalledTimes(requestCountBeforeApply + 1);
     const params = mockedApi.listAdminViralAnalysisJobs.mock.calls.at(-1)?.[0] as URLSearchParams;
     expect(params.get("keyword")).toBe("防晒");
+    expect(params.get("page")).toBe("1");
   });
 
   it("sends upload data as FormData without a manually assigned content type", async () => {
@@ -778,5 +863,25 @@ describe("KARRIES desktop workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "AI 任务排查" }));
     fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
     expect(await screen.findByText("deepseek-chat")).toBeInTheDocument();
+  });
+
+  it("uses one developer request per filter application and keeps filters for paging", async () => {
+    mockedApi.getCurrentUser.mockResolvedValue({ id: 1, tenant_id: 0, login_name: "dev", nickname: "开发", user_role: "developer_admin", wallet_balance: 0 });
+    mockedApi.listDeveloperViralAnalysisJobs.mockResolvedValue({ items: [developerViralJob], page: 1, page_size: 20, total: 21 });
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: /开发者端/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "AI 任务排查" }));
+    await screen.findByRole("heading", { name: "AI 任务排查" });
+    const requestCountBeforeApply = mockedApi.listDeveloperViralAnalysisJobs.mock.calls.length;
+    fireEvent.change(screen.getByLabelText("租户 ID"), { target: { value: "22" } });
+    fireEvent.click(screen.getByRole("button", { name: "应用筛选" }));
+    await waitFor(() => expect(mockedApi.listDeveloperViralAnalysisJobs).toHaveBeenCalledTimes(requestCountBeforeApply + 1));
+    let params = mockedApi.listDeveloperViralAnalysisJobs.mock.calls.at(-1)?.[0] as URLSearchParams;
+    expect(params.get("tenant_id")).toBe("22");
+    fireEvent.click(screen.getByRole("button", { name: "下一页" }));
+    await waitFor(() => expect(mockedApi.listDeveloperViralAnalysisJobs).toHaveBeenCalledTimes(requestCountBeforeApply + 2));
+    params = mockedApi.listDeveloperViralAnalysisJobs.mock.calls.at(-1)?.[0] as URLSearchParams;
+    expect(params.get("page")).toBe("2");
+    expect(params.get("tenant_id")).toBe("22");
   });
 });

@@ -70,15 +70,15 @@ def test_wallet_requires_auth(app_client_without_db):
 
 
 def test_admin_summary_rejects_customer_without_database_connection():
-    from app.api.admin import summary
+    from app.core.dependencies import require_management_user
 
     with pytest.raises(HTTPException) as exc:
-        summary(user={"id": 5, "user_role": "customer"}, conn=object())
+        require_management_user(user={"id": 5, "user_role": "customer"})
 
     assert exc.value.status_code == 403
 
 
-def test_admin_summary_requires_platform_admin(mysql_conn, mysql_app_client):
+def test_admin_summary_requires_management_role(mysql_conn, mysql_app_client):
     headers = auth_headers(mysql_conn, mysql_app_client, suffix="admin-denied")
 
     response = mysql_app_client.get("/api/admin/summary", headers=headers)
@@ -98,3 +98,80 @@ def test_admin_summary_returns_platform_counts(mysql_conn, mysql_app_client):
     assert payload["data"]["total_users"] == 1
     assert payload["data"]["total_xhs_accounts"] == 0
     assert payload["data"]["total_matrix_plans"] == 0
+
+
+def test_admin_summary_scopes_all_counts_to_the_manager_tenant(mysql_conn, mysql_app_client):
+    repository = UserRepository(mysql_conn)
+    manager_id = repository.create_user(
+        login_name="tenant_manager",
+        nickname="Tenant Manager",
+        password_hash="not-used-by-token-auth",
+        user_role="client_owner",
+        invite_code="",
+        tenant_id=20,
+    )
+    tenant_user_id = repository.create_user(
+        login_name="tenant_customer",
+        nickname="Tenant Customer",
+        password_hash="not-used-by-token-auth",
+        user_role="customer",
+        invite_code="",
+        tenant_id=20,
+    )
+    other_user_id = repository.create_user(
+        login_name="other_customer",
+        nickname="Other Customer",
+        password_hash="not-used-by-token-auth",
+        user_role="customer",
+        invite_code="",
+        tenant_id=21,
+    )
+    with mysql_conn.cursor() as cursor:
+        for user_id, suffix in ((tenant_user_id, "tenant"), (other_user_id, "other")):
+            cursor.execute(
+                """
+                insert into xhs_account (
+                    user_id, display_name, account_group, status, daily_limit,
+                    min_interval_minutes, last_publish_time, today_publish_count,
+                    login_state_path, create_time, update_time
+                ) values (%s, %s, '', 1, 1, 360, 0, 0, '', 1, 1)
+                """,
+                (user_id, f"account-{suffix}"),
+            )
+            cursor.execute(
+                """
+                insert into matrix_publish_plan (
+                    user_id, plan_name, source_type, content_type, product_id, status,
+                    schedule_start_time, schedule_end_time, scheduling_rule_json,
+                    create_time, update_time
+                ) values (%s, %s, 'temporary_material', 'video', 0, 1, 0, 0, '{}', 1, 1)
+                """,
+                (user_id, f"plan-{suffix}"),
+            )
+            cursor.execute(
+                """
+                insert into video_edit_job (
+                    user_id, job_title, script_text, requirement_text, material_json, status,
+                    expected_delivery_time, operator_user_id, developer_note, delivery_json,
+                    delivered_time, create_time, update_time
+                ) values (%s, %s, 'script', '', '[]', 1, 2, 0, '', '{}', 0, 1, 1)
+                """,
+                (user_id, f"job-{suffix}"),
+            )
+    mysql_conn.commit()
+    token = create_access_token(
+        {"user_id": manager_id, "role": "client_owner"},
+        mysql_app_client.app.state.config.auth.token_secret,
+        mysql_app_client.app.state.config.auth.access_token_seconds,
+    )
+
+    response = mysql_app_client.get("/api/admin/summary", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "total_users": 1,
+        "total_xhs_accounts": 1,
+        "total_matrix_plans": 1,
+        "total_video_edit_jobs": 1,
+        "pending_video_edit_jobs": 1,
+    }
