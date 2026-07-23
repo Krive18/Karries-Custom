@@ -681,7 +681,11 @@ target_id=job_id
 审计写入通过独立 `AdminAuditRepository.create(...)` 完成，详情使用 JSON 序列化后写入
 `detail_json`，SQL 必须显式字段并参数化；开发者详情读取与审计写入均成功后再提交。
 
-保存草稿使用 `source_type="viral_analysis"`，不重复扣算力。
+保存草稿使用 `source_type="viral_analysis"`，不重复扣算力。把
+`ContentDraftRepository.create_from_ai_text(...)` 向后兼容扩展为可选
+`content_type: Literal["image_text", "video"] = "image_text"` 和 `tags: list[str] | None`；
+爆款解析保存时传入 `content_type="video"`，正文优先使用 `rewritten_script`，标签使用
+结构化结果中的真实 tags。灵感对话现有调用保持默认图文。
 
 - [ ] **Step 7: 运行 GREEN、回归并提交**
 
