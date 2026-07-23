@@ -11,13 +11,10 @@ import type {
   InspirationSessionCreate,
   InspirationSessionDetail,
   AuthUser,
-  DeveloperViralAnalysisJob,
   PaginatedResult,
   TaskCreateRequest,
   TaskView,
-  VideoEditJobClaimRequest,
   VideoEditJobCreate,
-  VideoEditJobDeliverRequest,
   VideoEditJobView,
   ViralAnalysisJob,
   ViralAnalysisJobCreate,
@@ -39,7 +36,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = window.localStorage.getItem("karries_access_token");
   const isFormData = init?.body instanceof FormData;
   const headers = {
@@ -96,18 +93,6 @@ export const api = {
   listVideoEditJobs: () => request<VideoEditJobView[]>("/api/video-edit/jobs"),
   createVideoEditJob: (payload: VideoEditJobCreate) =>
     request<VideoEditJobView>("/api/video-edit/jobs", {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
-  listInternalVideoEditJobs: () =>
-    request<VideoEditJobView[]>("/api/internal/video-edit/jobs"),
-  claimInternalVideoEditJob: (jobId: number, payload: VideoEditJobClaimRequest) =>
-    request<VideoEditJobView>(`/api/internal/video-edit/jobs/${jobId}/claim`, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    }),
-  deliverInternalVideoEditJob: (jobId: number, payload: VideoEditJobDeliverRequest) =>
-    request<VideoEditJobView>(`/api/internal/video-edit/jobs/${jobId}/deliver`, {
       method: "POST",
       body: JSON.stringify(payload)
     }),
@@ -168,11 +153,5 @@ export const api = {
       `/api/admin/viral-analysis/jobs${params?.size ? `?${params.toString()}` : ""}`
     ),
   getAdminViralAnalysisJob: (jobId: number) =>
-    request<ViralAnalysisJob>(`/api/admin/viral-analysis/jobs/${jobId}`),
-  listDeveloperViralAnalysisJobs: (params?: URLSearchParams) =>
-    request<PaginatedResult<DeveloperViralAnalysisJob>>(
-      `/api/developer/viral-analysis/jobs${params?.size ? `?${params.toString()}` : ""}`
-    ),
-  getDeveloperViralAnalysisJob: (jobId: number) =>
-    request<DeveloperViralAnalysisJob>(`/api/developer/viral-analysis/jobs/${jobId}`)
+    request<ViralAnalysisJob>(`/api/admin/viral-analysis/jobs/${jobId}`)
 };

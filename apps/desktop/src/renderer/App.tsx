@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { api } from "./api/client";
 import { AppShell } from "./components/AppShell";
-import { DeveloperVideoJobsPage } from "./pages/DeveloperVideoJobsPage";
-import { DeveloperAIJobsPage } from "./pages/DeveloperAIJobsPage";
 import { ManagerOverviewPage } from "./pages/ManagerOverviewPage";
 import { ManagerInspirationPage } from "./pages/ManagerInspirationPage";
 import { InspirationPage } from "./pages/InspirationPage";
@@ -16,8 +14,8 @@ import { ViralAnalysisPage } from "./pages/ViralAnalysisPage";
 import type {
   AccountView,
   AuthUser,
+  CustomerPortalKey,
   PageKey,
-  PortalKey,
   ScheduledTask,
   TaskCreateRequest,
   TaskView
@@ -65,19 +63,18 @@ function isDeveloperRole(user: AuthUser | null) {
   return user?.user_role === "platform_admin" || user?.user_role === "developer_admin";
 }
 
-function allowedPortalsFor(user: AuthUser | null): PortalKey[] {
-  if (isDeveloperRole(user)) return ["developer"];
+function allowedPortalsFor(user: AuthUser | null): CustomerPortalKey[] {
   if (user?.user_role === "client_owner" || user?.user_role === "client_admin") return ["user", "manager"];
   return ["user"];
 }
 
-function initialPageFor(portal: PortalKey): PageKey {
-  return portal === "developer" ? "developerAIJobs" : portal === "manager" ? "managerOverview" : "create";
+function initialPageFor(portal: CustomerPortalKey): PageKey {
+  return portal === "manager" ? "managerOverview" : "create";
 }
 
 
 export function App() {
-  const [activePortal, setActivePortal] = useState<PortalKey>("user");
+  const [activePortal, setActivePortal] = useState<CustomerPortalKey>("user");
   const [activePage, setActivePage] = useState<PageKey>("create");
   const [accounts, setAccounts] = useState<AccountView[]>([]);
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
@@ -109,6 +106,11 @@ export function App() {
     let active = true;
     void api.getCurrentUser().then((user) => {
       if (active) {
+        if (isDeveloperRole(user)) {
+          setAuthError("该账号仅可通过开发者专用入口登录");
+          setAuthState("error");
+          return;
+        }
         const initialPortal = allowedPortalsFor(user)[0];
         setAuthUser(user);
         setActivePortal(initialPortal);
@@ -124,7 +126,7 @@ export function App() {
     return () => { active = false; };
   }, []);
 
-  const allowedPortals = useMemo<PortalKey[]>(() => allowedPortalsFor(authUser), [authUser]);
+  const allowedPortals = useMemo<CustomerPortalKey[]>(() => allowedPortalsFor(authUser), [authUser]);
 
   const handleCreateTask = useCallback(async (payload: TaskCreateRequest) => {
     const createdTask = await api.createTask(payload);
@@ -147,15 +149,13 @@ export function App() {
     );
   }, [accounts]);
 
-  const handlePortalChange = useCallback((portal: PortalKey) => {
+  const handlePortalChange = useCallback((portal: CustomerPortalKey) => {
     if (!allowedPortals.includes(portal)) return;
     setActivePortal(portal);
     if (portal === "user") {
       setActivePage("create");
     } else if (portal === "manager") {
       setActivePage("managerOverview");
-    } else {
-      setActivePage("developerAIJobs");
     }
   }, [allowedPortals]);
 
@@ -184,12 +184,6 @@ export function App() {
     }
     if (activePage === "managerViralAnalysis") {
       return <ManagerViralAnalysisPage />;
-    }
-    if (activePage === "developerVideoJobs") {
-      return <DeveloperVideoJobsPage />;
-    }
-    if (activePage === "developerAIJobs") {
-      return <DeveloperAIJobsPage />;
     }
     if (activePage === "schedule") {
       return (

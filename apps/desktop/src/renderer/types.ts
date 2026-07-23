@@ -1,4 +1,5 @@
 export type PortalKey = "user" | "manager" | "developer";
+export type CustomerPortalKey = Exclude<PortalKey, "developer">;
 
 export type PageKey =
   | "create"

@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Lightbulb,
   Settings,
-  ShieldCheck,
   Sparkles,
   Scissors,
   ScanSearch,
@@ -14,25 +13,24 @@ import {
 } from "lucide-react";
 
 import { brandAssets } from "../assets";
-import type { PageKey, PortalKey } from "../types";
+import type { CustomerPortalKey, PageKey } from "../types";
 
 
 type AppShellProps = {
   activePage: PageKey;
-  activePortal: PortalKey;
-  allowedPortals: PortalKey[];
+  activePortal: CustomerPortalKey;
+  allowedPortals: CustomerPortalKey[];
   onNavigate: (page: PageKey) => void;
-  onPortalChange: (portal: PortalKey) => void;
+  onPortalChange: (portal: CustomerPortalKey) => void;
   children: ReactNode;
 };
 
-const portalItems: Array<{ key: PortalKey; label: string; description: string }> = [
+const portalItems: Array<{ key: CustomerPortalKey; label: string; description: string }> = [
   { key: "user", label: "用户端", description: "禾一斯员工" },
-  { key: "manager", label: "管理端", description: "老板/管理层" },
-  { key: "developer", label: "开发者端", description: "内部隐藏" }
+  { key: "manager", label: "管理端", description: "老板/管理层" }
 ];
 
-const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; icon: typeof Sparkles }>> = {
+const navItemsByPortal: Record<CustomerPortalKey, Array<{ key: PageKey; label: string; icon: typeof Sparkles }>> = {
   user: [
     { key: "create", label: "智能创作", icon: Sparkles },
     { key: "inspiration", label: "灵感对话", icon: Lightbulb },
@@ -46,9 +44,6 @@ const navItemsByPortal: Record<PortalKey, Array<{ key: PageKey; label: string; i
     { key: "managerInspiration", label: "灵感对话记录", icon: Lightbulb },
     { key: "managerViralAnalysis", label: "爆款解析记录", icon: ScanSearch },
     { key: "schedule", label: "发布监控", icon: Clock3 }
-  ],
-  developer: [
-    { key: "developerAIJobs", label: "AI 任务排查", icon: ShieldCheck }
   ]
 };
 

@@ -23,9 +23,6 @@ vi.mock("../api/client", () => ({
     createXHSAccount: vi.fn(),
     listVideoEditJobs: vi.fn(),
     createVideoEditJob: vi.fn(),
-    listInternalVideoEditJobs: vi.fn(),
-    claimInternalVideoEditJob: vi.fn(),
-    deliverInternalVideoEditJob: vi.fn(),
     getAdminSummary: vi.fn(),
     listInspirationSessions: vi.fn(),
     createInspirationSession: vi.fn(),
@@ -45,8 +42,6 @@ vi.mock("../api/client", () => ({
     ,saveViralAnalysisDraft: vi.fn()
     ,listAdminViralAnalysisJobs: vi.fn()
     ,getAdminViralAnalysisJob: vi.fn()
-    ,listDeveloperViralAnalysisJobs: vi.fn()
-    ,getDeveloperViralAnalysisJob: vi.fn()
   }
 }));
 
@@ -253,9 +248,6 @@ beforeEach(() => {
   mockedApi.createXHSAccount.mockResolvedValue(xhsAccount);
   mockedApi.listVideoEditJobs.mockResolvedValue([]);
   mockedApi.createVideoEditJob.mockResolvedValue(videoEditJob);
-  mockedApi.listInternalVideoEditJobs.mockResolvedValue([videoEditJob]);
-  mockedApi.claimInternalVideoEditJob.mockResolvedValue({ ...videoEditJob, status: 2, status_name: "in_production", status_text: "智能剪辑生成中" });
-  mockedApi.deliverInternalVideoEditJob.mockResolvedValue({ ...videoEditJob, status: 3, status_name: "delivered", status_text: "视频已生成" });
   mockedApi.getAdminSummary.mockResolvedValue({
     total_users: 2,
     total_xhs_accounts: 20,
@@ -297,8 +289,6 @@ beforeEach(() => {
   mockedApi.saveViralAnalysisDraft.mockResolvedValue({ draft_id: 901 });
   mockedApi.listAdminViralAnalysisJobs.mockResolvedValue({ items: [viralJob], page: 1, page_size: 20, total: 1 });
   mockedApi.getAdminViralAnalysisJob.mockResolvedValue(viralJob);
-  mockedApi.listDeveloperViralAnalysisJobs.mockResolvedValue({ items: [developerViralJob], page: 1, page_size: 20, total: 1 });
-  mockedApi.getDeveloperViralAnalysisJob.mockResolvedValue(developerViralJob);
 });
 
 async function renderAuthenticatedApp() {
@@ -719,7 +709,8 @@ describe("KARRIES desktop workspace", () => {
       await login.promise;
     });
 
-    expect(await screen.findByRole("button", { name: /开发者端/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "无法加载登录信息" })).toBeInTheDocument();
+    expect(screen.getByText("该账号仅可通过开发者专用入口登录")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /用户端/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "素材智能解析" })).not.toBeInTheDocument();
     expect(mockedApi.listAccounts).not.toHaveBeenCalled();
@@ -907,37 +898,11 @@ describe("KARRIES desktop workspace", () => {
     window.localStorage.removeItem("karries_access_token");
   });
 
-  it("shows only the developer AI job portal for a developer role", async () => {
+  it("does not expose the developer portal in the customer application", async () => {
     mockedApi.getCurrentUser.mockResolvedValue({ id: 1, tenant_id: 0, login_name: "dev", nickname: "开发", user_role: "developer_admin", wallet_balance: 0 });
     render(<App />);
-    expect(await screen.findByRole("button", { name: /开发者端/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /用户端/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /管理端/ })).not.toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: "AI 任务排查" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "AI 任务排查" }));
-    expect(await screen.findByText("已完成", { selector: ".viral-status" })).toBeInTheDocument();
-    expect(screen.queryByText("completed")).not.toBeInTheDocument();
-    fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
-    expect(await screen.findByText("deepseek-chat")).toBeInTheDocument();
-  });
-
-  it("uses one developer request per filter application and keeps filters for paging", async () => {
-    mockedApi.getCurrentUser.mockResolvedValue({ id: 1, tenant_id: 0, login_name: "dev", nickname: "开发", user_role: "developer_admin", wallet_balance: 0 });
-    mockedApi.listDeveloperViralAnalysisJobs.mockResolvedValue({ items: [developerViralJob], page: 1, page_size: 20, total: 21 });
-    render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: /开发者端/ }));
-    fireEvent.click(await screen.findByRole("button", { name: "AI 任务排查" }));
-    await screen.findByRole("heading", { name: "AI 任务排查" });
-    const requestCountBeforeApply = mockedApi.listDeveloperViralAnalysisJobs.mock.calls.length;
-    fireEvent.change(screen.getByLabelText("租户 ID"), { target: { value: "22" } });
-    fireEvent.click(screen.getByRole("button", { name: "应用筛选" }));
-    await waitFor(() => expect(mockedApi.listDeveloperViralAnalysisJobs).toHaveBeenCalledTimes(requestCountBeforeApply + 1));
-    let params = mockedApi.listDeveloperViralAnalysisJobs.mock.calls.at(-1)?.[0] as URLSearchParams;
-    expect(params.get("tenant_id")).toBe("22");
-    fireEvent.click(screen.getByRole("button", { name: "下一页" }));
-    await waitFor(() => expect(mockedApi.listDeveloperViralAnalysisJobs).toHaveBeenCalledTimes(requestCountBeforeApply + 2));
-    params = mockedApi.listDeveloperViralAnalysisJobs.mock.calls.at(-1)?.[0] as URLSearchParams;
-    expect(params.get("page")).toBe("2");
-    expect(params.get("tenant_id")).toBe("22");
+    expect(await screen.findByRole("heading", { name: "无法加载登录信息" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /开发者端/ })).not.toBeInTheDocument();
+    expect(screen.queryByText("/api/developer/viral-analysis/jobs")).not.toBeInTheDocument();
   });
 });

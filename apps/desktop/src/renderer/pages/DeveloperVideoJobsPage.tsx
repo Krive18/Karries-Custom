@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, PackageOpen, PlayCircle } from "lucide-react";
 
-import { api } from "../api/client";
+import { developerApi } from "../api/developerClient";
 import type { VideoEditJobView } from "../types";
 
 
@@ -26,7 +26,7 @@ export function DeveloperVideoJobsPage() {
 
   async function loadJobs() {
     try {
-      setJobs(await api.listInternalVideoEditJobs());
+      setJobs(await developerApi.listVideoEditJobs());
       setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "开发者工单加载失败");
@@ -40,7 +40,7 @@ export function DeveloperVideoJobsPage() {
   async function claimJob(job: VideoEditJobView) {
     setBusyJobId(job.id);
     try {
-      const updated = await api.claimInternalVideoEditJob(job.id, {
+      const updated = await developerApi.claimVideoEditJob(job.id, {
         note: "已进入内部剪辑排期"
       });
       setJobs((current) => current.map((item) => item.id === job.id ? updated : item));
@@ -55,7 +55,7 @@ export function DeveloperVideoJobsPage() {
   async function deliverJob(job: VideoEditJobView) {
     setBusyJobId(job.id);
     try {
-      const updated = await api.deliverInternalVideoEditJob(job.id, {
+      const updated = await developerApi.deliverVideoEditJob(job.id, {
         delivery_file_name: `${job.job_title}-成片.mp4`,
         delivery_file_path: `/deliveries/video-edit-${job.id}.mp4`,
         delivery_url: "",
