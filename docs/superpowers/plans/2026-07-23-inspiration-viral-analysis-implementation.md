@@ -447,6 +447,11 @@ git commit -m "feat: add inspiration conversation workflow"
 ### Task 4: 灵感对话用户端与管理端页面
 
 **Files:**
+- Modify: `backend/app/api/admin_inspiration.py`
+- Modify: `backend/app/repositories/content_draft_repository.py`
+- Modify: `backend/app/repositories/inspiration_repository.py`
+- Modify: `backend/app/services/inspiration_service.py`
+- Modify: `backend/tests/test_inspiration_api.py`
 - Modify: `apps/desktop/src/renderer/types.ts`
 - Modify: `apps/desktop/src/renderer/api/client.ts`
 - Modify: `apps/desktop/src/renderer/components/AppShell.tsx`
@@ -503,19 +508,31 @@ listAdminInspirationSessions(params?: URLSearchParams)
 getAdminInspirationSession(sessionId)
 ```
 
+管理列表 API 增加可选 `user_id`、`start_time`、`end_time`、`product_id` 和
+`keyword` 参数，并在 MySQL 中按当前 `tenant_id` 服务端筛选和分页。关键词匹配会话
+标题、补充要求或消息正文，所有值参数化绑定。详情中的每条消息增加
+`content_draft_id`，由 `content_draft_source` 真实映射返回；未保存时为 0。用户保存
+草稿成功后立即用响应中的 draft ID 更新消息状态。
+
 - [ ] **Step 4: 实现用户端页面**
 
 页面采用三列工作布局：固定宽度会话列表、可伸缩消息区、固定宽度上下文区；窄屏时改为单列。必须有：
 
 - 会话加载骨架、空状态、错误重试。
 - 新建会话、选择会话、发送消息、归档。
+- 会话列表提供上一页/下一页与“第 N 页 / 共 M 条”状态，超过 20 条时仍可访问。
 - 发送中禁用输入和按钮。
 - assistant 消息的“保存为内容草稿”按钮和成功反馈。
 - 页面可见“本次预计消耗 1 算力”，不显示 Provider 名称和 Key。
+- 列表、详情与发送请求使用请求序号或 `AbortController` 防止旧响应覆盖当前选择；
+  发送中禁止当前会话归档，切换后旧发送响应不得强制跳回旧会话。
 
 - [ ] **Step 5: 实现管理端只读页面**
 
-提供员工、时间、产品、关键词筛选；列表和详情分栏；详情显示完整消息、总算力和是否已转草稿，不提供编辑按钮。
+提供员工、时间、产品、关键词服务端筛选与分页；列表和详情分栏；筛选后若当前详情
+不在结果中必须清空或切换到首条；详情显示完整消息、总算力和真实
+`content_draft_id` 状态，不提供编辑按钮。新增测试覆盖请求乱序、发送时归档、API
+错误恢复、重复保存、分页和筛选后详情清理。
 
 - [ ] **Step 6: 运行 GREEN、构建并提交**
 
@@ -524,7 +541,9 @@ cd apps\desktop
 npm.cmd test -- --run
 npm.cmd run typecheck
 npm.cmd run build
-git add src/renderer/types.ts src/renderer/api/client.ts src/renderer/components/AppShell.tsx src/renderer/App.tsx src/renderer/pages/InspirationPage.tsx src/renderer/pages/ManagerInspirationPage.tsx src/renderer/components/inspiration/InspirationContextPanel.tsx src/renderer/components/inspiration/InspirationMessages.tsx src/renderer/styles.css src/renderer/test/App.test.tsx
+cd ..\..
+.\.venv\Scripts\python.exe -m pytest backend\tests\test_inspiration_api.py -q
+git add backend/app/api/admin_inspiration.py backend/app/repositories/content_draft_repository.py backend/app/repositories/inspiration_repository.py backend/app/services/inspiration_service.py backend/tests/test_inspiration_api.py apps/desktop/src/renderer/types.ts apps/desktop/src/renderer/api/client.ts apps/desktop/src/renderer/components/AppShell.tsx apps/desktop/src/renderer/App.tsx apps/desktop/src/renderer/pages/InspirationPage.tsx apps/desktop/src/renderer/pages/ManagerInspirationPage.tsx apps/desktop/src/renderer/components/inspiration/InspirationContextPanel.tsx apps/desktop/src/renderer/components/inspiration/InspirationMessages.tsx apps/desktop/src/renderer/styles.css apps/desktop/src/renderer/test/App.test.tsx
 git commit -m "feat: add inspiration user and manager pages"
 ```
 
