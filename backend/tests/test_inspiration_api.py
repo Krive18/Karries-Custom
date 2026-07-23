@@ -4,7 +4,7 @@ import time
 import pymysql
 import pytest
 
-from app.core.security import create_access_token
+from app.core.security import create_access_token, verify_access_token
 from app.integrations.deepseek import TextGenerationResult
 from app.repositories.inspiration_repository import (
     InspirationRepository,
@@ -36,7 +36,9 @@ def auth_headers(mysql_conn, mysql_app_client, suffix: str, tenant_id: int = 1) 
     return {"Authorization": f"Bearer {response.json()['data']['access_token']}"}
 
 
-def management_headers(mysql_conn, suffix: str, tenant_id: int) -> dict[str, str]:
+def management_headers(
+    mysql_conn, mysql_app_client, suffix: str, tenant_id: int
+) -> dict[str, str]:
     user_id = UserRepository(mysql_conn).create_user(
         login_name=f"inspiration_admin_{suffix}",
         nickname="Inspiration Admin",
@@ -46,11 +48,44 @@ def management_headers(mysql_conn, suffix: str, tenant_id: int) -> dict[str, str
         tenant_id=tenant_id,
     )
     token = create_access_token(
-        {"user_id": user_id, "role": "client_admin"},
-        "dev-secret",
-        3600,
+        {"user_id": user_id, "tenant_id": tenant_id, "role": "client_admin"},
+        mysql_app_client.app.state.config.auth.token_secret,
+        mysql_app_client.app.state.config.auth.access_token_seconds,
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+def test_management_headers_uses_application_auth_configuration(monkeypatch):
+    created = {}
+
+    def create_user(_self, **kwargs):
+        created.update(kwargs)
+        return 33
+
+    monkeypatch.setattr(UserRepository, "create_user", create_user)
+    app_client = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                config=SimpleNamespace(
+                    auth=SimpleNamespace(
+                        token_secret="inspiration-test-secret",
+                        access_token_seconds=3600,
+                    )
+                )
+            )
+        )
+    )
+
+    headers = management_headers(object(), app_client, "auth", tenant_id=7)
+    payload = verify_access_token(
+        headers["Authorization"].removeprefix("Bearer "),
+        app_client.app.state.config.auth.token_secret,
+    )
+
+    assert created["tenant_id"] == 7
+    assert payload["user_id"] == 33
+    assert payload["tenant_id"] == 7
+    assert payload["role"] == "client_admin"
 
 
 def create_session(mysql_app_client, headers: dict[str, str]) -> int:
@@ -159,8 +194,12 @@ def test_management_can_read_own_tenant_complete_session_but_not_other_tenant(
         headers=employee_headers,
         json={"content": "Give me five topic ideas"},
     )
-    same_tenant_admin = management_headers(mysql_conn, "same", tenant_id=7)
-    other_tenant_admin = management_headers(mysql_conn, "other", tenant_id=8)
+    same_tenant_admin = management_headers(
+        mysql_conn, mysql_app_client, "same", tenant_id=7
+    )
+    other_tenant_admin = management_headers(
+        mysql_conn, mysql_app_client, "other", tenant_id=8
+    )
 
     response = mysql_app_client.get(
         f"/api/admin/inspiration/sessions/{session_id}", headers=same_tenant_admin
