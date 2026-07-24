@@ -3,6 +3,7 @@ import json
 import pytest
 
 from app.integrations.deepseek import TextGenerationResult
+from app.core.secret_cipher import encrypt_secret
 from app.repositories.ai_usage_repository import AIUsageRepository
 from app.services.ai_provider_service import AIProviderError, AIProviderService
 from app.services.ai_usage_service import AIUsageService
@@ -11,7 +12,10 @@ from app.services.credit_charge_service import CreditChargeService
 
 class FakeSettingRepository:
     def __init__(self, values=None):
-        self.values = values or {}
+        self.values = dict(values or {})
+        for key, value in tuple(self.values.items()):
+            if key.endswith(".api_key") and value:
+                self.values[key] = encrypt_secret(value)
 
     def get(self, key, default=""):
         return self.values.get(key, default)

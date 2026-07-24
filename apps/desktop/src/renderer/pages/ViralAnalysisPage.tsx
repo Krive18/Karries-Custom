@@ -34,6 +34,12 @@ function explainError(error: unknown) {
 }
 
 function toParams(page: number) { return new URLSearchParams({ page: String(page), page_size: String(pageSize) }); }
+function needsMaterialUpload(job: ViralAnalysisJob) {
+  return job.source_type === "upload"
+    && Array.isArray(job.materials)
+    && job.materials.length === 0
+    && ["pending", "failed"].includes(job.status);
+}
 type ViralAnalysisPageProps = { onStartInspiration: () => void };
 
 export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps) {
@@ -41,7 +47,7 @@ export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps
   const [detail, setDetail] = useState<ViralAnalysisJob | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [page, setPage] = useState(1); const [total, setTotal] = useState(0); const [isLoading, setIsLoading] = useState(true);
-  const [operation, setOperation] = useState<ActiveOperation>(null); const [pendingUploadJobId, setPendingUploadJobId] = useState<number | null>(null);
+  const [operation, setOperation] = useState<ActiveOperation>(null);
   const [message, setMessage] = useState(""); const [title, setTitle] = useState("");
   const [sourceType, setSourceType] = useState<ViralAnalysisSourceType>("text"); const [sourceUrl, setSourceUrl] = useState("");
   const [supplementText, setSupplementText] = useState(""); const [goals, setGoals] = useState<ViralAnalysisGoal[]>(["hook", "structure", "script", "reuse"]);
@@ -77,7 +83,7 @@ export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps
 
   const selectJob = useCallback(async (jobId: number) => {
     if (isBusy) return;
-    const requestId = ++detailRequest.current; selectedId.current = jobId; setDetail(null); setDetailLoading(true); setPendingUploadJobId(null);
+    const requestId = ++detailRequest.current; selectedId.current = jobId; setDetail(null); setDetailLoading(true); setFile(null);
     try {
       const job = await api.getViralAnalysisJob(jobId);
       if (requestId === detailRequest.current && selectedId.current === jobId) { setDetail(job); setDetailLoading(false); setMessage(""); }
@@ -88,21 +94,20 @@ export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps
     setOperation({ phase: "running", jobId: created.id });
     const completed = await api.runViralAnalysisJob(created.id);
     writeSelectedDetail(completed);
-    setPendingUploadJobId(null);
     return completed;
   }
 
-  async function uploadAndRun(created: ViralAnalysisJob, uploadFile: File) {
+  async function uploadMaterial(created: ViralAnalysisJob, uploadFile: File) {
     setOperation({ phase: "uploading", jobId: created.id });
     try {
-      await api.uploadViralAnalysisMaterial(created.id, uploadFile);
-      setPendingUploadJobId(null);
+      const uploadedMaterial = await api.uploadViralAnalysisMaterial(created.id, uploadFile);
+      const uploadedJob = { ...created, materials: [uploadedMaterial] };
+      writeSelectedDetail(uploadedJob);
+      return uploadedJob;
     } catch (error) {
-      setPendingUploadJobId(created.id);
       writeSelectedDetail(created);
       throw error;
     }
-    return runCreatedJob(created);
   }
 
   async function createAndRun() {
@@ -115,17 +120,28 @@ export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps
     try {
       const created = await api.createViralAnalysisJob({ title: title.trim(), source_type: sourceType, source_url: sourceUrl.trim(), analysis_goal: goals, supplement_text: supplementText.trim() });
       selectedId.current = created.id; ++detailRequest.current; setDetail(created); setDetailLoading(false);
-      latestDetail = sourceType === "upload" && file ? await uploadAndRun(created, file) : await runCreatedJob(created);
+      latestDetail = created;
+      let runnableJob = created;
+      if (sourceType === "upload" && file) {
+        runnableJob = await uploadMaterial(created, file);
+        latestDetail = runnableJob;
+      }
+      latestDetail = await runCreatedJob(runnableJob);
       setTitle(""); setSourceUrl(""); setSupplementText(""); setFile(null); setMessage("解析任务已完成，可查看结构化结果。");
     } catch (error) { setMessage(explainError(error)); }
     finally { setOperation(null); await loadJobs(1, latestDetail); }
   }
 
   async function retryUpload() {
-    if (!detail || pendingUploadJobId !== detail.id || !file || isBusy) return;
+    if (!detail || !needsMaterialUpload(detail) || !file || isBusy) return;
     setOperation({ phase: "uploading", jobId: detail.id });
     let latestDetail: ViralAnalysisJob | undefined;
-    try { latestDetail = await uploadAndRun(detail, file); setMessage("素材上传并解析完成。"); }
+    try {
+      const uploadedJob = await uploadMaterial(detail, file);
+      latestDetail = uploadedJob;
+      latestDetail = await runCreatedJob(uploadedJob);
+      setMessage("素材上传并解析完成。");
+    }
     catch (error) { setMessage(explainError(error)); }
     finally { setOperation(null); await loadJobs(page, latestDetail); }
   }
@@ -167,6 +183,7 @@ export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const phase = operation?.phase;
+  const detailNeedsMaterial = detail ? needsMaterialUpload(detail) : false;
   return <section className="page-stack viral-page">
     <div className="page-heading horizontal-heading"><div><h1>爆款解析</h1><p>基于补充的口播稿与观察笔记，拆解内容结构并生成可复用脚本建议。</p></div><button className="secondary-button compact" type="button" disabled={isBusy} onClick={() => void loadJobs(page)}><RefreshCw size={16} />刷新任务</button></div>
     {phase ? <div className="form-message" role="status">{phaseText(phase)}</div> : null}
@@ -179,7 +196,7 @@ export function ViralAnalysisPage({ onStartInspiration }: ViralAnalysisPageProps
       <label>补充口播稿或观察笔记<textarea aria-label="补充口播稿或观察笔记" disabled={isBusy} value={supplementText} onChange={(event) => setSupplementText(event.target.value)} placeholder="请说明你观察到的开头、内容节奏、卖点与结尾引导。当前还未接入视频画面理解。" /></label>
       <button className="primary-button" type="button" disabled={isBusy} onClick={() => void createAndRun()}>{phase === "creating" || phase === "uploading" || phase === "running" ? <Loader2 size={16} className="spin" /> : <Play size={16} />}{phase ? phaseText(phase) : "创建并开始解析"}</button>
     </section>
-    <section className="panel viral-detail-panel"><div className="panel-title"><h2>解析结果</h2>{detail ? <span className={`viral-status ${detail.status}`}>{statusText(detail.status)}</span> : null}</div>{detailLoading ? <div className="empty-list-state" role="status">正在加载任务详情</div> : detail ? <><div className="viral-detail-meta"><strong>{detail.title}</strong><span>{detail.source_type === "upload" ? "本地素材" : detail.source_type === "link" ? "视频链接" : "文本观察"}</span><span>{detail.materials?.length ?? 0} 份素材</span></div>{pendingUploadJobId === detail.id ? <p className="viral-upload-retry-note">素材上传未完成，已保留该任务；重新上传后会继续解析。</p> : null}<ViralAnalysisResult result={detail.result} emptyText={detail.status === "processing" ? "任务正在解析中，请勿重复提交。" : "任务尚未生成解析结果。"} /><div className="primary-row">{pendingUploadJobId === detail.id ? <button className="primary-button" type="button" disabled={isBusy || !file} onClick={() => void retryUpload()}>{phase === "uploading" ? <Loader2 size={16} className="spin" /> : <Play size={16} />}重新上传并继续解析</button> : null}<button className="secondary-button" type="button" disabled={isBusy || !["pending", "failed"].includes(detail.status) || pendingUploadJobId === detail.id} onClick={() => void retry(detail)}><Play size={16} />{detail.status === "failed" ? "重试解析" : "开始解析"}</button><button className="quiet-danger" type="button" disabled={isBusy || detail.status !== "pending"} onClick={() => void cancel(detail)}><CircleStop size={16} />取消任务</button>{detail.status === "completed" ? <><button className="secondary-button" type="button" disabled={isBusy} onClick={() => void saveDraft(detail)}><Save size={16} />保存视频草稿</button><button className="secondary-button" type="button" disabled={isBusy} onClick={() => void startInspiration(detail)}><Lightbulb size={16} />转入灵感对话</button></> : null}</div></> : <div className="empty-list-state">从下方任务列表选择一项查看详情。</div>}</section></div>
+    <section className="panel viral-detail-panel"><div className="panel-title"><h2>解析结果</h2>{detail ? <span className={`viral-status ${detail.status}`}>{statusText(detail.status)}</span> : null}</div>{detailLoading ? <div className="empty-list-state" role="status">正在加载任务详情</div> : detail ? <><div className="viral-detail-meta"><strong>{detail.title}</strong><span>{detail.source_type === "upload" ? "本地素材" : detail.source_type === "link" ? "视频链接" : "文本观察"}</span><span>{detail.materials?.length ?? 0} 份素材</span></div>{detailNeedsMaterial ? <><p className="viral-upload-retry-note">该任务还没有可解析的素材，请重新选择文件；上传完成后会继续解析。</p><label className="viral-file-field">重新选择解析素材<input aria-label="重新选择解析素材" disabled={isBusy} type="file" accept={uploadAccept} onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><span>{file ? file.name : "请选择原任务对应的图片或视频"}</span></label></> : null}<ViralAnalysisResult result={detail.result} emptyText={detail.status === "processing" ? "任务正在解析中，请勿重复提交。" : "任务尚未生成解析结果。"} /><div className="primary-row">{detailNeedsMaterial ? <button className="primary-button" type="button" disabled={isBusy || !file} onClick={() => void retryUpload()}>{phase === "uploading" ? <Loader2 size={16} className="spin" /> : <Play size={16} />}重新上传并继续解析</button> : null}<button className="secondary-button" type="button" disabled={isBusy || !["pending", "failed"].includes(detail.status) || detailNeedsMaterial} onClick={() => void retry(detail)}><Play size={16} />{detail.status === "failed" ? "重试解析" : "开始解析"}</button><button className="quiet-danger" type="button" disabled={isBusy || detail.status !== "pending"} onClick={() => void cancel(detail)}><CircleStop size={16} />取消任务</button>{detail.status === "completed" ? <><button className="secondary-button" type="button" disabled={isBusy} onClick={() => void saveDraft(detail)}><Save size={16} />保存视频草稿</button><button className="secondary-button" type="button" disabled={isBusy} onClick={() => void startInspiration(detail)}><Lightbulb size={16} />转入灵感对话</button></> : null}</div></> : <div className="empty-list-state">从下方任务列表选择一项查看详情。</div>}</section></div>
     <section className="panel viral-job-list"><div className="panel-title"><h2>我的解析任务</h2><span>{total} 项</span></div>{isLoading ? <div className="inspiration-session-skeleton"><span /><span /><span /></div> : jobs.length ? <div className="viral-job-rows">{jobs.map((job) => <button key={job.id} type="button" disabled={isBusy} className={detail?.id === job.id ? "viral-job-row active" : "viral-job-row"} onClick={() => void selectJob(job.id)}><span><strong>{job.title}</strong><small>{job.source_type === "upload" ? "本地素材" : job.source_type === "link" ? "视频链接" : "文本观察"}</small></span><span className={`viral-status ${job.status}`}>{statusText(job.status)}</span></button>)}</div> : <div className="empty-list-state">还没有解析任务。</div>}<div className="inspiration-pagination"><button className="table-action compact" type="button" disabled={isBusy || page <= 1 || isLoading} onClick={() => void loadJobs(page - 1)}><ChevronLeft size={15} />上一页</button><span>第 {page} 页 / 共 {total} 项</span><button className="table-action compact" type="button" disabled={isBusy || page >= pageCount || isLoading} onClick={() => void loadJobs(page + 1)}>下一页<ChevronRight size={15} /></button></div></section>
   </section>;
 }

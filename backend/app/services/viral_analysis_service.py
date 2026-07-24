@@ -13,7 +13,7 @@ from app.schemas.viral_analysis import (
     ViralAnalysisStructuredResult,
 )
 from app.services.ai_provider_service import AIProviderError, AIProviderService
-from app.services.ai_settings_service import get_ai_setting_key, get_ai_settings_view
+from app.services.ai_settings_service import get_ai_settings_view
 from app.services.ai_usage_service import AIUsageService
 from app.services.credit_charge_service import CreditChargeService
 
@@ -232,7 +232,9 @@ class ViralAnalysisService:
             "ai.copywriting.base_url": settings.base_url,
             "ai.copywriting.model": settings.model,
             "ai.copywriting.enabled": "true" if settings.enabled else "false",
-            "ai.copywriting.api_key": get_ai_setting_key(settings_repo, "copywriting"),
+            "ai.copywriting.api_key": settings_repo.get(
+                "ai.copywriting.api_key"
+            ),
         }
         return settings, AIProviderService(_SnapshotSettingRepository(values))
 

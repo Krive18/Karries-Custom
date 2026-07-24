@@ -1,4 +1,5 @@
 from app.db.schema import SCHEMA_STATEMENTS
+from app.core.secret_cipher import ENCRYPTED_SECRET_PREFIX, encrypt_secret
 
 
 def migrate(conn) -> None:
@@ -6,7 +7,35 @@ def migrate(conn) -> None:
         for statement in SCHEMA_STATEMENTS:
             cursor.execute(statement)
         _ensure_tenant_compatibility(cursor)
+        _encrypt_legacy_ai_keys(cursor)
     conn.commit()
+
+
+def _encrypt_legacy_ai_keys(cursor) -> None:
+    cursor.execute(
+        """
+        select setting_key, setting_value
+        from app_setting
+        where setting_key in (%s, %s)
+          and setting_value <> ''
+          and setting_value not like %s
+        for update
+        """,
+        (
+            "ai.vision.api_key",
+            "ai.copywriting.api_key",
+            f"{ENCRYPTED_SECRET_PREFIX}%",
+        ),
+    )
+    for row in cursor.fetchall():
+        cursor.execute(
+            """
+            update app_setting
+            set setting_value = %s
+            where setting_key = %s
+            """,
+            (encrypt_secret(str(row["setting_value"])), row["setting_key"]),
+        )
 
 
 def _ensure_tenant_compatibility(cursor) -> None:

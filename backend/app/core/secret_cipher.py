@@ -33,10 +33,10 @@ def encrypt_secret(value: str) -> str:
 
 
 def decrypt_secret(value: str) -> str:
-    if not value or not value.startswith(ENCRYPTED_SECRET_PREFIX):
-        # Keep legacy plaintext readable until it is rotated through the
-        # protected settings endpoint.
-        return value
+    if not value:
+        return ""
+    if not value.startswith(ENCRYPTED_SECRET_PREFIX):
+        raise SecretDecryptionError("plaintext AI key is not allowed")
     token = value.removeprefix(ENCRYPTED_SECRET_PREFIX)
     try:
         return _cipher().decrypt(token.encode("ascii")).decode("utf-8")

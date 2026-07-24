@@ -18,4 +18,8 @@ class InspirationSessionCreate(BaseModel):
 
 class InspirationMessageCreate(BaseModel):
     content: str = Field(min_length=1, max_length=5000)
-    client_request_id: str = Field(default="", max_length=64)
+    client_request_id: str = Field(
+        min_length=8,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+    )

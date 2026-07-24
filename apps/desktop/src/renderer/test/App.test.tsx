@@ -212,6 +212,16 @@ const viralJob = {
   status: "completed" as const, credit_cost: 3, create_time: 1782570600, update_time: 1782570700, materials: [], result: viralResult
 };
 
+const viralMaterial = {
+  id: 1,
+  job_id: 71,
+  file_name: "reference.mp4",
+  file_type: "video" as const,
+  mime_type: "video/mp4",
+  file_size: 5,
+  create_time: 1782570601
+};
+
 const developerViralJob = {
   ...viralJob, ai_provider: "deepseek", ai_model: "deepseek-chat", error_message: "", latest_ai_usage: {
     id: 201, status: "success" as const, provider: "deepseek", model_name: "deepseek-chat", latency_ms: 810,
@@ -283,7 +293,7 @@ beforeEach(() => {
   mockedApi.createViralAnalysisJob.mockResolvedValue(viralJob);
   mockedApi.listViralAnalysisJobs.mockResolvedValue({ items: [viralJob], page: 1, page_size: 20, total: 1 });
   mockedApi.getViralAnalysisJob.mockResolvedValue(viralJob);
-  mockedApi.uploadViralAnalysisMaterial.mockResolvedValue({ id: 1 });
+  mockedApi.uploadViralAnalysisMaterial.mockResolvedValue(viralMaterial);
   mockedApi.runViralAnalysisJob.mockResolvedValue(viralJob);
   mockedApi.cancelViralAnalysisJob.mockResolvedValue({ ...viralJob, status: "cancelled" });
   mockedApi.saveViralAnalysisDraft.mockResolvedValue({ draft_id: 901 });
@@ -738,7 +748,7 @@ describe("KARRIES desktop workspace", () => {
     });
 
     expect(await screen.findByRole("heading", { name: "无法加载登录信息" })).toBeInTheDocument();
-    expect(screen.getByText("该账号仅可通过开发者专用入口登录")).toBeInTheDocument();
+    expect(screen.getByText("当前账号无权访问该系统")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /用户端/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "素材智能解析" })).not.toBeInTheDocument();
     expect(mockedApi.listAccounts).not.toHaveBeenCalled();
@@ -763,11 +773,17 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("retains the created task and retries an upload that is rejected with 413", async () => {
-    const pending = { ...viralJob, status: "pending" as const, result: null };
+    const pending = {
+      ...viralJob,
+      source_type: "upload" as const,
+      status: "pending" as const,
+      materials: [],
+      result: null
+    };
     mockedApi.createViralAnalysisJob.mockResolvedValue(pending);
     mockedApi.uploadViralAnalysisMaterial
       .mockRejectedValueOnce(new ApiRequestError("too large", "PAYLOAD_TOO_LARGE", 413))
-      .mockResolvedValueOnce({ id: 1 });
+      .mockResolvedValueOnce(viralMaterial);
     await renderAuthenticatedApp();
     fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
     fireEvent.change(screen.getByLabelText("任务名称"), { target: { value: "上传失败后重试" } });
@@ -787,11 +803,17 @@ describe("KARRIES desktop workspace", () => {
   });
 
   it("does not upload the same material again after upload succeeds but analysis fails", async () => {
-    const pending = { ...viralJob, status: "pending" as const, result: null };
+    const pending = {
+      ...viralJob,
+      source_type: "upload" as const,
+      status: "pending" as const,
+      materials: [],
+      result: null
+    };
     mockedApi.createViralAnalysisJob.mockResolvedValue(pending);
     mockedApi.uploadViralAnalysisMaterial
       .mockRejectedValueOnce(new ApiRequestError("upload interrupted", "UPLOAD_FAILED", 400))
-      .mockResolvedValueOnce({ id: 1 });
+      .mockResolvedValueOnce(viralMaterial);
     mockedApi.runViralAnalysisJob.mockRejectedValueOnce(new Error("provider failed"));
     await renderAuthenticatedApp();
     fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
@@ -809,6 +831,31 @@ describe("KARRIES desktop workspace", () => {
     await waitFor(() => expect(mockedApi.runViralAnalysisJob).toHaveBeenCalledWith(71));
     expect(mockedApi.uploadViralAnalysisMaterial).toHaveBeenCalledTimes(2);
     expect(screen.queryByRole("button", { name: "重新上传并继续解析" })).not.toBeInTheDocument();
+  });
+
+  it("recovers an unfinished upload from backend state after the page is reopened", async () => {
+    const pendingUpload = {
+      ...viralJob,
+      source_type: "upload" as const,
+      status: "pending" as const,
+      materials: [],
+      result: null
+    };
+    mockedApi.listViralAnalysisJobs.mockResolvedValue({
+      items: [pendingUpload],
+      page: 1,
+      page_size: 20,
+      total: 1
+    });
+    mockedApi.getViralAnalysisJob.mockResolvedValue(pendingUpload);
+
+    await renderAuthenticatedApp();
+    fireEvent.click(screen.getByRole("button", { name: "爆款解析" }));
+    fireEvent.click(await screen.findByRole("button", { name: /防晒爆款视频拆解/ }));
+
+    expect(await screen.findByText(/还没有可解析的素材/)).toBeInTheDocument();
+    expect(screen.getByLabelText("重新选择解析素材")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "重新上传并继续解析" })).toBeDisabled();
   });
 
   it("only allows pending viral jobs to be cancelled", async () => {

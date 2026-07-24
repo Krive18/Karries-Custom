@@ -1,5 +1,6 @@
 from app.db.migrations import migrate
 from app.db.schema import SCHEMA_STATEMENTS
+from app.core.secret_cipher import decrypt_secret
 
 
 class _MetadataAliasCursor:
@@ -139,6 +140,42 @@ def test_migrate_declares_expected_indexes(mysql_conn):
     assert ("publish_log", "idx_publish_log_task_id") in indexes
     assert ("publish_log", "idx_publish_log_create_time") in indexes
     assert ("app_setting", "uk_app_setting_key") in indexes
+
+
+def test_migrate_encrypts_legacy_plaintext_ai_keys(
+    monkeypatch, mysql_conn
+):
+    monkeypatch.setenv("AI_SETTINGS_ENCRYPTION_KEY", "migration-test-key")
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            insert into app_setting (
+                setting_key, setting_value, create_time, update_time
+            )
+            values (%s, %s, %s, %s)
+            on duplicate key update
+                setting_value = values(setting_value),
+                update_time = values(update_time)
+            """,
+            ("ai.copywriting.api_key", "sk-legacy-value", 1, 1),
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select setting_value
+            from app_setting
+            where setting_key = %s
+            """,
+            ("ai.copywriting.api_key",),
+        )
+        stored = cursor.fetchone()["setting_value"]
+    assert stored.startswith("enc:v1:")
+    assert "sk-legacy-value" not in stored
+    assert decrypt_secret(stored) == "sk-legacy-value"
 
 
 def test_migrate_creates_saas_foundation_tables(mysql_conn):

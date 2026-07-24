@@ -18,6 +18,7 @@ import type {
   VideoEditJobView,
   ViralAnalysisJob,
   ViralAnalysisJobCreate,
+  ViralAnalysisMaterial,
   XHSAccountCreate,
   XHSAccountView
 } from "../types";
@@ -140,7 +141,10 @@ export const api = {
   uploadViralAnalysisMaterial: (jobId: number, file: File) => {
     const body = new FormData();
     body.append("file", file);
-    return request(`/api/viral-analysis/jobs/${jobId}/upload`, { method: "POST", body });
+    return request<ViralAnalysisMaterial>(
+      `/api/viral-analysis/jobs/${jobId}/upload`,
+      { method: "POST", body }
+    );
   },
   runViralAnalysisJob: (jobId: number) =>
     request<ViralAnalysisJob>(`/api/viral-analysis/jobs/${jobId}/run`, { method: "POST" }),

@@ -27,6 +27,11 @@ def test_secret_cipher_rejects_wrong_key(monkeypatch):
         decrypt_secret(encrypted)
 
 
+def test_secret_cipher_rejects_legacy_plaintext():
+    with pytest.raises(SecretDecryptionError, match="plaintext"):
+        decrypt_secret("sk-legacy-plaintext")
+
+
 def test_production_requires_secret_encryption_key(monkeypatch):
     monkeypatch.setenv("XHS_ENV", "production")
     monkeypatch.delenv("AI_SETTINGS_ENCRYPTION_KEY", raising=False)

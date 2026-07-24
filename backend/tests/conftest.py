@@ -129,7 +129,7 @@ def mysql_app_client(monkeypatch, mysql_conn):
     shared_conn = SharedMysqlConnection(mysql_conn)
     monkeypatch.setattr("app.main.connect", lambda _config: shared_conn)
 
-    with TestClient(create_app()) as client:
+    with TestClient(create_app("all")) as client:
         yield client
 
     assert shared_conn.closed_by_app is True
@@ -141,7 +141,7 @@ def app_client_without_db(monkeypatch):
     monkeypatch.setattr("app.main.connect", lambda _config: fake_conn)
     monkeypatch.setattr("app.main.migrate", lambda _conn: None)
 
-    with TestClient(create_app()) as client:
+    with TestClient(create_app("all")) as client:
         yield client
 
     assert fake_conn.closed is True

@@ -172,7 +172,10 @@ def test_employee_can_create_session_send_message_and_save_assistant_as_draft(
     reply = mysql_app_client.post(
         f"/api/inspiration/sessions/{session_id}/messages",
         headers=headers,
-        json={"content": "Give me five topic ideas"},
+        json={
+            "content": "Give me five topic ideas",
+            "client_request_id": "employee-flow-001",
+        },
     )
 
     assert reply.status_code == 200
@@ -208,6 +211,30 @@ def test_employee_can_create_session_send_message_and_save_assistant_as_draft(
         assert cursor.fetchone()["total"] == 1
         cursor.execute("select total_credit_cost from inspiration_session where id = %s", (session_id,))
         assert cursor.fetchone()["total_credit_cost"] == 1
+
+
+@pytest.mark.parametrize(
+    "request_body",
+    [
+        {"content": "Missing request identifier"},
+        {"content": "Invalid request identifier", "client_request_id": "bad id"},
+        {"content": "Short request identifier", "client_request_id": "short"},
+    ],
+)
+def test_message_requires_valid_client_request_id(
+    request_body, mysql_conn, mysql_app_client
+):
+    headers = auth_headers(mysql_conn, mysql_app_client, "request-validation")
+    session_id = create_session(mysql_app_client, headers)
+
+    response = mysql_app_client.post(
+        f"/api/inspiration/sessions/{session_id}/messages",
+        headers=headers,
+        json=request_body,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_message_retry_returns_original_result_without_duplicate_ai_usage(
@@ -346,7 +373,10 @@ def test_management_can_read_own_tenant_complete_session_but_not_other_tenant(
     mysql_app_client.post(
         f"/api/inspiration/sessions/{session_id}/messages",
         headers=employee_headers,
-        json={"content": "Give me five topic ideas"},
+        json={
+            "content": "Give me five topic ideas",
+            "client_request_id": "admin-read-001",
+        },
     )
     same_tenant_admin = management_headers(
         mysql_conn, mysql_app_client, "same", tenant_id=7
@@ -379,12 +409,18 @@ def test_management_session_filters_are_tenant_isolated_and_match_message_conten
     own_message = mysql_app_client.post(
         f"/api/inspiration/sessions/{own_session_id}/messages",
         headers=tenant_headers,
-        json={"content": "keyword only present in message body"},
+        json={
+            "content": "keyword only present in message body",
+            "client_request_id": "filter-own-001",
+        },
     )
     other_message = mysql_app_client.post(
         f"/api/inspiration/sessions/{other_session_id}/messages",
         headers=other_headers,
-        json={"content": "keyword only present in message body"},
+        json={
+            "content": "keyword only present in message body",
+            "client_request_id": "filter-other-001",
+        },
     )
     assert own_message.status_code == 200
     assert other_message.status_code == 200
@@ -447,7 +483,10 @@ def test_archived_session_rejects_new_messages(mysql_conn, mysql_app_client):
     response = mysql_app_client.post(
         f"/api/inspiration/sessions/{session_id}/messages",
         headers=headers,
-        json={"content": "This must not be sent"},
+        json={
+            "content": "This must not be sent",
+            "client_request_id": "archived-send-001",
+        },
     )
 
     assert archived.status_code == 200
@@ -473,7 +512,10 @@ def test_generating_session_rejects_concurrent_send_and_archive(mysql_conn, mysq
     send_response = mysql_app_client.post(
         f"/api/inspiration/sessions/{session_id}/messages",
         headers=headers,
-        json={"content": "This must not overlap"},
+        json={
+            "content": "This must not overlap",
+            "client_request_id": "generating-send-001",
+        },
     )
     archive_response = mysql_app_client.post(
         f"/api/inspiration/sessions/{session_id}/archive", headers=headers
@@ -504,7 +546,10 @@ def test_expired_generation_lease_can_send_again(monkeypatch, mysql_conn, mysql_
     response = mysql_app_client.post(
         f"/api/inspiration/sessions/{session_id}/messages",
         headers=headers,
-        json={"content": "Recover this generation"},
+        json={
+            "content": "Recover this generation",
+            "client_request_id": "expired-send-001",
+        },
     )
 
     assert response.status_code == 200
@@ -580,7 +625,10 @@ def test_failed_finalization_generation_is_recoverable_after_lease(
         mysql_app_client.post(
             f"/api/inspiration/sessions/{session_id}/messages",
             headers=headers,
-            json={"content": "This finalization will fail"},
+            json={
+                "content": "This finalization will fail",
+                "client_request_id": "failed-finalize-001",
+            },
         )
 
     with mysql_conn.cursor() as cursor:
@@ -715,7 +763,10 @@ def test_provider_failure_persists_failed_message_without_credit_charge(
     response = mysql_app_client.post(
         f"/api/inspiration/sessions/{session_id}/messages",
         headers=headers,
-        json={"content": "Give me five topic ideas"},
+        json={
+            "content": "Give me five topic ideas",
+            "client_request_id": "provider-failure-001",
+        },
     )
 
     assert response.status_code == 502
@@ -941,7 +992,8 @@ def test_success_finalization_commits_assistant_session_and_usage_together(monke
     )
 
     result = service.send_message(
-        {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+        {"tenant_id": 7, "id": 3}, 9,
+        SimpleNamespace(content="ideas", client_request_id="service-test-001")
     )
 
     assert result["assistant_message"]["id"] == 21
@@ -989,7 +1041,8 @@ def test_failed_finalization_rolls_back_assistant_session_and_usage(monkeypatch)
 
     with pytest.raises(RuntimeError, match="usage write failed"):
         service.send_message(
-            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+            {"tenant_id": 7, "id": 3}, 9,
+            SimpleNamespace(content="ideas", client_request_id="service-test-002")
         )
 
     assert len(repo.finalized) == 1
@@ -1029,7 +1082,8 @@ def test_service_rolls_back_when_late_generation_token_cannot_finalize(monkeypat
 
     with pytest.raises(InspirationSessionStateError):
         service.send_message(
-            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+            {"tenant_id": 7, "id": 3}, 9,
+            SimpleNamespace(content="ideas", client_request_id="service-test-003")
         )
 
     assert conn.rollbacks == 1
@@ -1068,7 +1122,8 @@ def test_provider_failure_finalization_commits_failed_message_session_and_usage(
 
     with pytest.raises(inspiration_service.InspirationProviderError):
         service.send_message(
-            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+            {"tenant_id": 7, "id": 3}, 9,
+            SimpleNamespace(content="ideas", client_request_id="service-test-004")
         )
 
     assert repo.finalized[0][1]["status"] == "failed"
@@ -1159,7 +1214,8 @@ def test_provider_failure_finalization_rolls_back_when_usage_write_fails(monkeyp
 
     with pytest.raises(RuntimeError, match="failure usage write failed"):
         service.send_message(
-            {"tenant_id": 7, "id": 3}, 9, SimpleNamespace(content="ideas")
+            {"tenant_id": 7, "id": 3}, 9,
+            SimpleNamespace(content="ideas", client_request_id="service-test-005")
         )
 
     assert len(repo.finalized) == 1

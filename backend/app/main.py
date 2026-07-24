@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Literal
 
 import pymysql
 from fastapi import FastAPI, HTTPException, Request
@@ -34,7 +35,10 @@ from app.db.migrations import migrate
 from app.middleware.upload_size_limit import UploadBodyLimitMiddleware
 
 
-def create_app() -> FastAPI:
+ApiSurface = Literal["all", "customer", "developer"]
+
+
+def create_app(surface: ApiSurface = "customer") -> FastAPI:
     config = default_config()
 
     @asynccontextmanager
@@ -50,9 +54,13 @@ def create_app() -> FastAPI:
         finally:
             _app.state.conn = None
 
-    app = FastAPI(title="Xiaohongshu Publisher Backend", lifespan=lifespan)
+    app = FastAPI(
+        title="Xiaohongshu Publisher Backend",
+        lifespan=lifespan,
+    )
     app.state.config = config
     app.state.conn = None
+    app.state.api_surface = surface
     app.state.connect_db = lambda: connect(config.mysql)
     app.add_middleware(
         UploadBodyLimitMiddleware,
@@ -107,25 +115,28 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(auth_router)
-    app.include_router(admin_router)
-    app.include_router(admin_inspiration_router)
-    app.include_router(admin_viral_analysis_router)
-    app.include_router(ai_router)
-    app.include_router(accounts_router)
-    app.include_router(content_drafts_router)
-    app.include_router(inspiration_router)
-    app.include_router(viral_analysis_router)
-    app.include_router(developer_viral_analysis_router)
-    app.include_router(matrix_plans_router)
-    app.include_router(products_router)
-    app.include_router(runtime_router)
-    app.include_router(settings_router)
-    app.include_router(tasks_router)
-    app.include_router(video_edit_router)
-    app.include_router(internal_video_edit_router)
-    app.include_router(wallet_router)
-    app.include_router(worker_matrix_publish_router)
-    app.include_router(xhs_accounts_router)
+    if surface in {"all", "customer"}:
+        app.include_router(admin_router)
+        app.include_router(admin_inspiration_router)
+        app.include_router(admin_viral_analysis_router)
+        app.include_router(ai_router)
+        app.include_router(accounts_router)
+        app.include_router(content_drafts_router)
+        app.include_router(inspiration_router)
+        app.include_router(viral_analysis_router)
+        app.include_router(matrix_plans_router)
+        app.include_router(products_router)
+        app.include_router(runtime_router)
+        app.include_router(tasks_router)
+        app.include_router(video_edit_router)
+        app.include_router(wallet_router)
+        app.include_router(xhs_accounts_router)
+
+    if surface in {"all", "developer"}:
+        app.include_router(developer_viral_analysis_router)
+        app.include_router(settings_router)
+        app.include_router(internal_video_edit_router)
+        app.include_router(worker_matrix_publish_router)
 
     @app.get("/api/health")
     def health() -> dict:

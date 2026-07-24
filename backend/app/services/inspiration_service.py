@@ -1,5 +1,3 @@
-import uuid
-
 from app.repositories.ai_usage_repository import AIUsageRepository
 from app.repositories.content_draft_repository import ContentDraftRepository
 from app.repositories.inspiration_repository import (
@@ -12,7 +10,7 @@ from app.repositories.setting_repository import SettingRepository
 from app.repositories.xhs_account_repository import XHSAccountRepository
 from app.schemas.inspiration import InspirationMessageCreate, InspirationSessionCreate
 from app.services.ai_provider_service import AIProviderError, AIProviderService
-from app.services.ai_settings_service import get_ai_setting_key, get_ai_settings_view
+from app.services.ai_settings_service import get_ai_settings_view
 from app.services.ai_usage_service import AIUsageService
 from app.services.credit_charge_service import CreditChargeService
 
@@ -81,9 +79,7 @@ class InspirationService:
     ) -> dict:
         tenant_id = user["tenant_id"]
         user_id = user["id"]
-        client_request_id = (
-            getattr(payload, "client_request_id", "").strip() or uuid.uuid4().hex
-        )
+        client_request_id = payload.client_request_id
 
         try:
             existing = self.repository.get_session_for_user(tenant_id, user_id, session_id)
@@ -328,6 +324,8 @@ class InspirationService:
             "ai.copywriting.base_url": settings.base_url,
             "ai.copywriting.model": settings.model,
             "ai.copywriting.enabled": "true" if settings.enabled else "false",
-            "ai.copywriting.api_key": get_ai_setting_key(settings_repo, "copywriting"),
+            "ai.copywriting.api_key": settings_repo.get(
+                "ai.copywriting.api_key"
+            ),
         }
         return settings, AIProviderService(_SnapshotSettingRepository(values))

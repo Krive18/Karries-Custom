@@ -59,8 +59,10 @@ function toScheduledTask(task: TaskView, accounts: AccountView[]): ScheduledTask
   };
 }
 
-function isDeveloperRole(user: AuthUser | null) {
-  return user?.user_role === "platform_admin" || user?.user_role === "developer_admin";
+function isCustomerRole(user: AuthUser | null) {
+  return user?.user_role === "customer"
+    || user?.user_role === "client_owner"
+    || user?.user_role === "client_admin";
 }
 
 function allowedPortalsFor(user: AuthUser | null): CustomerPortalKey[] {
@@ -98,7 +100,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (authState !== "ready" || isDeveloperRole(authUser)) return;
+    if (authState !== "ready") return;
     void loadData();
   }, [authState, authUser, loadData]);
 
@@ -106,8 +108,8 @@ export function App() {
     let active = true;
     void api.getCurrentUser().then((user) => {
       if (active) {
-        if (isDeveloperRole(user)) {
-          setAuthError("该账号仅可通过开发者专用入口登录");
+        if (!isCustomerRole(user)) {
+          setAuthError("当前账号无权访问该系统");
           setAuthState("error");
           return;
         }

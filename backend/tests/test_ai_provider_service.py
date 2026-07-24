@@ -3,12 +3,16 @@ import traceback
 import pytest
 
 from app.integrations.deepseek import DeepSeekTextClient
+from app.core.secret_cipher import encrypt_secret
 from app.services.ai_provider_service import AIProviderError, AIProviderService
 
 
 class FakeSettingRepository:
     def __init__(self, values=None):
-        self.values = values or {}
+        self.values = dict(values or {})
+        for key, value in tuple(self.values.items()):
+            if key.endswith(".api_key") and value:
+                self.values[key] = encrypt_secret(value)
 
     def get(self, key, default=""):
         return self.values.get(key, default)
