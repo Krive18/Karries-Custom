@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { api } from "./api/client";
+import { ApiRequestError, api } from "./api/client";
 import { AppShell } from "./components/AppShell";
+import { LoginPage } from "./components/LoginPage";
 import { ManagerOverviewPage } from "./pages/ManagerOverviewPage";
 import { ManagerInspirationPage } from "./pages/ManagerInspirationPage";
 import { InspirationPage } from "./pages/InspirationPage";
@@ -15,6 +16,7 @@ import type {
   AccountView,
   AuthUser,
   CustomerPortalKey,
+  LoginRequest,
   PageKey,
   ScheduledTask,
   TaskCreateRequest,
@@ -82,8 +84,9 @@ export function App() {
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
   const [appError, setAppError] = useState("");
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authState, setAuthState] = useState<"loading" | "ready" | "error">("loading");
+  const [authState, setAuthState] = useState<"loading" | "login" | "ready" | "error">("loading");
   const [authError, setAuthError] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -121,11 +124,46 @@ export function App() {
       }
     }).catch((error: unknown) => {
       if (active) {
+        if (error instanceof ApiRequestError && error.status === 401) {
+          window.localStorage.removeItem("karries_access_token");
+          setAuthError("");
+          setAuthState("login");
+          return;
+        }
         setAuthError(error instanceof Error ? error.message : "登录信息加载失败");
         setAuthState("error");
       }
     });
     return () => { active = false; };
+  }, []);
+
+  const handleLogin = useCallback(async (credentials: LoginRequest) => {
+    setAuthSubmitting(true);
+    setAuthError("");
+    window.localStorage.removeItem("karries_access_token");
+    try {
+      const response = await api.login(credentials);
+      if (!isCustomerRole(response.user)) {
+        setAuthError("当前账号无权访问该系统");
+        setAuthState("error");
+        return;
+      }
+      window.localStorage.setItem("karries_access_token", response.access_token);
+      const initialPortal = allowedPortalsFor(response.user)[0];
+      setAuthUser(response.user);
+      setActivePortal(initialPortal);
+      setActivePage(initialPageFor(initialPortal));
+      setAuthState("ready");
+    } catch (error) {
+      window.localStorage.removeItem("karries_access_token");
+      setAuthError(
+        error instanceof ApiRequestError && error.status === 401
+          ? "账号或密码错误，请重新输入"
+          : "登录服务暂时不可用，请稍后重试"
+      );
+    } finally {
+      setAuthSubmitting(false);
+    }
   }, []);
 
   const allowedPortals = useMemo<CustomerPortalKey[]>(() => allowedPortalsFor(authUser), [authUser]);
@@ -210,6 +248,16 @@ export function App() {
 
   if (authState === "loading") {
     return <main className="auth-gate" role="status">正在验证登录信息...</main>;
+  }
+
+  if (authState === "login") {
+    return (
+      <LoginPage
+        error={authError}
+        isSubmitting={authSubmitting}
+        onSubmit={handleLogin}
+      />
+    );
   }
 
   if (authState === "error") {

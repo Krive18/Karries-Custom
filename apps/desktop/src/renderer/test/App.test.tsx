@@ -12,6 +12,7 @@ vi.mock("../api/client", () => ({
     }
   },
   api: {
+    login: vi.fn(),
     generateImageCopy: vi.fn(),
     listTasks: vi.fn(),
     createTask: vi.fn(),
@@ -242,7 +243,21 @@ function deferred<T>() {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  window.localStorage.clear();
   delete window.karriesPublisher;
+  mockedApi.login.mockResolvedValue({
+    access_token: "local-access-token",
+    token_type: "bearer",
+    expires_in: 3600,
+    user: {
+      id: 9,
+      tenant_id: 1,
+      login_name: "operator",
+      nickname: "运营",
+      user_role: "client_owner",
+      wallet_balance: 30
+    }
+  });
   mockedApi.getCurrentUser.mockResolvedValue({ id: 9, tenant_id: 1, login_name: "operator", nickname: "运营", user_role: "client_owner", wallet_balance: 30 });
   mockedApi.listAccounts.mockResolvedValue([account]);
   mockedApi.listTasks.mockResolvedValue([]);
@@ -753,6 +768,55 @@ describe("KARRIES desktop workspace", () => {
     expect(screen.queryByRole("heading", { name: "素材智能解析" })).not.toBeInTheDocument();
     expect(mockedApi.listAccounts).not.toHaveBeenCalled();
     expect(mockedApi.listTasks).not.toHaveBeenCalled();
+  });
+
+  it("shows the login page for a missing token and enters the workspace after login", async () => {
+    mockedApi.getCurrentUser.mockRejectedValue(
+      new ApiRequestError("missing bearer token", "UNAUTHORIZED", 401)
+    );
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "账号登录" })).toBeInTheDocument();
+    expect(screen.queryByText("missing bearer token")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("登录账号"), {
+      target: { value: "karries_local_test" }
+    });
+    fireEvent.change(screen.getByLabelText("登录密码"), {
+      target: { value: "correct-password" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "登录工作台" }));
+
+    await waitFor(() => {
+      expect(mockedApi.login).toHaveBeenCalledWith({
+        login_name: "karries_local_test",
+        password: "correct-password"
+      });
+    });
+    expect(await screen.findByRole("button", { name: "智能创作" })).toBeInTheDocument();
+    expect(window.localStorage.getItem("karries_access_token")).toBe("local-access-token");
+  });
+
+  it("shows a readable message when login credentials are invalid", async () => {
+    mockedApi.getCurrentUser.mockRejectedValue(
+      new ApiRequestError("missing bearer token", "UNAUTHORIZED", 401)
+    );
+    mockedApi.login.mockRejectedValue(
+      new ApiRequestError("invalid login credentials", "INVALID_CREDENTIALS", 401)
+    );
+    render(<App />);
+
+    fireEvent.change(await screen.findByLabelText("登录账号"), {
+      target: { value: "wrong-user" }
+    });
+    fireEvent.change(screen.getByLabelText("登录密码"), {
+      target: { value: "wrong-password" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "登录工作台" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("账号或密码错误，请重新输入");
+    expect(screen.queryByText("invalid login credentials")).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("karries_access_token")).toBeNull();
   });
 
   it("creates, uploads, and runs a viral analysis task in order", async () => {

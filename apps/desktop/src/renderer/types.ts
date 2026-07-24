@@ -269,6 +269,18 @@ export type AuthUser = {
   wallet_balance: number;
 };
 
+export type LoginRequest = {
+  login_name: string;
+  password: string;
+};
+
+export type AuthResponse = {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: AuthUser;
+};
+
 export type ViralAnalysisStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
 export type ViralAnalysisSourceType = "upload" | "link" | "text";
 export type ViralAnalysisGoal = "hook" | "structure" | "rhythm" | "script" | "selling" | "reuse";

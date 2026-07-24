@@ -10,7 +10,9 @@ import type {
   InspirationSession,
   InspirationSessionCreate,
   InspirationSessionDetail,
+  AuthResponse,
   AuthUser,
+  LoginRequest,
   PaginatedResult,
   TaskCreateRequest,
   TaskView,
@@ -62,6 +64,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 
 export const api = {
+  login: (payload: LoginRequest) =>
+    request<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
   getCurrentUser: () => request<AuthUser>("/api/auth/me"),
   checkRuntime: () => request<Record<string, unknown>>("/api/runtime/check"),
   listAccounts: () => request<AccountView[]>("/api/accounts"),
