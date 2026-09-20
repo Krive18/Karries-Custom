@@ -14,6 +14,15 @@ class ContentDraftGenerateRequest(BaseModel):
     extra_requirement: str = Field(default="", max_length=1000)
 
 
+class ContentDraftManualCreateRequest(BaseModel):
+    xhs_account_id: int = Field(ge=1)
+    content_type: Literal["image_text"] = "image_text"
+    title: str = Field(min_length=1, max_length=100)
+    body: str = Field(min_length=1, max_length=5000)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    material_ids: list[int] = Field(default_factory=list, max_length=20)
+
+
 class ContentDraftUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=100)
     body: str | None = Field(default=None, min_length=1, max_length=5000)

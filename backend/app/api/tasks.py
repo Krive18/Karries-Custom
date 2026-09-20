@@ -1,12 +1,15 @@
 import json
+from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from app.core.dependencies import get_db_connection
+from app.core.dependencies import get_db_connection, require_customer_user
 from app.core.responses import fail, ok
+from app.repositories.material_library_repository import MaterialLibraryNotFoundError
 from app.repositories.task_repository import TaskRepository
 from app.schemas.task import TaskCreate
+from app.services.material_library_service import MaterialLibraryService
 from app.services.task_service import validate_task_create
 from app.workers.publish_worker import PublishResourceNotFoundError, PublishWorker
 
@@ -22,6 +25,7 @@ def task_to_dict(row) -> dict:
         "task_body": row["task_body"],
         "tags": json.loads(row["tag_text"]),
         "image_paths": json.loads(row["image_path_text"]),
+        "material_ids": [],
         "schedule_time": row["schedule_time"],
         "status": row["status"],
         "last_error": row["last_error"],
@@ -32,9 +36,32 @@ def task_to_dict(row) -> dict:
 
 
 @router.post("")
-def create_task(payload: TaskCreate, conn=Depends(get_db_connection)):
+def create_task(
+    payload: TaskCreate,
+    request: Request,
+    user: dict = Depends(require_customer_user),
+    conn=Depends(get_db_connection),
+):
     try:
+        if payload.material_ids:
+            storage_root = Path(request.app.state.config.data_dir) / "product_materials"
+            material_paths = MaterialLibraryService(
+                conn,
+                storage_root,
+            ).resolve_asset_paths(
+                user["tenant_id"],
+                payload.material_ids,
+                required_file_type="image",
+            )
+            payload = payload.model_copy(
+                update={"image_paths": [*payload.image_paths, *material_paths]}
+            )
         validate_task_create(payload)
+    except MaterialLibraryNotFoundError as exc:
+        return JSONResponse(
+            status_code=404,
+            content=fail("NOT_FOUND", str(exc)),
+        )
     except ValueError as exc:
         return JSONResponse(
             status_code=400,

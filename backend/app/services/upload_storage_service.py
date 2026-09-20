@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
@@ -28,6 +29,20 @@ class UploadStorageService:
         "image/webp": ("image", ".webp", {".webp"}),
         "video/mp4": ("video", ".mp4", {".mp4"}),
         "video/quicktime": ("video", ".mov", {".mov"}),
+        "audio/mpeg": ("audio", ".mp3", {".mp3"}),
+        "application/x-subrip": ("subtitle", ".srt", {".srt"}),
+        "text/plain": ("subtitle", ".txt", {".txt", ".srt"}),
+        "application/pdf": ("other", ".pdf", {".pdf"}),
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (
+            "word",
+            ".docx",
+            {".docx"},
+        ),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": (
+            "excel",
+            ".xlsx",
+            {".xlsx"},
+        ),
     }
 
     def __init__(
@@ -48,6 +63,8 @@ class UploadStorageService:
         tenant_id: int,
         job_id: int,
     ) -> StoredUpload:
+        if declared_mime_type in {"", "application/octet-stream"}:
+            declared_mime_type = self._mime_type_from_extension(original_name)
         if declared_mime_type not in self._MIME_TYPES:
             raise UploadStorageError("unsupported upload media type")
         display_name = self._sanitize_display_name(original_name)
@@ -61,7 +78,9 @@ class UploadStorageService:
             detected_mime_type = self._detect_mime_type(header)
             if detected_mime_type is None:
                 raise UploadStorageError("unsupported upload file signature")
-            if detected_mime_type != declared_mime_type:
+            if detected_mime_type == "application/zip":
+                detected_mime_type = self._detect_office_mime_type(temp_path)
+            if not self._mime_type_matches(declared_mime_type, detected_mime_type):
                 raise UploadStorageError("declared media type does not match file signature")
 
             file_type, extension, _ = self._MIME_TYPES[declared_mime_type]
@@ -120,7 +139,60 @@ class UploadStorageService:
             return "image/webp"
         if len(header) >= 12 and header[4:8] == b"ftyp":
             return "video/quicktime" if header[8:12] == b"qt  " else "video/mp4"
+        if header.startswith(b"ID3") or (
+            len(header) >= 2 and header[0] == 0xFF and header[1] & 0xE0 == 0xE0
+        ):
+            return "audio/mpeg"
+        if header.startswith(b"%PDF-"):
+            return "application/pdf"
+        if header.startswith(b"PK\x03\x04"):
+            return "application/zip"
+        if b"\x00" not in header:
+            try:
+                header.decode("utf-8")
+                return "text/plain"
+            except UnicodeDecodeError:
+                pass
         return None
+
+    def _mime_type_matches(self, declared: str, detected: str) -> bool:
+        if declared == "application/x-subrip" and detected == "text/plain":
+            return True
+        return declared == detected
+
+    def _mime_type_from_extension(self, original_name: str) -> str:
+        extension = Path(original_name or "").suffix.lower()
+        delivery_resource_mime_types = {
+            ".mp3": "audio/mpeg",
+            ".srt": "application/x-subrip",
+            ".txt": "text/plain",
+        }
+        if extension in delivery_resource_mime_types:
+            return delivery_resource_mime_types[extension]
+        matches = [
+            mime_type
+            for mime_type, (_, _, extensions) in self._MIME_TYPES.items()
+            if extension in extensions
+        ]
+        return matches[0] if len(matches) == 1 else ""
+
+    def _detect_office_mime_type(self, path: Path) -> str:
+        try:
+            with zipfile.ZipFile(path) as archive:
+                names = set(archive.namelist())
+        except (OSError, zipfile.BadZipFile) as exc:
+            raise UploadStorageError("invalid Office document") from exc
+        if "word/document.xml" in names:
+            return (
+                "application/vnd.openxmlformats-officedocument."
+                "wordprocessingml.document"
+            )
+        if "xl/workbook.xml" in names:
+            return (
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
+        raise UploadStorageError("unsupported Office document")
 
     def _sanitize_display_name(self, original_name: str) -> str:
         name = Path(original_name or "upload").name

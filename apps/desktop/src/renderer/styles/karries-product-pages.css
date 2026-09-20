@@ -1,0 +1,912 @@
+/* Representative page migrations built on karries-design-system.css. */
+
+/* Product library */
+
+:is(.customer-shell, .manager-shell) .product-library-page,
+:is(.customer-shell, .manager-shell) .manager-product-library-page {
+  max-width: none;
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .product-library-toolbar,
+:is(.customer-shell, .manager-shell) .product-library-summary,
+:is(.customer-shell, .manager-shell) .manager-material-toolbar,
+:is(.customer-shell, .manager-shell) .manager-material-summary-line {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  color: var(--karries-text-secondary);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .product-library-toolbar {
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+:is(.customer-shell, .manager-shell) .material-breadcrumbs,
+:is(.customer-shell, .manager-shell) .material-list-controls,
+:is(.customer-shell, .manager-shell) .manager-material-project-toolbar {
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .material-breadcrumbs button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--karries-text-secondary);
+  font-weight: 550;
+}
+
+:is(.customer-shell, .manager-shell) .material-breadcrumbs button:hover,
+:is(.customer-shell, .manager-shell) .material-breadcrumbs button:focus-visible {
+  border-color: var(--karries-brand-200);
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .material-search,
+:is(.customer-shell, .manager-shell) .material-sort-control,
+:is(.customer-shell, .manager-shell) .manager-product-search {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-control);
+  background: var(--karries-surface-soft);
+  color: var(--karries-text-secondary);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .product-library-summary {
+  padding: 10px 14px;
+}
+
+:is(.customer-shell, .manager-shell) .product-library-summary span {
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .product-library-content {
+  min-height: clamp(420px, 58vh, 720px);
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-home {
+  min-height: 100%;
+  padding: 20px;
+  background: transparent;
+}
+
+:is(.customer-shell, .manager-shell) .material-project-grid {
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card {
+  min-height: 126px;
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card:hover,
+:is(.customer-shell, .manager-shell) .material-project-card:focus-within {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-surface);
+  box-shadow: 0 8px 24px rgb(91 55 20 / 8%);
+  transform: translateY(-1px);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-open {
+  min-width: 0;
+  padding: 16px;
+  border: 0;
+  background: var(--karries-surface);
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-icon {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--karries-brand-100);
+  border-radius: 8px;
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-600);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-copy > strong,
+:is(.customer-shell, .manager-shell) .product-folder-open strong,
+:is(.customer-shell, .manager-shell) .product-asset-meta strong {
+  color: var(--karries-text);
+  font-weight: 600;
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-counts small {
+  border: 1px solid var(--karries-border);
+  border-radius: 5px;
+  background: var(--karries-surface-soft);
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-time,
+:is(.customer-shell, .manager-shell) .product-folder-open small,
+:is(.customer-shell, .manager-shell) .product-asset-meta small {
+  color: var(--karries-text-muted);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-actions {
+  border-left: 1px solid var(--karries-border);
+  background: var(--karries-surface-soft);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-actions button,
+:is(.customer-shell, .manager-shell) .product-item-actions button,
+:is(.customer-shell, .manager-shell) .product-asset-delete {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-control);
+  background: var(--karries-surface);
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .material-project-card-actions button:hover,
+:is(.customer-shell, .manager-shell) .product-item-actions button:hover,
+:is(.customer-shell, .manager-shell) .product-asset-delete:hover {
+  border-color: var(--karries-brand-200);
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .product-folder-item,
+:is(.customer-shell, .manager-shell) .product-asset-item,
+:is(.customer-shell, .manager-shell) .manager-folder-tile,
+:is(.customer-shell, .manager-shell) .manager-asset-tile {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .product-folder-item:hover,
+:is(.customer-shell, .manager-shell) .product-asset-item:hover,
+:is(.customer-shell, .manager-shell) .manager-folder-tile:hover,
+:is(.customer-shell, .manager-shell) .manager-asset-tile:hover {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-surface-hover);
+}
+
+:is(.customer-shell, .manager-shell) .product-folder-open > span,
+:is(.customer-shell, .manager-shell) .material-thumbnail.document {
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-600);
+}
+
+:is(.customer-shell, .manager-shell) .product-storage-meter {
+  border: 1px solid var(--karries-border);
+  background: var(--karries-surface);
+  color: var(--karries-text-secondary);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .product-storage-meter i {
+  background: var(--karries-surface-hover);
+}
+
+:is(.customer-shell, .manager-shell) .product-storage-meter b {
+  background: var(--karries-brand-600);
+}
+
+/* Viral analysis */
+
+:is(.customer-shell, .manager-shell) .viral-create-panel,
+:is(.customer-shell, .manager-shell) .viral-detail-panel,
+:is(.customer-shell, .manager-shell) .viral-job-list,
+:is(.customer-shell, .manager-shell) .manager-history-filters,
+:is(.customer-shell, .manager-shell) .manager-history-list,
+:is(.customer-shell, .manager-shell) .manager-history-detail {
+  border-color: var(--karries-border);
+  background: var(--karries-surface);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .viral-form-section {
+  border-color: var(--karries-border);
+  background: transparent;
+}
+
+:is(.customer-shell, .manager-shell) .viral-form-section h3,
+:is(.customer-shell, .manager-shell) .viral-result-section h3,
+:is(.customer-shell, .manager-shell) .viral-reference-section > h3 {
+  color: var(--karries-text);
+  font-weight: 600;
+}
+
+:is(.customer-shell, .manager-shell) .viral-library-selection,
+:is(.customer-shell, .manager-shell) .viral-reference-card,
+:is(.customer-shell, .manager-shell) .viral-reference-link,
+:is(.customer-shell, .manager-shell) .viral-reference-missing {
+  border-color: var(--karries-border);
+  background: var(--karries-surface-soft);
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .viral-library-selection.selected,
+:is(.customer-shell, .manager-shell) .viral-reference-link:hover {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-brand-50);
+}
+
+:is(.customer-shell, .manager-shell) .viral-reference-icon,
+:is(.customer-shell, .manager-shell) .viral-result-welcome > span {
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-600);
+}
+
+:is(.customer-shell, .manager-shell) .viral-result-section {
+  border-color: var(--karries-border);
+}
+
+:is(.customer-shell, .manager-shell) .viral-result-section p,
+:is(.customer-shell, .manager-shell) .viral-visual-segment dd,
+:is(.customer-shell, .manager-shell) .viral-script-segment strong {
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .viral-transcript-section,
+:is(.customer-shell, .manager-shell) .viral-transcript-analysis-section,
+:is(.customer-shell, .manager-shell) .viral-rewritten-section {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface-soft);
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .viral-transcript-section {
+  box-shadow: inset 3px 0 var(--karries-brand-300);
+}
+
+:is(.customer-shell, .manager-shell) .viral-rewritten-section {
+  box-shadow: inset 3px 0 var(--karries-brand-500);
+}
+
+:is(.customer-shell, .manager-shell) .viral-transcript-segment,
+:is(.customer-shell, .manager-shell) .viral-visual-summary,
+:is(.customer-shell, .manager-shell) .viral-visual-segment,
+:is(.customer-shell, .manager-shell) .viral-evidence-item,
+:is(.customer-shell, .manager-shell) .viral-script-segment {
+  border: 1px solid var(--karries-border);
+  border-radius: 8px;
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .viral-transcript-segment time,
+:is(.customer-shell, .manager-shell) .viral-script-time {
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .viral-tags span {
+  border: 1px solid var(--karries-border);
+  background: var(--karries-surface-soft);
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .viral-job-row,
+:is(.customer-shell, .manager-shell) .manager-record-row {
+  border: 1px solid var(--karries-border);
+  border-radius: 8px;
+  background: var(--karries-surface);
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .viral-job-row:hover,
+:is(.customer-shell, .manager-shell) .viral-job-row:focus-visible,
+:is(.customer-shell, .manager-shell) .viral-job-row.active,
+:is(.customer-shell, .manager-shell) .manager-record-row:hover,
+:is(.customer-shell, .manager-shell) .manager-record-row.active {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-brand-50);
+}
+
+/* Membership and payments */
+
+:is(.customer-shell, .manager-shell) .billing-section-tabs,
+:is(.customer-shell, .manager-shell) .recharge-mode-tabs {
+  border: 1px solid var(--karries-border);
+  border-radius: 8px;
+  background: var(--karries-surface-soft);
+}
+
+:is(.customer-shell, .manager-shell) .billing-section-tabs button,
+:is(.customer-shell, .manager-shell) .recharge-mode-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .billing-section-tabs button.active,
+:is(.customer-shell, .manager-shell) .recharge-mode-tabs button.active {
+  background: var(--karries-surface);
+  color: var(--karries-brand-700);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .credit-live-overview,
+:is(.customer-shell, .manager-shell) .current-membership-strip {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .credit-live-kicker,
+:is(.customer-shell, .manager-shell) .current-membership-strip > div:first-child > span {
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .credit-usage-ring {
+  border-color: var(--karries-brand-100);
+  background-color: var(--karries-surface-soft);
+}
+
+:is(.customer-shell, .manager-shell) .credit-usage-ring::before {
+  background: var(--karries-surface);
+}
+
+:is(.customer-shell, .manager-shell) .credit-live-metrics,
+:is(.customer-shell, .manager-shell) .current-membership-benefits span {
+  border-color: var(--karries-border);
+  background: var(--karries-surface-soft);
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan-grid,
+:is(.customer-shell, .manager-shell) .recharge-package-grid,
+:is(.customer-shell, .manager-shell) .manager-plan-grid {
+  gap: 12px;
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan,
+:is(.customer-shell, .manager-shell) .recharge-package,
+:is(.customer-shell, .manager-shell) .manager-plan-card {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan:hover,
+:is(.customer-shell, .manager-shell) .recharge-package:hover,
+:is(.customer-shell, .manager-shell) .manager-plan-card:hover {
+  border-color: var(--karries-brand-300);
+  box-shadow: 0 8px 24px rgb(91 55 20 / 8%);
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan.current {
+  border-color: var(--karries-brand-500);
+  background: var(--karries-surface);
+  box-shadow: 0 8px 26px rgb(143 91 35 / 10%);
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan.current::before,
+:is(.customer-shell, .manager-shell) .current-plan-badge,
+:is(.customer-shell, .manager-shell) .package-hot-badge {
+  background: var(--karries-brand-600);
+  color: #ffffff;
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan-title h2,
+:is(.customer-shell, .manager-shell) .membership-price,
+:is(.customer-shell, .manager-shell) .recharge-package > strong,
+:is(.customer-shell, .manager-shell) .package-price {
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan-title span,
+:is(.customer-shell, .manager-shell) .membership-plan > p,
+:is(.customer-shell, .manager-shell) .membership-benefit-stats span,
+:is(.customer-shell, .manager-shell) .recharge-package > p {
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan-title .current-plan-badge {
+  border: 1px solid var(--karries-brand-600);
+  background: var(--karries-brand-600);
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgb(143 91 35 / 18%);
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan-divider {
+  background: var(--karries-border);
+}
+
+:is(.customer-shell, .manager-shell) .membership-plan li svg {
+  color: var(--karries-brand-600);
+}
+
+:is(.customer-shell, .manager-shell) .membership-action,
+:is(.customer-shell, .manager-shell) .recharge-package > button {
+  border: 1px solid var(--karries-brand-300);
+  border-radius: var(--karries-radius-control);
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .membership-action.current,
+:is(.customer-shell, .manager-shell) .recharge-package.hot > button {
+  border-color: var(--karries-brand-600);
+  background: var(--karries-brand-600);
+  color: #ffffff;
+}
+
+:is(.customer-shell, .manager-shell) .recharge-package.hot {
+  border-color: var(--karries-brand-400);
+  background: var(--karries-surface);
+}
+
+:is(.customer-shell, .manager-shell) .recharge-workbench,
+:is(.customer-shell, .manager-shell) .recharge-history,
+:is(.customer-shell, .manager-shell) .manager-billing-section {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .recharge-request-note,
+:is(.customer-shell, .manager-shell) .package-credit-breakdown,
+:is(.customer-shell, .manager-shell) .manager-recharge-preview {
+  border-color: var(--karries-border);
+  background: var(--karries-surface-soft);
+  color: var(--karries-text-secondary);
+}
+
+/* Manager data hierarchy */
+
+.manager-shell :is(
+  .operations-kpi,
+  .manager-billing-kpis > div,
+  .manager-ledger-kpis > div,
+  .manager-library-kpis > div,
+  .account-monitor-summary > div,
+  .employee-summary-item
+) {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: var(--karries-shadow-card);
+}
+
+.manager-shell :is(
+  .manager-operation-filters,
+  .manager-ledger-filters,
+  .manager-product-filters,
+  .manager-history-filters
+) {
+  border-color: var(--karries-border);
+  background: var(--karries-surface);
+  box-shadow: var(--karries-shadow-card);
+}
+
+.manager-shell :is(
+  .manager-data-table,
+  .manager-user-table,
+  .operation-table,
+  .manager-ledger-table-wrap
+) {
+  border-color: var(--karries-border);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+}
+
+.manager-shell .manager-data-table th,
+.manager-shell .manager-user-table th,
+.manager-shell .operation-table th {
+  border-color: var(--karries-border);
+  background: var(--karries-surface-soft);
+  color: var(--karries-text-secondary);
+  font-weight: 600;
+}
+
+.manager-shell :is(.manager-data-table, .manager-user-table, .operation-table) td {
+  border-color: var(--karries-border);
+  color: var(--karries-text);
+}
+
+.manager-shell :is(.manager-data-table, .manager-user-table, .operation-table) tbody tr:hover td {
+  background: var(--karries-surface-hover);
+}
+
+.manager-shell :is(
+  .operations-chart,
+  .operations-alerts,
+  .operation-table-panel,
+  .manager-user-toolbar,
+  .manager-user-table-panel,
+  .manager-ledger-table-section,
+  .manager-materials-section,
+  .manager-products-section
+) {
+  border: 1px solid var(--karries-border);
+  background: var(--karries-surface);
+  box-shadow: var(--karries-shadow-card);
+}
+
+.manager-shell :is(.manager-section-status, .manager-credit-pill) {
+  border-color: var(--karries-brand-200);
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-transcript-segment,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-visual-summary,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-visual-segment,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-evidence-item,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-script-segment {
+  background: var(--karries-surface-elevated);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) :is(
+  .viral-create-panel,
+  .viral-detail-panel,
+  .viral-job-list
+) {
+  border-color: var(--karries-border);
+  background: var(--karries-surface);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-form-section {
+  border-color: var(--karries-border);
+  background: transparent;
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-create-panel :is(input, select, textarea) {
+  border-color: var(--karries-border);
+  background: var(--karries-input);
+  color: var(--karries-text);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-create-panel :is(label, legend) {
+  color: var(--karries-text-secondary);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-create-panel .goal-fieldset label {
+  border-color: var(--karries-border);
+  background: var(--karries-control);
+  color: var(--karries-text-secondary);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .viral-create-panel .goal-fieldset label.active {
+  border-color: var(--karries-brand-400);
+  background: var(--karries-brand-100);
+  color: var(--karries-brand-700);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .material-project-card:hover,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .membership-plan:hover,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .recharge-package:hover {
+  box-shadow: 0 10px 28px rgb(0 0 0 / 24%);
+}
+
+@media (max-width: 900px) {
+  :is(.customer-shell, .manager-shell) .material-project-grid,
+  :is(.customer-shell, .manager-shell) .membership-plan-grid,
+  :is(.customer-shell, .manager-shell) .recharge-package-grid,
+  :is(.customer-shell, .manager-shell) .manager-plan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  :is(.customer-shell, .manager-shell) .material-project-grid,
+  :is(.customer-shell, .manager-shell) .membership-plan-grid,
+  :is(.customer-shell, .manager-shell) .recharge-package-grid,
+  :is(.customer-shell, .manager-shell) .manager-plan-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Customer feedback workspace */
+:is(.customer-shell, .manager-shell) .feedback-page {
+  display: grid;
+  gap: 18px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-right: 150px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-page-heading > div,
+:is(.customer-shell, .manager-shell) .feedback-heading-icon,
+:is(.customer-shell, .manager-shell) .feedback-section-title,
+:is(.customer-shell, .manager-shell) .feedback-submit-row,
+:is(.customer-shell, .manager-shell) .feedback-history-head,
+:is(.customer-shell, .manager-shell) .feedback-item > header,
+:is(.customer-shell, .manager-shell) .feedback-status {
+  display: flex;
+  align-items: center;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-page-heading > div {
+  gap: 12px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-heading-icon {
+  width: 42px;
+  height: 42px;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-page-heading h1,
+:is(.customer-shell, .manager-shell) .feedback-page-heading p,
+:is(.customer-shell, .manager-shell) .feedback-section-title h2,
+:is(.customer-shell, .manager-shell) .feedback-section-title p,
+:is(.customer-shell, .manager-shell) .feedback-history-head h2,
+:is(.customer-shell, .manager-shell) .feedback-history-head p,
+:is(.customer-shell, .manager-shell) .feedback-item p,
+:is(.customer-shell, .manager-shell) .feedback-reply p {
+  margin: 0;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-page-heading p,
+:is(.customer-shell, .manager-shell) .feedback-section-title p,
+:is(.customer-shell, .manager-shell) .feedback-history-head p,
+:is(.customer-shell, .manager-shell) .feedback-item time,
+:is(.customer-shell, .manager-shell) .feedback-submit-row > span {
+  color: var(--karries-text-muted);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-success {
+  border-color: color-mix(in srgb, var(--karries-success) 30%, transparent);
+  background: var(--karries-success-soft);
+  color: var(--karries-success);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, .92fr) minmax(420px, 1.08fr);
+  gap: 18px;
+}
+
+:is(.customer-shell, .manager-shell) :is(.feedback-compose-card, .feedback-history-card) {
+  padding: 22px;
+  border: 1px solid var(--karries-border);
+  background: var(--karries-surface);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-section-title {
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-section-title > span {
+  color: var(--karries-brand-600);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-category-grid > button {
+  display: flex;
+  min-height: 76px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--karries-border);
+  border-radius: 9px;
+  background: var(--karries-control);
+  color: var(--karries-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-category-grid > button span {
+  display: grid;
+  gap: 4px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-category-grid small {
+  color: var(--karries-text-muted);
+  line-height: 1.45;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-category-grid > button.active {
+  border-color: var(--karries-brand-400);
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+  box-shadow: inset 3px 0 var(--karries-brand-600);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-compose-card > label {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  color: var(--karries-text);
+  font-weight: 650;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-compose-card :is(input, textarea),
+:is(.customer-shell, .manager-shell) .feedback-detail textarea {
+  border: 1px solid var(--karries-border);
+  border-radius: 8px;
+  background: var(--karries-input);
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-submit-row {
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-history-head {
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--karries-border);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--karries-border);
+  border-radius: 8px;
+  background: var(--karries-control);
+  box-shadow: inset 0 1px 2px rgb(24 28 42 / 4%);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status-tabs button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--karries-text-secondary);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status-tabs button:hover:not([aria-selected="true"]) {
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status-tabs button[aria-selected="true"] {
+  background: var(--karries-brand-600);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgb(143 91 35 / 22%);
+  transform: translateY(-1px);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status-tabs button:active {
+  transform: scale(0.96);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status-tabs button:focus-visible {
+  outline: 2px solid var(--karries-brand-400);
+  outline-offset: 2px;
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .feedback-status-tabs button[aria-selected="true"] {
+  background: var(--karries-brand-200);
+  color: var(--karries-brand-800);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 28%);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-list {
+  display: grid;
+  max-height: 650px;
+  gap: 10px;
+  padding-top: 14px;
+  overflow: auto;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-item {
+  padding: 16px;
+  border: 1px solid var(--karries-border);
+  border-radius: 9px;
+  background: var(--karries-surface-soft);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-item > header {
+  justify-content: space-between;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-item h3 {
+  margin: 12px 0 7px;
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-item > p {
+  color: var(--karries-text-secondary);
+  line-height: 1.65;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status {
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--karries-warning-soft);
+  color: var(--karries-warning);
+  font-size: 12px;
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status.in_progress {
+  background: var(--karries-info-soft);
+  color: var(--karries-info);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-status.completed {
+  background: var(--karries-success-soft);
+  color: var(--karries-success);
+}
+
+:is(.customer-shell, .manager-shell) :is(.feedback-reply, .feedback-awaiting) {
+  margin-top: 13px;
+  padding: 12px;
+  border-radius: 7px;
+  background: var(--karries-surface);
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-reply strong {
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .feedback-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--karries-text-muted);
+}
+
+@media (max-width: 1100px) {
+  :is(.customer-shell, .manager-shell) .feedback-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  :is(.customer-shell, .manager-shell) .feedback-page-heading,
+  :is(.customer-shell, .manager-shell) .feedback-history-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  :is(.customer-shell, .manager-shell) .feedback-page-heading {
+    padding-right: 0;
+  }
+
+  :is(.customer-shell, .manager-shell) .feedback-category-grid {
+    grid-template-columns: 1fr;
+  }
+}

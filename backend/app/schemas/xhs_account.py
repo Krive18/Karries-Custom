@@ -33,3 +33,11 @@ class XHSAccountCreate(BaseModel):
     daily_limit: int = Field(default=1, ge=1, le=20)
     min_interval_minutes: int = Field(default=360, ge=30, le=1440)
     profile: XHSAccountProfile = Field(default_factory=XHSAccountProfile)
+
+
+class XHSAccountUpdate(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=100)
+    account_group: str | None = Field(default=None, max_length=100)
+    daily_limit: int | None = Field(default=None, ge=1, le=20)
+    min_interval_minutes: int | None = Field(default=None, ge=30, le=1440)
+    profile: XHSAccountProfileUpdate | None = None

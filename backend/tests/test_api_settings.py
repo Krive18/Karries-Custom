@@ -33,6 +33,28 @@ def test_ai_settings_api_requires_developer_role(mysql_conn, mysql_app_client):
     assert response.status_code == 403
 
 
+def test_ai_settings_api_uses_current_doubao_multimodal_defaults(
+    mysql_conn, mysql_app_client
+):
+    headers = _auth_headers(mysql_conn, mysql_app_client, "defaults", "developer_admin")
+
+    response = mysql_app_client.get("/api/settings/ai", headers=headers)
+
+    assert response.status_code == 200
+    vision = response.json()["data"]["vision"]
+    assert vision["provider"] == "doubao"
+    assert vision["base_url"] == (
+        "https://ark.cn-beijing.volces.com/api/v3/responses"
+    )
+    assert vision["model"] == "doubao-seed-2-0-lite-260428"
+    pro_copywriting = response.json()["data"]["pro_copywriting"]
+    assert pro_copywriting["provider"] == "doubao"
+    assert pro_copywriting["base_url"] == (
+        "https://ark.cn-beijing.volces.com/api/v3/responses"
+    )
+    assert pro_copywriting["model"] == "doubao-seed-2-1-pro-260628"
+
+
 def test_ai_settings_api_saves_encrypted_key_and_masks_it(
     monkeypatch, mysql_conn, mysql_app_client
 ):
@@ -132,3 +154,84 @@ def test_ai_settings_api_clears_key_only(
     body = response.json()["data"]
     assert body["copywriting"]["provider"] == "deepseek"
     assert body["copywriting"]["has_key"] is False
+
+
+def test_ai_settings_api_tests_stored_provider_key(
+    monkeypatch, mysql_conn, mysql_app_client
+):
+    from app.api import settings as settings_api
+
+    headers = _auth_headers(mysql_conn, mysql_app_client, "test-provider", "developer_admin")
+    observed = {}
+
+    def fake_test(repo, slot):
+        observed["slot"] = slot
+        return {
+            "success": True,
+            "slot": slot,
+            "provider": "deepseek",
+            "model": "deepseek-v4-flash",
+            "request_id": "req-provider-test",
+            "latency_ms": 321,
+        }
+
+    monkeypatch.setattr(
+        settings_api,
+        "test_ai_setting_connection",
+        fake_test,
+        raising=False,
+    )
+
+    response = mysql_app_client.post(
+        "/api/settings/ai/copywriting/test",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert observed == {"slot": "copywriting"}
+    assert response.json()["data"] == {
+        "success": True,
+        "slot": "copywriting",
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "request_id": "req-provider-test",
+        "latency_ms": 321,
+    }
+    assert "api_key" not in response.text
+
+
+def test_ai_settings_api_rejects_test_without_stored_key(
+    mysql_conn, mysql_app_client
+):
+    headers = _auth_headers(mysql_conn, mysql_app_client, "test-no-key", "platform_admin")
+
+    response = mysql_app_client.post(
+        "/api/settings/ai/vision/test",
+        headers=headers,
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "AI_KEY_MISSING"
+
+
+def test_ai_settings_api_rejects_oversized_provider_key(
+    mysql_conn, mysql_app_client
+):
+    headers = _auth_headers(
+        mysql_conn,
+        mysql_app_client,
+        "test-oversized-key",
+        "developer_admin",
+    )
+
+    response = mysql_app_client.put(
+        "/api/settings/ai/copywriting",
+        headers=headers,
+        json={
+            "api_key": "x" * 513,
+            "model": "deepseek-v4-flash",
+            "enabled": True,
+        },
+    )
+
+    assert response.status_code == 422

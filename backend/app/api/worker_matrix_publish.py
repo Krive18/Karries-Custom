@@ -37,7 +37,12 @@ def mark_matrix_publish_item_success(
     payload: WorkerItemSuccessRequest,
     conn=Depends(get_db_connection),
 ) -> dict:
-    result = MatrixPlanRepository(conn).mark_item_success(item_id, payload.message)
+    result = MatrixPlanRepository(conn).mark_item_success(
+        item_id,
+        payload.lease_token,
+        payload.message,
+        payload.result_data,
+    )
     return _worker_result_response(result)
 
 
@@ -47,7 +52,13 @@ def mark_matrix_publish_item_failed(
     payload: WorkerItemFailRequest,
     conn=Depends(get_db_connection),
 ) -> dict:
-    result = MatrixPlanRepository(conn).mark_item_failed(item_id, payload.error_message)
+    result = MatrixPlanRepository(conn).mark_item_failed(
+        item_id,
+        payload.lease_token,
+        payload.error_message,
+        retryable=payload.retryable,
+        retry_delay_seconds=payload.retry_delay_seconds,
+    )
     return _worker_result_response(result)
 
 
@@ -57,7 +68,13 @@ def mark_matrix_publish_item_manual_takeover(
     payload: WorkerItemManualTakeoverRequest,
     conn=Depends(get_db_connection),
 ) -> dict:
-    result = MatrixPlanRepository(conn).mark_item_manual_takeover(item_id, payload.reason)
+    result = MatrixPlanRepository(conn).mark_item_manual_takeover(
+        item_id,
+        payload.lease_token,
+        payload.reason,
+        invalidate_account_login=payload.invalidate_account_login,
+        mark_account_risk=payload.mark_account_risk,
+    )
     return _worker_result_response(result)
 
 

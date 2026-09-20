@@ -1,0 +1,35 @@
+[Unit]
+Description=KARRIES unified API
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/karries/backend
+EnvironmentFile=/etc/karries-api.env
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/karries/runtime/browsers
+ExecStart=/opt/karries/backend/.venv/bin/python -m uvicorn app.server_main:app --host 127.0.0.1 --port 8765 --proxy-headers --forwarded-allow-ips=127.0.0.1
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+KillSignal=SIGINT
+UMask=0027
+LimitNOFILE=65536
+MemoryMax=2G
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/opt/karries/data /opt/karries/logs /opt/karries/runtime
+
+[Install]
+WantedBy=multi-user.target

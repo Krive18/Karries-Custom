@@ -1,45 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
   ClipboardCopy,
   FileImage,
-  ImagePlus,
+  FolderOpen,
+  History,
   Loader2,
   Sparkles,
-  Trash2,
-  UploadCloud
+  Trash2
 } from "lucide-react";
 
 import { api } from "../api/client";
+import { MaterialLibraryPicker } from "../components/material/MaterialLibraryPicker";
+import { MaterialThumbnail } from "../components/material/MaterialThumbnail";
 import type {
-  AccountView,
+  ContentDraftView,
   ImageCopyResult,
-  TaskCreateRequest
+  MaterialAsset,
+  TaskCreateRequest,
+  XHSAccountView
 } from "../types";
 import { brandAssets } from "../assets";
 
 
 type SmartCreatePageProps = {
-  accounts: AccountView[];
+  accounts: XHSAccountView[];
   onCreateTask: (payload: TaskCreateRequest) => Promise<void>;
-};
-
-type BrowserMaterialFile = File & {
-  path?: string;
-};
-
-type MaterialItem = {
-  name: string;
-  path: string;
-  type: string;
 };
 
 type AnalysisResult = ImageCopyResult & {
   summary: string;
+  historyId: number;
+  materialIds: number[];
 };
-
-const imageExtensions = new Set([".jpg", ".jpeg", ".png", ".webp", ".bmp"]);
-const videoExtensions = new Set([".mp4", ".mov", ".webm"]);
 
 
 function pad(value: number) {
@@ -72,55 +65,26 @@ function toScheduleTimestamp(value: string) {
   return Math.floor((Date.now() + 3 * 60 * 60 * 1000) / 1000);
 }
 
-
-function extensionOf(path: string) {
-  const dotIndex = path.lastIndexOf(".");
-  return dotIndex >= 0 ? path.slice(dotIndex).toLowerCase() : "";
+function historyMaterialIds(draft: ContentDraftView) {
+  const rawIds = draft.material.material_ids;
+  return Array.isArray(rawIds)
+    ? rawIds.filter((value): value is number => typeof value === "number")
+    : [];
 }
 
 
-function fileNameOf(path: string) {
-  return path.split(/[\\/]/).filter(Boolean).at(-1) || path;
-}
-
-
-function typeFromPath(path: string) {
-  const extension = extensionOf(path);
-  if (imageExtensions.has(extension)) {
-    return `image/${extension.replace(".", "")}`;
-  }
-  if (videoExtensions.has(extension)) {
-    return `video/${extension.replace(".", "")}`;
-  }
-  return "application/octet-stream";
-}
-
-
-function materialFromFile(file: BrowserMaterialFile): MaterialItem {
-  return {
-    name: file.name,
-    path: file.path || file.webkitRelativePath || file.name,
-    type: file.type || typeFromPath(file.name)
-  };
-}
-
-
-function materialFromPath(path: string): MaterialItem {
-  return {
-    name: fileNameOf(path),
-    path,
-    type: typeFromPath(path)
-  };
-}
-
-
-function isImageMaterial(material: MaterialItem) {
-  return material.type.startsWith("image/") || imageExtensions.has(extensionOf(material.path));
+function formatHistoryTime(timestamp: number) {
+  return new Date(timestamp * 1000).toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 }
 
 
 export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps) {
-  const [materials, setMaterials] = useState<MaterialItem[]>([]);
+  const [materials, setMaterials] = useState<MaterialAsset[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | "">("");
   const [customDirection, setCustomDirection] = useState("");
   const [publishType, setPublishType] = useState("图文笔记");
@@ -129,11 +93,13 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
   const [result, setResult] = useState<null | AnalysisResult>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLibraryPickerOpen, setIsLibraryPickerOpen] = useState(false);
+  const [history, setHistory] = useState<ContentDraftView[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const imageFiles = useMemo(
-    () => materials.filter(isImageMaterial),
+    () => materials.filter((material) => material.file_type === "image"),
     [materials],
   );
 
@@ -143,31 +109,23 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
     }
   }, [accounts, selectedAccountId]);
 
-  function updateFiles(nextFiles: FileList | File[]) {
-    setMaterials((Array.from(nextFiles) as BrowserMaterialFile[]).map(materialFromFile));
-    setResult(null);
-    setErrorMessage("");
-  }
+  useEffect(() => {
+    void refreshHistory();
+  }, []);
 
-  function updateMaterialPaths(paths: string[]) {
-    setMaterials(paths.map(materialFromPath));
-    setResult(null);
-    setErrorMessage("");
-  }
-
-  async function openMaterialPicker() {
-    const selectedPaths = await window.karriesPublisher?.selectMaterials?.();
-    if (selectedPaths) {
-      updateMaterialPaths(selectedPaths);
-      return;
+  async function refreshHistory() {
+    setIsHistoryLoading(true);
+    try {
+      setHistory(await api.listSmartCreationHistory());
+    } finally {
+      setIsHistoryLoading(false);
     }
-    fileInputRef.current?.click();
   }
 
   async function handleGenerate() {
-    const imagePaths = imageFiles.map((material) => material.path);
-    if (imagePaths.length === 0) {
-      setErrorMessage("请先上传至少 1 张图片素材");
+    const materialIds = imageFiles.map((material) => material.id);
+    if (materialIds.length === 0) {
+      setErrorMessage("请先从产品知识库选择至少 1 张图片素材");
       return;
     }
 
@@ -175,14 +133,19 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
     setErrorMessage("");
     try {
       const generated = await api.generateImageCopy({
-        image_paths: imagePaths,
+        image_paths: [],
+        material_ids: materialIds,
+        xhs_account_id: Number(selectedAccountId || 0),
         style: customDirection.trim() || "小红书种草",
         extra_prompt: extraPrompt.trim()
       });
       setResult({
         ...generated,
-        summary: `已解析 ${imagePaths.length} 张图片素材，可用于小红书图文笔记创作。`
+        summary: `已解析 ${materialIds.length} 张产品库图片，可用于小红书图文笔记创作。`,
+        historyId: generated.history_id ?? 0,
+        materialIds
       });
+      await refreshHistory();
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "AI 解析失败，请稍后重试");
     } finally {
@@ -205,11 +168,13 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
     setErrorMessage("");
     try {
       await onCreateTask({
+        draft_id: result.historyId || undefined,
         account_id: accountId,
         task_title: result.title,
         task_body: result.body,
         tags: result.tags,
-        image_paths: imageFiles.map((material) => material.path),
+        image_paths: [],
+        material_ids: result.materialIds,
         schedule_time: toScheduleTimestamp(scheduleTime)
       });
     } catch (error) {
@@ -221,54 +186,63 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
 
   return (
     <section className="page-grid">
-      <div className="page-heading">
-        <h1>素材智能解析</h1>
-        <p>上传本地图片或视频，生成小红书标题、正文、标签和素材摘要。</p>
+      <div className="page-heading compact-page-heading">
+        <div className="page-heading-copy">
+          <h1>素材智能解析</h1>
+          <p>从产品知识库选图，生成标题、正文、标签和素材摘要。</p>
+        </div>
       </div>
 
       <section className="panel material-panel">
         <div className="panel-title">
-          <h2>本地素材</h2>
+          <h2>创作素材</h2>
           <div className="panel-actions">
-            <button className="soft-button" type="button" onClick={openMaterialPicker}>
-              <ImagePlus size={16} aria-hidden="true" />
-              <span>选择图片/视频</span>
+            <button className="primary-button" type="button" onClick={() => setIsLibraryPickerOpen(true)}>
+              <FolderOpen size={16} aria-hidden="true" />
+              <span>从产品知识库选择</span>
             </button>
-            <button className="quiet-danger" type="button" onClick={() => updateMaterialPaths([])}>
+            <button className="quiet-danger" type="button" onClick={() => setMaterials([])}>
               <Trash2 size={16} aria-hidden="true" />
               清空素材
             </button>
           </div>
         </div>
 
-        <input
-          ref={fileInputRef}
-          className="hidden-file-input"
-          type="file"
-          accept="image/*,video/mp4,video/quicktime,video/webm"
-          multiple
-          onChange={(event) => updateFiles(event.target.files ?? [])}
-        />
-        <button
-          className="upload-zone"
-          type="button"
-          onClick={openMaterialPicker}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => {
-            event.preventDefault();
-            updateFiles(event.dataTransfer.files);
-          }}
-        >
-          <UploadCloud size={42} aria-hidden="true" />
-          <strong>拖入图片或视频到此处，或点击上传</strong>
-          <span>支持 JPG、PNG、WEBP、MP4、MOV、WEBM 等常见素材</span>
-        </button>
+        {materials.length === 0 ? (
+          <button
+            className="knowledge-library-source"
+            type="button"
+            onClick={() => setIsLibraryPickerOpen(true)}
+          >
+            <FolderOpen size={42} aria-hidden="true" />
+            <strong>从产品知识库选择图片</strong>
+            <span>素材统一在产品知识库中归档，本次创作只需选用已有产品图片。</span>
+          </button>
+        ) : null}
 
         <div className="material-counts">
           <span>素材 {materials.length}</span>
           <span>图片 {imageFiles.length}</span>
-          <span>视频 {materials.filter((material) => material.type.startsWith("video/")).length}</span>
+          <span>视频 {materials.filter((material) => material.file_type === "video").length}</span>
         </div>
+        {materials.length ? (
+          <div className="smart-material-strip">
+            {materials.map((material) => (
+              <article key={material.id}>
+                <MaterialThumbnail asset={material} />
+                <span title={material.file_name}>{material.file_name}</span>
+                <button
+                  type="button"
+                  aria-label={`移除 ${material.file_name}`}
+                  title="从本次创作移除"
+                  onClick={() => setMaterials((current) => current.filter((item) => item.id !== material.id))}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <section className="panel result-panel">
@@ -297,7 +271,7 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
         ) : (
           <div className="empty-result">
             <img src={brandAssets.angelMark} alt="" />
-            <strong>上传素材后点击「AI 智能解析」</strong>
+            <strong>选择产品图片后点击「AI 智能解析」</strong>
             <span>这里将展示 AI 解析生成的标题、正文与标签等内容</span>
             <div className="capability-row">
               <span>智能标题生成</span>
@@ -340,7 +314,7 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
             >
               {accounts.length === 0 ? <option value="">请先新增账号</option> : null}
               {accounts.map((account) => (
-                <option key={account.id} value={account.id}>{account.account_name}</option>
+                <option key={account.id} value={account.id}>{account.display_name}</option>
               ))}
             </select>
           </label>
@@ -396,6 +370,68 @@ export function SmartCreatePage({ accounts, onCreateTask }: SmartCreatePageProps
           </button>
         </div>
       </section>
+
+      <section className="panel creation-history-panel">
+        <div className="panel-title">
+          <h2>
+            <History size={18} aria-hidden="true" />
+            创作历史
+          </h2>
+          <button className="icon-button" type="button" title="刷新创作历史" onClick={() => void refreshHistory()}>
+            {isHistoryLoading ? <Loader2 size={17} className="spin" aria-hidden="true" /> : <History size={17} aria-hidden="true" />}
+          </button>
+        </div>
+        {history.length ? (
+          <div className="creation-history-list">
+            {history.slice(0, 20).map((draft) => (
+              <button
+                className={result?.historyId === draft.id ? "creation-history-item active" : "creation-history-item"}
+                key={draft.id}
+                type="button"
+                onClick={() => {
+                  const materialIds = historyMaterialIds(draft);
+                  setResult({
+                    title: draft.title,
+                    body: draft.body,
+                    tags: draft.tags,
+                    history_id: draft.id,
+                    historyId: draft.id,
+                    materialIds,
+                    summary: `已恢复历史任务，共关联 ${materialIds.length} 张产品库图片。`
+                  });
+                  if (draft.xhs_account_id > 0) {
+                    setSelectedAccountId(draft.xhs_account_id);
+                  }
+                  setErrorMessage("");
+                }}
+              >
+                <span>
+                  <strong>{draft.title}</strong>
+                  <small>{formatHistoryTime(draft.create_time)}</small>
+                </span>
+                <em>{draft.status === "confirmed" ? "已加入发布" : "草稿"}</em>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="creation-history-empty">
+            {isHistoryLoading ? "正在加载创作历史" : "完成一次 AI 智能解析后，记录会自动保存在这里"}
+          </div>
+        )}
+      </section>
+
+      <MaterialLibraryPicker
+        open={isLibraryPickerOpen}
+        allowedTypes={["image"]}
+        initialSelection={imageFiles}
+        onClose={() => setIsLibraryPickerOpen(false)}
+        onConfirm={(selectedAssets) => {
+          setMaterials(selectedAssets);
+          setResult(null);
+          setErrorMessage("");
+          setIsLibraryPickerOpen(false);
+        }}
+      />
     </section>
   );
 }

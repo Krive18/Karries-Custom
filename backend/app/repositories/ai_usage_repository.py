@@ -19,6 +19,7 @@ class AIUsageRepository:
         input_chars: int,
         output_chars: int,
         error_message: str,
+        request_id: str = "",
         commit: bool = True,
     ) -> int:
         now = int(time.time())
@@ -28,10 +29,10 @@ class AIUsageRepository:
                     """
                     insert into ai_usage_log (
                         tenant_id, user_id, business_type, business_id, provider, model_name,
-                        status, credit_cost, latency_ms, input_chars, output_chars, error_message,
+                        request_id, status, credit_cost, latency_ms, input_chars, output_chars, error_message,
                         create_time
                     )
-                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         tenant_id,
@@ -40,6 +41,7 @@ class AIUsageRepository:
                         business_id,
                         provider,
                         model_name,
+                        request_id[:128],
                         status,
                         credit_cost,
                         latency_ms,
@@ -70,7 +72,7 @@ class AIUsageRepository:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
-                select id, status, provider, model_name, latency_ms, input_chars,
+                select id, status, provider, model_name, request_id, latency_ms, input_chars,
                        output_chars, credit_cost, error_message, create_time
                 from ai_usage_log
                 where tenant_id = %s and business_type = %s and business_id = %s

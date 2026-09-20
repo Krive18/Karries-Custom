@@ -1,0 +1,38 @@
+[Unit]
+Description=KARRIES Xiaohongshu publish worker
+After=network-online.target mysql.service karries-api.service
+Wants=network-online.target
+Requires=karries-api.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/karries/backend
+EnvironmentFile=/etc/karries-api.env
+Environment=BACKEND_API_URL=http://127.0.0.1:8765
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/karries/runtime/browsers
+Environment=XHS_WORKER_HEADLESS=1
+ExecStart=/opt/karries/backend/.venv/bin/python -m app.workers.matrix_publish_worker
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+UMask=0027
+LimitNOFILE=65536
+MemoryMax=2G
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/opt/karries/data /opt/karries/logs /opt/karries/runtime
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,7 @@
 import pytest
 
 from app.core.config import default_config
+from app.core.security import hash_password, verify_access_token
 from app.schemas.auth import AuthUser, RegisterRequest
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthError, AuthService
@@ -248,7 +249,7 @@ def test_login_returns_token_after_registration(mysql_conn, mysql_app_client):
     )
 
     response = mysql_app_client.post(
-        "/api/auth/login",
+        "/api/auth/customer/login",
         json={"login_name": "operator_login", "password": "matrix-secret"},
     )
 
@@ -274,7 +275,7 @@ def test_login_rejects_wrong_password(mysql_conn, mysql_app_client):
     )
 
     response = mysql_app_client.post(
-        "/api/auth/login",
+        "/api/auth/customer/login",
         json={"login_name": "operator_wrong", "password": "wrong-secret"},
     )
 
@@ -313,3 +314,51 @@ def test_me_requires_bearer_token(app_client_without_db):
     assert response.status_code == 401
     assert response.json()["success"] is False
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.parametrize(
+    ("portal", "role", "expected_status"),
+    [
+        ("customer", "customer", 200),
+        ("customer", "client_owner", 403),
+        ("manager", "client_owner", 200),
+        ("manager", "client_admin", 403),
+        ("manager", "customer", 403),
+        ("developer", "platform_admin", 200),
+        ("developer", "developer_admin", 200),
+        ("developer", "customer", 403),
+    ],
+)
+def test_portal_login_enforces_role(
+    mysql_conn,
+    mysql_app_client,
+    portal,
+    role,
+    expected_status,
+):
+    login_name = f"{portal}_{role}"
+    UserRepository(mysql_conn).create_user(
+        login_name=login_name,
+        nickname=login_name,
+        password_hash=hash_password("strong-password"),
+        user_role=role,
+        invite_code="",
+        tenant_id=17,
+    )
+
+    response = mysql_app_client.post(
+        f"/api/auth/{portal}/login",
+        json={"login_name": login_name, "password": "strong-password"},
+    )
+
+    assert response.status_code == expected_status
+    if expected_status == 200:
+        token = response.json()["data"]["access_token"]
+        claims = verify_access_token(
+            token,
+            mysql_app_client.app.state.config.auth.token_secret,
+        )
+        assert claims["aud"] == portal
+        assert claims["tenant_id"] == 17
+    else:
+        assert response.json()["error"]["code"] == "PORTAL_FORBIDDEN"

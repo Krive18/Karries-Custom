@@ -4,7 +4,9 @@ from unittest.mock import AsyncMock
 
 from fastapi.testclient import TestClient
 
+from app.core.security import create_access_token
 from app.main import create_app
+from app.repositories.user_repository import UserRepository
 
 
 class SharedMysqlConnection:
@@ -38,8 +40,26 @@ def mysql_client(monkeypatch, mysql_conn):
     assert shared_conn.closed_by_app is True
 
 
+def auth_headers(mysql_conn, client, suffix: str) -> dict[str, str]:
+    user_id = UserRepository(mysql_conn).create_user(
+        login_name=f"task_member_{suffix}",
+        nickname="Task member",
+        password_hash="not-used-by-token-auth",
+        user_role="customer",
+        invite_code="",
+        tenant_id=1,
+    )
+    token = create_access_token(
+        {"user_id": user_id, "tenant_id": 1, "role": "customer", "aud": "customer"},
+        client.app.state.config.auth.token_secret,
+        client.app.state.config.auth.access_token_seconds,
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
 def test_account_and_task_api_create_and_list(tmp_path, monkeypatch, mysql_conn):
     with mysql_client(monkeypatch, mysql_conn) as client:
+        headers = auth_headers(mysql_conn, client, "create")
         account_response = client.post(
             "/api/accounts",
             json={"account_name": "brand_a", "cookie_path": "accounts/brand_a.json"},
@@ -65,6 +85,7 @@ def test_account_and_task_api_create_and_list(tmp_path, monkeypatch, mysql_conn)
                 "image_paths": [str(image_path)],
                 "schedule_time": int(time.time()) + 2 * 3600 + 60,
             },
+            headers=headers,
         )
 
         assert task_response.status_code == 200
@@ -106,6 +127,7 @@ def test_create_task_returns_unified_error_for_missing_account(tmp_path, monkeyp
     image_path.write_bytes(b"image")
 
     with mysql_client(monkeypatch, mysql_conn) as client:
+        headers = auth_headers(mysql_conn, client, "missing-account")
         response = client.post(
             "/api/tasks",
             json={
@@ -116,6 +138,7 @@ def test_create_task_returns_unified_error_for_missing_account(tmp_path, monkeyp
                 "image_paths": [str(image_path)],
                 "schedule_time": int(time.time()) + 2 * 3600 + 60,
             },
+            headers=headers,
         )
 
         assert response.status_code == 400
@@ -129,6 +152,7 @@ def test_submit_task_api_marks_task_submitted(tmp_path, monkeypatch, mysql_conn)
     monkeypatch.setattr("app.workers.publish_worker.submit_note", AsyncMock(return_value=None))
 
     with mysql_client(monkeypatch, mysql_conn) as client:
+        headers = auth_headers(mysql_conn, client, "submit")
         account_response = client.post(
             "/api/accounts",
             json={"account_name": "brand_a", "cookie_path": "accounts/brand_a.json"},
@@ -146,6 +170,7 @@ def test_submit_task_api_marks_task_submitted(tmp_path, monkeypatch, mysql_conn)
                 "image_paths": [str(image_path)],
                 "schedule_time": int(time.time()) + 2 * 3600 + 60,
             },
+            headers=headers,
         )
         task_id = task_response.json()["data"]["id"]
 
@@ -165,6 +190,7 @@ def test_submit_task_api_returns_publish_failed_for_platform_value_error(tmp_pat
     )
 
     with mysql_client(monkeypatch, mysql_conn) as client:
+        headers = auth_headers(mysql_conn, client, "submit-failure")
         account_response = client.post(
             "/api/accounts",
             json={"account_name": "brand_a", "cookie_path": "accounts/brand_a.json"},
@@ -182,6 +208,7 @@ def test_submit_task_api_returns_publish_failed_for_platform_value_error(tmp_pat
                 "image_paths": [str(image_path)],
                 "schedule_time": int(time.time()) + 2 * 3600 + 60,
             },
+            headers=headers,
         )
         task_id = task_response.json()["data"]["id"]
 

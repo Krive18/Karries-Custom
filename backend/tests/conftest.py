@@ -16,26 +16,46 @@ from app.main import create_app
 
 
 MYSQL_TABLES = (
+    "user_feedback",
+    "user_notification",
+    "ai_translation_delivery",
+    "ai_translation_task",
+    "user_creation_request",
+    "membership_upgrade_order",
+    "recharge_order",
+    "user_daily_checkin",
+    "membership_monthly_credit_grant",
+    "user_membership",
+    "membership_plan",
     "viral_analysis_result",
     "viral_analysis_material",
     "viral_analysis_job",
+    "inspiration_attachment",
     "inspiration_message",
     "inspiration_session",
+    "ai_personalization_profile",
     "ai_usage_log",
+    "video_edit_revision_request",
     "video_edit_job",
+    "matrix_publish_event_log",
     "matrix_publish_item",
     "matrix_publish_plan",
     "content_draft_source",
+    "content_collection",
     "content_draft",
     "material_file",
+    "material_project_group",
+    "product_material_folder",
     "product_material_package",
     "product",
+    "xhs_account_login_session",
     "xhs_account_profile",
     "xhs_account",
     "recharge_package",
     "credit_ledger",
     "credit_wallet",
     "invite_code",
+    "developer_alert_event",
     "admin_audit_log",
     "app_user",
     "tenant",
@@ -125,9 +145,10 @@ def mysql_conn():
 
 
 @pytest.fixture
-def mysql_app_client(monkeypatch, mysql_conn):
+def mysql_app_client(monkeypatch, mysql_conn, tmp_path):
     shared_conn = SharedMysqlConnection(mysql_conn)
     monkeypatch.setattr("app.main.connect", lambda _config: shared_conn)
+    monkeypatch.setenv("XHS_PUBLISHER_DATA_DIR", str(tmp_path / "data"))
 
     with TestClient(create_app("all")) as client:
         yield client

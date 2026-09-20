@@ -4,7 +4,14 @@ from app.core.config import AppConfig
 from app.core.security import create_access_token, hash_password, verify_password
 from app.repositories.user_repository import UserRepository
 from app.repositories.wallet_repository import WalletRepository
-from app.schemas.auth import AuthResponse, AuthUser, LoginRequest, RegisterRequest
+from app.schemas.auth import AuthPortal, AuthResponse, AuthUser, LoginRequest, RegisterRequest
+
+
+PORTAL_ROLES: dict[AuthPortal, set[str]] = {
+    "customer": {"customer"},
+    "manager": {"client_owner"},
+    "developer": {"platform_admin", "developer_admin"},
+}
 
 
 class AuthError(Exception):
@@ -25,19 +32,28 @@ class AuthService:
     def register(self, payload: RegisterRequest) -> AuthResponse:
         user_id = self._create_user_with_invite(payload)
         user = self.users.get_by_id(user_id)
-        return self._auth_response(user)
+        return self._auth_response(user, audience="customer")
 
     def login(self, payload: LoginRequest) -> AuthResponse:
+        return self.login_for_portal(payload, "customer")
+
+    def login_for_portal(
+        self,
+        payload: LoginRequest,
+        portal: AuthPortal,
+    ) -> AuthResponse:
         user = self.users.get_by_login_name(payload.login_name)
         if user is None or user["status"] != 1:
             raise AuthError("INVALID_CREDENTIALS", "invalid login credentials", 401)
         if not verify_password(payload.password, user["password_hash"]):
             raise AuthError("INVALID_CREDENTIALS", "invalid login credentials", 401)
+        if user["user_role"] not in PORTAL_ROLES[portal]:
+            raise AuthError("PORTAL_FORBIDDEN", "account cannot access this portal", 403)
 
         self.users.update_last_login(user["id"])
-        return self._auth_response(user)
+        return self._auth_response(user, audience=portal)
 
-    def _auth_response(self, user: dict) -> AuthResponse:
+    def _auth_response(self, user: dict, audience: AuthPortal) -> AuthResponse:
         wallet = self.wallets.get_wallet(user["id"])
         wallet_balance = int(wallet["balance"]) if wallet is not None else 0
         expires_in = self.config.auth.access_token_seconds
@@ -46,6 +62,8 @@ class AuthService:
                 "user_id": user["id"],
                 "tenant_id": user["tenant_id"],
                 "role": user["user_role"],
+                "auth_version": int(user.get("auth_version", 1)),
+                "aud": audience,
             },
             self.config.auth.token_secret,
             expires_in,

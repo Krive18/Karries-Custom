@@ -275,6 +275,11 @@
       grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
     }
 
+    .grid.settings-grid.account-only-grid {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: 1040px;
+    }
+
     .panel {
       background: var(--surface);
       border: 1px solid var(--line);
@@ -315,6 +320,7 @@
     .field {
       display: grid;
       gap: 7px;
+      align-content: start;
     }
 
     .field label {
@@ -327,11 +333,13 @@
     .field textarea,
     .field select {
       width: 100%;
+      box-sizing: border-box;
       border: 1px solid var(--line);
       border-radius: var(--radius);
       background: #fff;
       color: var(--text);
       padding: 10px 11px;
+      line-height: 1.45;
       outline: none;
     }
 
@@ -339,6 +347,36 @@
       min-height: 96px;
       resize: vertical;
       line-height: 1.65;
+    }
+
+    .hidden-config-panel {
+      display: none !important;
+    }
+
+    .ai-agent-card {
+      box-sizing: border-box;
+      height: 48px;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(255, 247, 236, 0.86));
+      color: var(--brand-dark);
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      align-self: start;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 900;
+      line-height: 1.35;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    }
+
+    .ai-agent-card small {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
     }
 
     .hint {
@@ -665,6 +703,24 @@
       vertical-align: top;
     }
 
+    .table-time-editor {
+      display: grid;
+      gap: 7px;
+      min-width: 178px;
+    }
+
+    .table-time-editor input {
+      width: 100%;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      padding: 7px 9px;
+      outline: none;
+      font-size: 13px;
+    }
+
     .task-table th {
       color: var(--muted);
       font-size: 12px;
@@ -683,6 +739,315 @@
     .config-card h4 {
       margin: 0;
       font-size: 14px;
+    }
+
+    .account-guide {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .account-guide-item {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+      padding: 12px;
+      display: grid;
+      gap: 5px;
+      min-height: 86px;
+    }
+
+    .account-guide-item strong {
+      color: var(--brand-dark);
+      font-size: 14px;
+    }
+
+    .account-guide-item span {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      background: #f2dfc6;
+      color: var(--brand-dark);
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .product-flow-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .flow-step {
+      min-height: 78px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      padding: 13px 14px;
+      display: grid;
+      gap: 6px;
+      align-content: center;
+    }
+
+    .flow-step span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .flow-step strong {
+      font-size: 15px;
+    }
+
+    .product-file-list,
+    .product-library-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .product-file-item,
+    .product-row {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfd;
+      padding: 12px;
+    }
+
+    .product-file-item {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .file-thumb {
+      width: 58px;
+      height: 58px;
+      border-radius: 10px;
+      background: #e8edf2;
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+      color: var(--brand-dark);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .file-thumb img,
+    .file-thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .media-fallback {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(135deg, rgba(255, 248, 239, 0.78), rgba(230, 214, 196, 0.76)),
+        radial-gradient(circle at 68% 28%, rgba(154, 91, 34, 0.18), transparent 36%);
+      color: var(--brand-dark);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .media-fallback.video {
+      background:
+        linear-gradient(135deg, rgba(255, 246, 231, 0.86), rgba(225, 173, 113, 0.34)),
+        radial-gradient(circle at 30% 30%, rgba(184, 120, 46, 0.24), transparent 36%);
+    }
+
+    .media-fallback span {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(255, 253, 249, 0.82);
+      border: 1px solid rgba(184, 120, 46, 0.16);
+      box-shadow: 0 8px 18px rgba(94, 56, 22, 0.08);
+    }
+
+    .file-kind-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .file-kind-row strong {
+      overflow-wrap: anywhere;
+    }
+
+    .product-form-section {
+      display: grid;
+      gap: 12px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line-soft);
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 14px;
+      color: var(--brand-dark);
+    }
+
+    .product-library-toolbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) 180px auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .product-library-toolbar input,
+    .product-library-toolbar select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      padding: 9px 11px;
+      outline: none;
+    }
+
+    .product-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+    }
+
+    .product-row strong {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+
+    .product-row p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .source-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .source-toolbar select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--text);
+      padding: 9px 11px;
+      outline: none;
+    }
+
+    .source-summary {
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      background: rgba(255, 248, 239, 0.54);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .source-summary strong {
+      color: var(--brand-dark);
+    }
+
+    .automation-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .automation-step {
+      min-height: 74px;
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      background: rgba(255, 253, 249, 0.72);
+      padding: 11px;
+      display: grid;
+      gap: 5px;
+      align-content: start;
+    }
+
+    .automation-step span {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: #f0dcc4;
+      color: var(--brand-dark);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .automation-step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 9px;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: rgba(247, 241, 234, 0.88);
+      border: 1px solid var(--line-soft);
+      color: var(--brand);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .confidence-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .confidence-item {
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      padding: 9px;
+      background: rgba(255, 253, 249, 0.62);
+    }
+
+    .confidence-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+
+    .confidence-item strong {
+      color: var(--brand-dark);
+      font-size: 15px;
     }
 
     .toast {
@@ -735,8 +1100,26 @@
         grid-template-columns: 1fr;
       }
 
+      .account-guide {
+        grid-template-columns: 1fr;
+      }
+
       .metric-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .product-flow-row,
+      .confidence-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .product-library-toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      .source-toolbar,
+      .automation-strip {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -752,7 +1135,16 @@
       }
 
       .two-col,
-      .metric-grid {
+      .metric-grid,
+      .product-flow-row,
+      .confidence-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .product-file-item,
+      .product-row,
+      .source-toolbar,
+      .automation-strip {
         grid-template-columns: 1fr;
       }
 
@@ -860,6 +1252,7 @@
     .nav-stack {
       gap: 10px;
       padding: 0;
+      position: relative;
     }
 
     .nav-card {
@@ -867,8 +1260,28 @@
       gap: 14px;
       padding: 15px 16px;
       border-radius: 18px;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      background: rgba(255, 253, 249, 0.54);
+      border: 1px solid rgba(234, 223, 211, 0.78);
       color: var(--brand-dark);
       transition: 0.24s var(--ease);
+    }
+
+    .nav-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 12px;
+      bottom: 12px;
+      width: 3px;
+      border-radius: 0 999px 999px 0;
+      background: var(--brand);
+      opacity: 0;
+      transition: opacity 0.2s var(--ease);
     }
 
     .nav-card:hover {
@@ -883,19 +1296,53 @@
       color: var(--brand);
     }
 
+    .nav-card.active::before {
+      opacity: 1;
+    }
+
     .nav-kicker {
-      width: 9px;
-      height: 9px;
-      background: #decab5;
+      grid-row: 1 / span 2;
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 248, 239, 0.9);
+      border: 1px solid rgba(218, 196, 174, 0.8);
+      box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.44);
     }
 
     .nav-card.active .nav-kicker {
-      background: var(--brand);
+      background: linear-gradient(135deg, #a9682a, #7b4316);
+      border-color: rgba(154, 91, 34, 0.2);
+      box-shadow: 0 8px 18px rgba(154, 91, 34, 0.16);
+    }
+
+    .nav-kicker::after {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #d8c2aa;
+    }
+
+    .nav-card.active .nav-kicker::after {
+      background: #fff7ec;
     }
 
     .nav-card strong {
+      grid-column: 2;
       font-size: 17px;
       font-weight: 800;
+    }
+
+    .nav-card small {
+      grid-column: 2;
+      display: block;
+      margin-top: -4px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+      white-space: normal;
     }
 
     .sidebar-status {
@@ -1087,6 +1534,8 @@
     .field input,
     .field textarea,
     .field select,
+    .product-library-toolbar input,
+    .product-library-toolbar select,
     .result-edit input,
     .result-edit textarea {
       min-height: 48px;
@@ -1101,6 +1550,8 @@
     .field input:focus,
     .field textarea:focus,
     .field select:focus,
+    .product-library-toolbar input:focus,
+    .product-library-toolbar select:focus,
     .result-edit input:focus,
     .result-edit textarea:focus {
       border-color: rgba(184, 120, 46, 0.55);
@@ -1154,6 +1605,9 @@
 
     .material-card,
     .config-card,
+    .flow-step,
+    .product-file-item,
+    .product-row,
     .empty,
     .analysis-list li {
       border-color: var(--line);
@@ -1208,6 +1662,15 @@
       .grid.settings-grid {
         grid-template-columns: 1fr;
       }
+
+      .product-flow-row,
+      .confidence-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .product-library-toolbar {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 680px) {
@@ -1222,7 +1685,14 @@
       }
 
       .two-col,
-      .metric-grid {
+      .metric-grid,
+      .product-flow-row,
+      .confidence-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .product-file-item,
+      .product-row {
         grid-template-columns: 1fr;
       }
 
@@ -1254,8 +1724,18 @@
       <nav class="nav-stack" aria-label="业务模块">
         <button class="nav-card active" type="button" data-section="creation">
           <span class="nav-kicker"></span>
+          <strong>爆款解析</strong>
+          <small>爆款视频拆解 / 钩子脚本 / 复用策略</small>
+        </button>
+        <button class="nav-card" type="button" data-section="clip">
+          <span class="nav-kicker"></span>
           <strong>智能创作</strong>
-          <small>素材解析 / 文案生成 / 人工确认</small>
+          <small>AI 自动剪辑 / 成片方案 / 发布任务</small>
+        </button>
+        <button class="nav-card" type="button" data-section="products">
+          <span class="nav-kicker"></span>
+          <strong>产品知识库</strong>
+          <small>商品资料 / 卖点参数 / 创作素材</small>
         </button>
         <button class="nav-card" type="button" data-section="schedule">
           <span class="nav-kicker"></span>
@@ -1274,17 +1754,17 @@
           <span id="sideAiMode" class="badge amber">AI 未配置</span>
           <span id="sideTaskCount" class="badge">任务 0</span>
         </div>
-        <p>上传素材后可进行智能解析，生成文案并加入图文定时发布任务。</p>
-        <button id="sideAnalyzeBtn" class="small-btn" type="button">解析当前素材</button>
+        <p>上传爆款素材可拆解选题、钩子和镜头节奏；进入智能创作后可生成剪辑方案并加入定时发布。</p>
+        <button id="sideAnalyzeBtn" class="small-btn" type="button">解析爆款素材</button>
       </div>
     </aside>
 
     <main>
       <header class="topbar">
         <div>
-          <p id="moduleEyebrow" class="eyebrow">智能创作</p>
-          <h2 id="pageTitle">素材智能解析</h2>
-          <p id="pageDesc">上传本地图片或视频，生成小红书标题、正文、标签和素材洞察。</p>
+          <p id="moduleEyebrow" class="eyebrow">爆款解析</p>
+          <h2 id="pageTitle">爆款素材智能解析</h2>
+          <p id="pageDesc">上传别人的爆款视频或图文截图，拆解选题、开头钩子、镜头节奏和可复用脚本。</p>
         </div>
         <div class="top-actions">
           <div id="serverStatus" class="status-pill">后端连接中</div>
@@ -1299,17 +1779,17 @@
           <div class="stack">
             <section class="panel">
               <div class="panel-head">
-                <h3>本地素材</h3>
+                <h3>爆款素材</h3>
                 <div class="actions">
-                  <button id="pickFileBtn" class="small-btn" type="button">选择图片/视频</button>
+                  <button id="pickFileBtn" class="small-btn" type="button">选择爆款素材</button>
                   <button id="clearMaterialsBtn" class="small-btn danger" type="button">清空素材</button>
                 </div>
               </div>
               <div class="panel-body">
-                <div id="uploadZone" class="upload-zone">
+                <div id="uploadZone" class="upload-zone" role="button" tabindex="0">
                   <div>
-                    <strong>拖入图片或视频</strong>
-                    <span>支持 JPG、PNG、WEBP、MP4、MOV、WEBM 等常见素材</span>
+                    <strong>拖入爆款视频或图文截图</strong>
+                    <span>支持 JPG、PNG、WEBP、MP4、MOV、WEBM，用于拆解选题、钩子和镜头节奏</span>
                   </div>
                 </div>
                 <input id="fileInput" type="file" accept="image/*,video/*" multiple hidden>
@@ -1320,19 +1800,19 @@
 
             <section class="panel">
               <div class="panel-head">
-                <h3>创作参数</h3>
+                <h3>解析参数</h3>
                 <div class="badge-line">
-                  <span id="keyInlineStatus" class="badge amber">未连接 Key</span>
+                  <span id="keyInlineStatus" class="badge amber">智能体待连接</span>
                 </div>
               </div>
               <div class="panel-body stack">
                 <div class="two-col">
                   <div class="field">
-                    <label for="contentDirection">内容方向</label>
-                    <input id="contentDirection" type="text" value="小红书种草" placeholder="请输入内容方向">
+                    <label for="contentDirection">复用方向</label>
+                    <input id="contentDirection" type="text" value="小红书种草" placeholder="请输入希望复用到的内容方向">
                   </div>
                   <div class="field">
-                    <label for="tone">文案语气</label>
+                    <label for="tone">输出语气</label>
                     <select id="tone">
                       <option>自然真诚</option>
                       <option>专业可信</option>
@@ -1343,7 +1823,7 @@
                 </div>
                 <div class="two-col">
                   <div class="field">
-                    <label for="publishContentType">发布内容类型</label>
+                    <label for="publishContentType">计划复用内容类型</label>
                     <select id="publishContentType">
                       <option>图文笔记</option>
                       <option>视频笔记</option>
@@ -1363,26 +1843,27 @@
                     <div id="currentAccountBadge" class="hint">当前任务尚未选择发布账号</div>
                   </div>
                   <div class="field">
-                    <label for="aiProvider">AI 服务商</label>
-                    <select id="aiProvider">
-                      <option value="deepseek">DeepSeek</option>
-                      <option value="openai">GPT</option>
-                      <option value="doubao">豆包</option>
-                      <option value="gemini">Gemini</option>
+                    <label for="aiProvider">AI 智能体</label>
+                    <div class="ai-agent-card" aria-hidden="true">
+                      <span>点绘环球AI智能体</span>
+                      <small>自动解析与生成</small>
+                    </div>
+                    <select id="aiProvider" class="hidden-config-panel" aria-label="AI 智能体">
+                      <option value="deepseek" selected>点绘环球AI智能体</option>
                     </select>
                   </div>
                 </div>
-                <div class="field">
+                <div class="field hidden-config-panel" data-hidden-model-config="true">
                   <label for="modelName">模型</label>
                   <input id="modelName" type="text" value="deepseek-v4-flash">
                 </div>
                 <div class="field">
-                  <label for="extraPrompt">补充要求</label>
-                  <textarea id="extraPrompt" placeholder="例如：突出新品、强调门店体验、语气更生活化"></textarea>
+                  <label for="extraPrompt">拆解重点</label>
+                  <textarea id="extraPrompt" placeholder="例如：重点拆解前三秒钩子、镜头节奏、评论区可复用选题"></textarea>
                 </div>
                 <div class="actions">
-                  <button id="analyzeBtn" class="btn btn-primary" type="button">AI 智能解析</button>
-                  <button id="copyTextBtn" class="btn btn-ghost" type="button">复制文案</button>
+                  <button id="analyzeBtn" class="btn btn-primary" type="button">AI 爆款解析</button>
+                  <button id="copyTextBtn" class="btn btn-ghost" type="button">复制拆解结果</button>
                 </div>
               </div>
             </section>
@@ -1390,7 +1871,7 @@
 
           <section class="panel">
             <div class="panel-head">
-              <h3>AI 解析结果</h3>
+              <h3>爆款解析结果</h3>
               <div id="providerBadges" class="badge-line"></div>
             </div>
             <div class="panel-body stack">
@@ -1399,13 +1880,13 @@
                   <div class="empty-illustration">
                     <img src="assets/karries-angel-mark.png" alt="KARRIES 禾一斯 AI 解析等待图">
                   </div>
-                  <strong>上传素材后点击「AI 智能解析」</strong>
-                  <p>这里将展示 AI 解析生成的标题、正文、标签和素材洞察。</p>
-                  <div class="empty-feature-row" aria-label="AI 解析能力">
-                    <div class="empty-feature"><span>T</span>智能标题生成</div>
-                    <div class="empty-feature"><span>W</span>正文内容创作</div>
-                    <div class="empty-feature"><span>#</span>标签推荐</div>
-                    <div class="empty-feature"><span>S</span>素材摘要</div>
+                  <strong>上传爆款素材后点击「AI 爆款解析」</strong>
+                  <p>这里将展示 AI 拆解出的开头钩子、镜头节奏、内容结构、标签策略和可复用脚本。</p>
+                  <div class="empty-feature-row" aria-label="爆款解析能力">
+                    <div class="empty-feature"><span>H</span>开头钩子</div>
+                    <div class="empty-feature"><span>C</span>内容结构</div>
+                    <div class="empty-feature"><span>#</span>标签策略</div>
+                    <div class="empty-feature"><span>S</span>复用脚本</div>
                   </div>
                 </div>
               </div>
@@ -1424,7 +1905,7 @@
                 </div>
                 <div class="badge-line" id="summaryLine"></div>
                 <div>
-                  <h3 style="font-size: 14px; margin: 0 0 10px;">素材洞察</h3>
+                  <h3 style="font-size: 14px; margin: 0 0 10px;">爆款洞察</h3>
                   <ul id="insightList" class="analysis-list"></ul>
                 </div>
                 <div>
@@ -1432,8 +1913,422 @@
                   <ul id="checkList" class="analysis-list"></ul>
                 </div>
                 <div class="actions">
-                  <button id="saveTaskBtn" class="btn btn-teal" type="button">加入图文定时发布</button>
+                  <button id="saveTaskBtn" class="btn btn-teal" type="button">加入定时发布</button>
                   <button id="goScheduleBtn" class="btn btn-ghost" type="button">查看发布任务</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="section-clip" class="workspace-section">
+        <div class="grid">
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>产品库素材来源</h3>
+                <div id="clipProductBadge" class="badge-line"><span class="badge amber">待选择产品</span></div>
+              </div>
+              <div class="panel-body stack">
+                <div class="source-toolbar">
+                  <div class="field">
+                    <label for="clipProductSelect">选择产品知识库</label>
+                    <select id="clipProductSelect">
+                      <option value="">请先在产品知识库导入产品</option>
+                    </select>
+                  </div>
+                  <button id="loadProductAssetsBtn" class="small-btn" type="button">载入产品素材</button>
+                  <button id="autoClipFromProductBtn" class="small-btn" type="button">一键生成方案</button>
+                </div>
+                <div id="clipProductSummary" class="source-summary">
+                  <strong>未选择产品</strong>
+                  <p class="hint">选择产品后，系统会读取产品库里的图片、视频、卖点、适用人群和使用场景，自动带入剪辑创作参数。</p>
+                </div>
+                <div id="clipProductAssetsPreview" class="product-file-list"></div>
+                <div class="automation-strip" aria-label="智能创作自动化流程">
+                  <div class="automation-step">
+                    <span>1</span>
+                    <strong>选产品</strong>
+                    <p>从产品知识库读取已确认的商品资料和素材。</p>
+                  </div>
+                  <div class="automation-step">
+                    <span>2</span>
+                    <strong>生成方案</strong>
+                    <p>AI 自动组合镜头、字幕脚本和发布检查项。</p>
+                  </div>
+                  <div class="automation-step">
+                    <span>3</span>
+                    <strong>定时发布</strong>
+                    <p>确认后加入视频发布队列，按计划时间执行。</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>剪辑素材</h3>
+                <div class="actions">
+                  <button id="pickClipFileBtn" class="small-btn" type="button">选择剪辑素材</button>
+                  <button id="clearClipFilesBtn" class="small-btn danger" type="button">清空素材</button>
+                </div>
+              </div>
+              <div class="panel-body stack">
+                <div id="clipUploadZone" class="upload-zone" role="button" tabindex="0">
+                  <div>
+                    <strong>拖入需要剪辑的视频或图片</strong>
+                    <span>支持 MP4、MOV、WEBM、JPG、PNG，可用于自动生成小红书短视频剪辑方案</span>
+                  </div>
+                </div>
+                <input id="clipFileInput" type="file" accept="image/*,video/*" multiple hidden>
+                <div id="clipMaterialStats" class="badge-line"></div>
+                <div id="clipMaterialList" class="product-file-list"></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>剪辑创作参数</h3>
+                <div class="badge-line"><span class="badge amber">方案生成</span></div>
+              </div>
+              <div class="panel-body stack">
+                <div class="field">
+                  <label for="clipGoal">创作目标</label>
+                  <input id="clipGoal" type="text" value="小红书种草短视频" placeholder="例如：新品种草、门店探店、产品细节展示">
+                </div>
+                <div class="two-col">
+                  <div class="field">
+                    <label for="clipDuration">目标时长</label>
+                    <select id="clipDuration">
+                      <option>15-20 秒</option>
+                      <option>20-30 秒</option>
+                      <option>30-45 秒</option>
+                      <option>45-60 秒</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="clipRatio">视频比例</label>
+                    <select id="clipRatio">
+                      <option>小红书竖版 9:16</option>
+                      <option>小红书图文感 3:4</option>
+                      <option>横版素材裁切 16:9</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="two-col">
+                  <div class="field">
+                    <label for="clipStyle">剪辑风格</label>
+                    <select id="clipStyle">
+                      <option>高级精致</option>
+                      <option>自然真实</option>
+                      <option>快节奏种草</option>
+                      <option>门店体验感</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="clipPublishTime">计划发布时间</label>
+                    <input id="clipPublishTime" type="datetime-local">
+                  </div>
+                </div>
+                <div class="two-col">
+                  <div class="field">
+                    <label for="clipOpening">开头方式</label>
+                    <select id="clipOpening">
+                      <option>前三秒强钩子</option>
+                      <option>产品细节开场</option>
+                      <option>场景问题开场</option>
+                      <option>人物体验开场</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="clipBgm">音乐氛围</label>
+                    <select id="clipBgm">
+                      <option>温柔轻奢</option>
+                      <option>清爽生活感</option>
+                      <option>轻快节奏</option>
+                      <option>安静高级</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="clipSubtitle">字幕与旁白要求</label>
+                  <textarea id="clipSubtitle" placeholder="例如：自动生成字幕，保留产品卖点短句，结尾加收藏引导"></textarea>
+                </div>
+                <div class="actions">
+                  <button id="generateClipBtn" class="btn btn-primary" type="button">生成剪辑方案</button>
+                  <button id="resetClipBtn" class="btn btn-ghost" type="button">清空剪辑方案</button>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>AI 自动剪辑方案</h3>
+              <div id="clipStatusBadges" class="badge-line"><span class="badge amber">待生成</span></div>
+            </div>
+            <div class="panel-body stack">
+              <div id="clipEmpty" class="empty result-empty-card">
+                <div>
+                  <div class="empty-illustration">
+                    <img src="assets/karries-angel-mark.png" alt="KARRIES 禾一斯 AI 剪辑等待图">
+                  </div>
+                  <strong>上传素材后点击「生成剪辑方案」</strong>
+                  <p>这里会形成镜头顺序、字幕脚本、素材使用建议和发布前检查项，确认后可加入定时发布。</p>
+                  <div class="empty-feature-row" aria-label="AI 自动剪辑能力">
+                    <div class="empty-feature"><span>1</span>镜头排序</div>
+                    <div class="empty-feature"><span>2</span>字幕脚本</div>
+                    <div class="empty-feature"><span>3</span>节奏建议</div>
+                    <div class="empty-feature"><span>4</span>发布任务</div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="clipResultContent" class="stack" style="display: none;">
+                <div class="result-edit">
+                  <label for="clipPlanTitle">成片标题</label>
+                  <input id="clipPlanTitle" type="text">
+                </div>
+                <div class="result-edit">
+                  <label for="clipScript">字幕脚本</label>
+                  <textarea id="clipScript"></textarea>
+                </div>
+                <div>
+                  <h3 style="font-size: 14px; margin: 0 0 10px;">镜头顺序</h3>
+                  <ul id="clipStoryboard" class="analysis-list"></ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 14px; margin: 0 0 10px;">素材使用建议</h3>
+                  <ul id="clipAssetPlan" class="analysis-list"></ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 14px; margin: 0 0 10px;">发布前检查</h3>
+                  <ul id="clipQualityList" class="analysis-list"></ul>
+                </div>
+                <div class="actions">
+                  <button id="addClipTaskBtn" class="btn btn-teal" type="button">加入视频定时发布</button>
+                  <button id="goClipScheduleBtn" class="btn btn-ghost" type="button">查看发布任务</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="section-products" class="workspace-section">
+        <div class="product-flow-row">
+          <div class="flow-step">
+            <span>01</span>
+            <strong>上传产品资料</strong>
+          </div>
+          <div class="flow-step">
+            <span>02</span>
+            <strong>AI 识别信息</strong>
+          </div>
+          <div class="flow-step">
+            <span>03</span>
+            <strong>人工确认修正</strong>
+          </div>
+          <div class="flow-step">
+            <span>04</span>
+            <strong>导入产品库</strong>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-head">
+                <h3>上传产品资料</h3>
+                <div class="actions">
+                  <button id="pickProductFileBtn" class="small-btn" type="button">选择产品资料</button>
+                  <button id="clearProductFilesBtn" class="small-btn danger" type="button">清空资料</button>
+                </div>
+              </div>
+              <div class="panel-body stack">
+                <div id="productUploadZone" class="upload-zone" role="button" tabindex="0">
+                  <div>
+                    <strong>拖入产品图片、详情截图或资料文件</strong>
+                    <span>支持 JPG、PNG、WEBP、MP4、PDF、DOCX、XLSX 等资料</span>
+                  </div>
+                </div>
+                <input id="productFileInput" type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" multiple hidden>
+                <div id="productMaterialStats" class="badge-line"></div>
+                <div id="productMaterialList" class="product-file-list"></div>
+                <div class="field">
+                  <label for="productOperatorNote">资料补充说明</label>
+                  <textarea id="productOperatorNote" placeholder="例如：这是新品项链，主打通勤和礼赠场景；价格和规格请后续人工确认"></textarea>
+                </div>
+                <div class="actions">
+                  <button id="recognizeProductBtn" class="btn btn-primary" type="button">开始 AI 识别</button>
+                  <button id="saveProductDraftBtn" class="btn btn-ghost" type="button">保存识别草稿</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h3>产品库</h3>
+                <div class="badge-line"><span id="productCountBadge" class="badge">产品 0</span></div>
+              </div>
+              <div class="panel-body">
+                <div class="product-library-toolbar">
+                  <input id="productSearchInput" type="text" placeholder="搜索产品名称、品牌、卖点">
+                  <select id="productStatusFilter">
+                    <option value="">全部状态</option>
+                    <option value="active">已入库</option>
+                    <option value="pending_confirm">待确认</option>
+                  </select>
+                  <button id="refreshProductsBtn" class="small-btn" type="button">刷新产品库</button>
+                </div>
+                <div id="productStats" class="badge-line" style="margin-bottom: 12px;"></div>
+                <div id="productLibraryList" class="product-library-list"></div>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h3>AI 识别结果确认</h3>
+              <div class="badge-line"><span id="productTaskBadge" class="badge amber">待上传资料</span></div>
+            </div>
+            <div class="panel-body stack">
+              <div id="productEmpty" class="empty result-empty-card">
+                <div>
+                  <div class="empty-illustration">
+                    <img src="assets/karries-angel-mark.png" alt="KARRIES 禾一斯 产品知识库等待图">
+                  </div>
+                  <strong>上传产品资料后点击「开始 AI 识别」</strong>
+                  <p>AI 会提取产品名称、分类、参数、核心卖点、适用人群、使用场景和后续创作素材。</p>
+                  <div class="empty-feature-row" aria-label="产品知识库能力">
+                    <div class="empty-feature"><span>P</span>商品资料</div>
+                    <div class="empty-feature"><span>S</span>核心卖点</div>
+                    <div class="empty-feature"><span>A</span>产品参数</div>
+                    <div class="empty-feature"><span>C</span>创作素材</div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="productFormWrap" class="stack" style="display: none;">
+                <div class="product-form-section">
+                  <h4 class="section-title">基础信息</h4>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productNameInput">产品名称</label>
+                      <input id="productNameInput" type="text">
+                    </div>
+                    <div class="field">
+                      <label for="productBrandInput">品牌名称</label>
+                      <input id="productBrandInput" type="text">
+                    </div>
+                  </div>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productCategoryInput">产品分类</label>
+                      <select id="productCategoryInput">
+                        <option>服饰配饰</option>
+                        <option>护肤美妆</option>
+                        <option>食品饮品</option>
+                        <option>家居生活</option>
+                        <option>母婴用品</option>
+                        <option>其他</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="productSkuInput">SKU</label>
+                      <input id="productSkuInput" type="text" placeholder="可选">
+                    </div>
+                  </div>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productSpecInput">规格</label>
+                      <input id="productSpecInput" type="text" placeholder="例如：30ml、均码、套装">
+                    </div>
+                    <div class="field">
+                      <label for="productPriceInput">参考价格</label>
+                      <input id="productPriceInput" type="text" placeholder="可选">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="product-form-section">
+                  <h4 class="section-title">产品参数</h4>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productMaterialsText">成分 / 材质</label>
+                      <textarea id="productMaterialsText" placeholder="每行一条"></textarea>
+                    </div>
+                    <div class="field">
+                      <label for="productFeaturesText">功效 / 特点</label>
+                      <textarea id="productFeaturesText" placeholder="每行一条"></textarea>
+                    </div>
+                  </div>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productUsageText">使用方式</label>
+                      <textarea id="productUsageText"></textarea>
+                    </div>
+                    <div class="field">
+                      <label for="productNoticesText">注意事项</label>
+                      <textarea id="productNoticesText" placeholder="每行一条"></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="product-form-section">
+                  <h4 class="section-title">AI 创作素材</h4>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productSellingPointsText">核心卖点</label>
+                      <textarea id="productSellingPointsText" placeholder="每行一条，至少 1 条"></textarea>
+                    </div>
+                    <div class="field">
+                      <label for="productPainPointsText">用户痛点</label>
+                      <textarea id="productPainPointsText" placeholder="每行一条"></textarea>
+                    </div>
+                  </div>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productTargetUsersText">适用人群</label>
+                      <textarea id="productTargetUsersText" placeholder="每行一条"></textarea>
+                    </div>
+                    <div class="field">
+                      <label for="productUseScenariosText">使用场景</label>
+                      <textarea id="productUseScenariosText" placeholder="每行一条"></textarea>
+                    </div>
+                  </div>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productAnglesText">种草角度</label>
+                      <textarea id="productAnglesText" placeholder="每行一条"></textarea>
+                    </div>
+                    <div class="field">
+                      <label for="productTitleDirectionsText">标题方向</label>
+                      <textarea id="productTitleDirectionsText" placeholder="每行一条"></textarea>
+                    </div>
+                  </div>
+                  <div class="two-col">
+                    <div class="field">
+                      <label for="productForbiddenWordsText">禁用词</label>
+                      <textarea id="productForbiddenWordsText" placeholder="每行一条"></textarea>
+                    </div>
+                    <div class="field">
+                      <label for="productBrandToneText">品牌语气</label>
+                      <textarea id="productBrandToneText"></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="product-form-section">
+                  <h4 class="section-title">识别置信度</h4>
+                  <div id="productConfidenceGrid" class="confidence-grid"></div>
+                </div>
+
+                <div class="actions">
+                  <button id="importProductBtn" class="btn btn-teal" type="button">确认并导入产品库</button>
+                  <button id="useProductForCreationBtn" class="btn btn-ghost" type="button">用于智能创作</button>
+                  <button id="resetProductDraftBtn" class="btn btn-ghost" type="button">清空识别结果</button>
                 </div>
               </div>
             </div>
@@ -1453,7 +2348,7 @@
           <div class="panel-head">
             <h3>定时发布任务预览</h3>
             <div class="actions">
-              <button id="createFromScheduleBtn" class="small-btn" type="button">回到智能创作</button>
+              <button id="createFromScheduleBtn" class="small-btn" type="button">进入智能创作</button>
               <button id="clearTasksBtn" class="small-btn danger" type="button">清空任务</button>
             </div>
           </div>
@@ -1486,8 +2381,8 @@
       </section>
 
       <section id="section-settings" class="workspace-section">
-        <div class="grid settings-grid">
-          <section class="panel">
+        <div class="grid settings-grid account-only-grid">
+          <section class="panel hidden-config-panel" data-hidden-ai-config="true">
             <div class="panel-head">
               <h3>模型服务设置</h3>
               <div class="badge-line"><span id="settingsKeyBadge" class="badge amber">AI 未配置</span></div>
@@ -1496,10 +2391,7 @@
               <div class="field">
                 <label for="settingsAiProvider">AI 服务商</label>
                 <select id="settingsAiProvider">
-                  <option value="deepseek">DeepSeek</option>
-                  <option value="openai">GPT</option>
-                  <option value="doubao">豆包</option>
-                  <option value="gemini">Gemini</option>
+                  <option value="deepseek" selected>点绘环球AI智能体</option>
                 </select>
               </div>
               <div class="field">
@@ -1524,10 +2416,28 @@
               <div class="badge-line"><span id="accountCountBadge" class="badge">账号 0</span></div>
             </div>
             <div class="panel-body stack">
+              <div class="account-guide" aria-label="小红书账号配置流程">
+                <div class="account-guide-item">
+                  <span>1</span>
+                  <strong>新增账号</strong>
+                  <p class="hint">填写账号名称、默认标题和标签，便于发布任务快速选择。</p>
+                </div>
+                <div class="account-guide-item">
+                  <span>2</span>
+                  <strong>扫码登录</strong>
+                  <p class="hint">后续自动发布会使用浏览器登录状态执行，无需反复手动操作。</p>
+                </div>
+                <div class="account-guide-item">
+                  <span>3</span>
+                  <strong>账号定位</strong>
+                  <p class="hint">不同账号可绑定不同标题前缀和标签，让矩阵内容更统一。</p>
+                </div>
+              </div>
               <div class="two-col">
                 <div class="field">
                   <label for="accountNameInput">小红书账号名称</label>
                   <input id="accountNameInput" type="text" placeholder="例如：品牌运营号">
+                  <p class="hint">建议填写客户能识别的账号昵称，例如旗舰店种草号、活动预热号。</p>
                 </div>
                 <div class="field">
                   <label for="accountLoginModeInput">登录方式</label>
@@ -1542,15 +2452,17 @@
                 <div class="field">
                   <label for="accountTitlePrefixInput">默认标题前缀</label>
                   <input id="accountTitlePrefixInput" type="text" placeholder="例如：新品上新">
+                  <p class="hint">生成文案时会优先参考该账号的标题风格。</p>
                 </div>
                 <div class="field">
                   <label for="accountDefaultTagInput">默认标签</label>
                   <input id="accountDefaultTagInput" type="text" placeholder="例如：小红书运营">
+                  <p class="hint">多个标签可用空格或逗号分隔，发布前仍可人工调整。</p>
                 </div>
               </div>
               <div class="actions">
                 <button id="addAccountBtn" class="btn btn-teal" type="button">新增账号</button>
-                <button id="testConfigBtn" class="btn btn-ghost" type="button">检查配置</button>
+                <button id="testConfigBtn" class="btn btn-ghost" type="button">检查账号配置</button>
               </div>
               <div class="config-card">
                 <h4>账号列表</h4>
@@ -1568,9 +2480,19 @@
   <script>
     const sectionMeta = {
       creation: {
+        eyebrow: "爆款解析",
+        title: "爆款素材智能解析",
+        desc: "上传别人的爆款视频或图文截图，拆解选题、开头钩子、镜头节奏和可复用脚本。"
+      },
+      clip: {
         eyebrow: "智能创作",
-        title: "素材智能解析",
-        desc: "上传本地图片或视频，生成小红书标题、正文、标签和素材洞察。"
+        title: "AI 自动剪辑",
+        desc: "上传自有视频或图片素材，生成小红书短视频剪辑方案、字幕脚本和定时发布任务。"
+      },
+      products: {
+        eyebrow: "产品知识库",
+        title: "产品知识库",
+        desc: "管理商品资料、核心卖点、产品参数和 AI 创作素材，确认后沉淀为后续内容创作的数据来源。"
       },
       schedule: {
         eyebrow: "定时发布",
@@ -1579,14 +2501,14 @@
       },
       settings: {
         eyebrow: "系统配置",
-        title: "模型服务与账号设置",
-        desc: "配置 AI 服务商、模型、接口地址、小红书账号和内容默认项。"
+        title: "小红书账号管理",
+        desc: "管理用于自动发布的小红书账号、登录方式、标题前缀和默认标签。"
       }
     };
 
     const providerDefaults = {
       deepseek: {
-        label: "DeepSeek",
+        label: "点绘环球AI智能体",
         model: "deepseek-v4-flash",
         endpoint: "https://api.deepseek.com/chat/completions",
         placeholder: "sk-..."
@@ -1616,6 +2538,13 @@
       result: null,
       tasks: JSON.parse(localStorage.getItem("xhs_workspace_tasks") || "[]"),
       logs: JSON.parse(localStorage.getItem("xhs_workspace_logs") || "[]"),
+      clipMaterials: [],
+      clipPlan: null,
+      selectedClipProductId: localStorage.getItem("xhs_workspace_clip_product_id") || "",
+      productMaterials: [],
+      productDraft: null,
+      productTask: null,
+      products: JSON.parse(localStorage.getItem("xhs_workspace_products") || "[]"),
       accounts: JSON.parse(localStorage.getItem("xhs_workspace_accounts") || "[]"),
       activeAccountId: Number(localStorage.getItem("xhs_workspace_active_account") || "0"),
       aiStatus: { provider: "deepseek", hasKey: false, source: "none" }
@@ -1660,6 +2589,78 @@
       clearMaterialsBtn: document.getElementById("clearMaterialsBtn"),
       materialGrid: document.getElementById("materialGrid"),
       materialStats: document.getElementById("materialStats"),
+      clipUploadZone: document.getElementById("clipUploadZone"),
+      clipFileInput: document.getElementById("clipFileInput"),
+      pickClipFileBtn: document.getElementById("pickClipFileBtn"),
+      clearClipFilesBtn: document.getElementById("clearClipFilesBtn"),
+      clipProductSelect: document.getElementById("clipProductSelect"),
+      clipProductBadge: document.getElementById("clipProductBadge"),
+      clipProductSummary: document.getElementById("clipProductSummary"),
+      clipProductAssetsPreview: document.getElementById("clipProductAssetsPreview"),
+      loadProductAssetsBtn: document.getElementById("loadProductAssetsBtn"),
+      autoClipFromProductBtn: document.getElementById("autoClipFromProductBtn"),
+      clipMaterialStats: document.getElementById("clipMaterialStats"),
+      clipMaterialList: document.getElementById("clipMaterialList"),
+      clipGoal: document.getElementById("clipGoal"),
+      clipDuration: document.getElementById("clipDuration"),
+      clipRatio: document.getElementById("clipRatio"),
+      clipStyle: document.getElementById("clipStyle"),
+      clipPublishTime: document.getElementById("clipPublishTime"),
+      clipOpening: document.getElementById("clipOpening"),
+      clipBgm: document.getElementById("clipBgm"),
+      clipSubtitle: document.getElementById("clipSubtitle"),
+      generateClipBtn: document.getElementById("generateClipBtn"),
+      resetClipBtn: document.getElementById("resetClipBtn"),
+      clipStatusBadges: document.getElementById("clipStatusBadges"),
+      clipEmpty: document.getElementById("clipEmpty"),
+      clipResultContent: document.getElementById("clipResultContent"),
+      clipPlanTitle: document.getElementById("clipPlanTitle"),
+      clipScript: document.getElementById("clipScript"),
+      clipStoryboard: document.getElementById("clipStoryboard"),
+      clipAssetPlan: document.getElementById("clipAssetPlan"),
+      clipQualityList: document.getElementById("clipQualityList"),
+      addClipTaskBtn: document.getElementById("addClipTaskBtn"),
+      goClipScheduleBtn: document.getElementById("goClipScheduleBtn"),
+      productUploadZone: document.getElementById("productUploadZone"),
+      productFileInput: document.getElementById("productFileInput"),
+      pickProductFileBtn: document.getElementById("pickProductFileBtn"),
+      clearProductFilesBtn: document.getElementById("clearProductFilesBtn"),
+      productMaterialStats: document.getElementById("productMaterialStats"),
+      productMaterialList: document.getElementById("productMaterialList"),
+      productOperatorNote: document.getElementById("productOperatorNote"),
+      recognizeProductBtn: document.getElementById("recognizeProductBtn"),
+      saveProductDraftBtn: document.getElementById("saveProductDraftBtn"),
+      productCountBadge: document.getElementById("productCountBadge"),
+      productSearchInput: document.getElementById("productSearchInput"),
+      productStatusFilter: document.getElementById("productStatusFilter"),
+      refreshProductsBtn: document.getElementById("refreshProductsBtn"),
+      productStats: document.getElementById("productStats"),
+      productLibraryList: document.getElementById("productLibraryList"),
+      productTaskBadge: document.getElementById("productTaskBadge"),
+      productEmpty: document.getElementById("productEmpty"),
+      productFormWrap: document.getElementById("productFormWrap"),
+      productNameInput: document.getElementById("productNameInput"),
+      productBrandInput: document.getElementById("productBrandInput"),
+      productCategoryInput: document.getElementById("productCategoryInput"),
+      productSkuInput: document.getElementById("productSkuInput"),
+      productSpecInput: document.getElementById("productSpecInput"),
+      productPriceInput: document.getElementById("productPriceInput"),
+      productMaterialsText: document.getElementById("productMaterialsText"),
+      productFeaturesText: document.getElementById("productFeaturesText"),
+      productUsageText: document.getElementById("productUsageText"),
+      productNoticesText: document.getElementById("productNoticesText"),
+      productSellingPointsText: document.getElementById("productSellingPointsText"),
+      productPainPointsText: document.getElementById("productPainPointsText"),
+      productTargetUsersText: document.getElementById("productTargetUsersText"),
+      productUseScenariosText: document.getElementById("productUseScenariosText"),
+      productAnglesText: document.getElementById("productAnglesText"),
+      productTitleDirectionsText: document.getElementById("productTitleDirectionsText"),
+      productForbiddenWordsText: document.getElementById("productForbiddenWordsText"),
+      productBrandToneText: document.getElementById("productBrandToneText"),
+      productConfidenceGrid: document.getElementById("productConfidenceGrid"),
+      importProductBtn: document.getElementById("importProductBtn"),
+      useProductForCreationBtn: document.getElementById("useProductForCreationBtn"),
+      resetProductDraftBtn: document.getElementById("resetProductDraftBtn"),
       serverStatus: document.getElementById("serverStatus"),
       providerBadges: document.getElementById("providerBadges"),
       sideAiMode: document.getElementById("sideAiMode"),
@@ -1735,6 +2736,39 @@
       return minutes ? `${minutes}分${rest}秒` : `${rest}秒`;
     }
 
+    function formatDateTime(value) {
+      if (!value || value === "待定") return "待定";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      const pad = (num) => String(num).padStart(2, "0");
+      return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function normalizeDateTimeLocal(value) {
+      if (!value || value === "待定") return "";
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return value.slice(0, 16);
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      const pad = (num) => String(num).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function fileKindLabel(kind) {
+      if (kind === "video") return "视频资料";
+      if (kind === "image") return "图片资料";
+      return "文档资料";
+    }
+
+    function mediaPreviewSrc(item) {
+      return item?.previewDataUrl || item?.thumbnailUrl || item?.previewUrl || "";
+    }
+
+    function mediaPlaceholder(kind, label = "") {
+      const text = kind === "video" ? "VID" : (kind === "document" ? "FILE" : "IMG");
+      const safeLabel = escapeHtml(label ? label.slice(0, 2).toUpperCase() : text);
+      return `<div class="media-fallback ${escapeHtml(kind || "image")}"><span>${safeLabel}</span></div>`;
+    }
+
     function defaultPublishTime() {
       const date = new Date(Date.now() + 3 * 60 * 60 * 1000);
       date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -1752,6 +2786,10 @@
     function saveAccounts() {
       localStorage.setItem("xhs_workspace_accounts", JSON.stringify(state.accounts));
       localStorage.setItem("xhs_workspace_active_account", String(state.activeAccountId || 0));
+    }
+
+    function saveProducts() {
+      localStorage.setItem("xhs_workspace_products", JSON.stringify(state.products));
     }
 
     function addLog(message) {
@@ -1777,21 +2815,21 @@
     function updateKeyStatus() {
       const keyStatus = getProviderKeyStatus();
       const hasKey = keyStatus.hasKey;
-      const provider = providerDefaults[els.aiProvider.value] || providerDefaults.deepseek;
-      const text = hasKey ? `${provider.label} 已配置` : "AI 未配置";
+      const text = hasKey ? "智能体已连接" : "智能体待连接";
       const className = hasKey ? "badge green" : "badge amber";
       els.sideAiMode.className = className;
       els.keyInlineStatus.className = className;
       els.settingsKeyBadge.className = className;
       els.sideAiMode.textContent = text;
-      els.keyInlineStatus.textContent = hasKey ? `${keyStatus.source} 已连接` : "未连接 Key";
+      els.keyInlineStatus.textContent = text;
       els.settingsKeyBadge.textContent = text;
     }
 
     function syncProviderControls(providerName, shouldApplyDefaults = true) {
-      const provider = providerDefaults[providerName] || providerDefaults.deepseek;
-      els.aiProvider.value = providerName;
-      els.settingsAiProvider.value = providerName;
+      const normalizedProviderName = "deepseek";
+      const provider = providerDefaults[normalizedProviderName] || providerDefaults.deepseek;
+      els.aiProvider.value = normalizedProviderName;
+      els.settingsAiProvider.value = normalizedProviderName;
       els.apiKeyLabel.textContent = "AI API KEY";
       els.apiKey.placeholder = provider.placeholder;
       if (shouldApplyDefaults) {
@@ -1911,6 +2949,43 @@
       };
     }
 
+    function buildLocalCopyResult(providerError = "") {
+      const materials = state.materials.map(materialForApi);
+      const hasVideo = materials.some((item) => item.kind === "video");
+      const hasImage = materials.some((item) => item.kind === "image");
+      const materialType = hasVideo && hasImage ? "爆款图文视频混合素材" : (hasVideo ? "爆款视频素材" : "爆款图文截图");
+      const firstName = materials[0]?.name ? materials[0].name.replace(/\.[^.]+$/, "") : "爆款素材";
+      const direction = getContentDirection();
+      const tone = els.tone.value;
+      const title = `${firstName}爆款拆解`.replace(/\s+/g, "").slice(0, 20) || "爆款内容拆解";
+      const body = [
+        `这组${materialType}适合围绕「${direction}」做复用拆解：开头先用强画面或强问题抓住注意力，再进入场景、卖点和行动引导。`,
+        `输出语气建议保持${tone}，重点提炼可复制的选题角度、前三秒钩子、镜头节奏和标签组合，不直接照搬原素材表达。`,
+        els.extraPrompt.value.trim() ? `拆解重点：${els.extraPrompt.value.trim()}` : "后续可把拆解结果迁移到自有产品素材中，再进入智能创作生成剪辑方案。"
+      ].join("\n\n");
+      const tags = ["小红书", "爆款拆解", "种草", hasVideo ? "视频解析" : "图文解析", "内容灵感"];
+      return {
+        provider: "local",
+        title,
+        body,
+        tags,
+        summary: `已根据 ${materials.length} 个${materialType}生成可编辑拆解结果。`,
+        mediaInsights: [
+          `素材数量：${materials.length} 个`,
+          `素材类型：${materialType}`,
+          `可复用方向：${direction}`,
+          `计划发布时间：${formatDateTime(els.publishTime.value)}`
+        ],
+        scheduleSuggestion: formatDateTime(els.publishTime.value),
+        publishChecklist: [
+          "确认拆解结果只作为创作参考，不直接搬运原视频表达",
+          "确认后续会替换为自有产品素材或授权素材",
+          "确认发布时间晚于当前时间"
+        ],
+        riskTips: providerError ? [`AI 接口暂未连接，已生成本地可编辑草稿：${providerError}`] : []
+      };
+    }
+
     function dominantColorFromCanvas(canvas) {
       const context = canvas.getContext("2d", { willReadFrequently: true });
       if (!context) return "#7f8a99";
@@ -1936,16 +3011,24 @@
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 42;
-          canvas.height = 42;
-          const context = canvas.getContext("2d");
-          if (context) context.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const colorCanvas = document.createElement("canvas");
+          colorCanvas.width = 42;
+          colorCanvas.height = 42;
+          const colorContext = colorCanvas.getContext("2d");
+          if (colorContext) colorContext.drawImage(img, 0, 0, colorCanvas.width, colorCanvas.height);
+          const thumbCanvas = document.createElement("canvas");
+          const maxSide = 360;
+          const ratio = Math.min(1, maxSide / Math.max(img.naturalWidth || maxSide, img.naturalHeight || maxSide));
+          thumbCanvas.width = Math.max(1, Math.round((img.naturalWidth || maxSide) * ratio));
+          thumbCanvas.height = Math.max(1, Math.round((img.naturalHeight || maxSide) * ratio));
+          const thumbContext = thumbCanvas.getContext("2d");
+          if (thumbContext) thumbContext.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
           resolve({
             width: img.naturalWidth,
             height: img.naturalHeight,
-            dominantColor: dominantColorFromCanvas(canvas),
-            previewUrl: objectUrl
+            dominantColor: dominantColorFromCanvas(colorCanvas),
+            previewUrl: objectUrl,
+            previewDataUrl: thumbContext ? thumbCanvas.toDataURL("image/jpeg", 0.78) : objectUrl
           });
         };
         img.onerror = () => resolve({ dominantColor: "#7f8a99", previewUrl: objectUrl });
@@ -1973,7 +3056,8 @@
             height: video.videoHeight,
             duration: video.duration,
             dominantColor: dominantColorFromCanvas(canvas),
-            previewUrl: objectUrl
+            previewUrl: objectUrl,
+            previewDataUrl: context ? canvas.toDataURL("image/jpeg", 0.72) : ""
           });
         };
         video.onerror = () => resolve({ dominantColor: "#596579", previewUrl: objectUrl });
@@ -2005,7 +3089,7 @@
         showToast("请选择图片或视频素材");
         return;
       }
-      els.materialStats.innerHTML = '<span class="badge amber">正在读取本地素材</span>';
+      els.materialStats.innerHTML = '<span class="badge amber">正在读取爆款素材</span>';
       for (const file of selected) {
         state.materials.push(await inspectFile(file));
       }
@@ -2048,6 +3132,867 @@
         `;
       }).join("");
       renderDashboard();
+    }
+
+    function listToText(value) {
+      if (Array.isArray(value)) return value.filter(Boolean).join("\n");
+      return String(value || "");
+    }
+
+    function textToList(value) {
+      return String(value || "")
+        .split(/[\n,，、]+/)
+        .map((item) => item.trim().replace(/^#/, ""))
+        .filter(Boolean)
+        .filter((item, index, array) => array.indexOf(item) === index);
+    }
+
+    function guessProductCategoryFromText(text) {
+      const source = String(text || "").toLowerCase();
+      const categoryMap = [
+        ["服饰配饰", ["karries", "禾一斯", "项链", "戒指", "耳环", "首饰", "珠宝", "穿搭", "配饰"]],
+        ["护肤美妆", ["护肤", "精华", "面膜", "口红", "彩妆", "补水"]],
+        ["食品饮品", ["食品", "饮品", "茶", "咖啡", "零食"]],
+        ["家居生活", ["家居", "香薰", "收纳", "摆件", "餐具"]],
+        ["母婴用品", ["母婴", "宝宝", "儿童", "婴儿"]]
+      ];
+      const matched = categoryMap.find(([, keywords]) => keywords.some((keyword) => source.includes(keyword)));
+      return matched ? matched[0] : "其他";
+    }
+
+    function productCompleteness(product) {
+      const basic = product.basic_info || {};
+      const attrs = product.product_attributes || {};
+      const content = product.content_info || {};
+      const checks = [
+        basic.product_name,
+        basic.category,
+        basic.brand,
+        basic.spec,
+        basic.price,
+        textToList(content.selling_points).length,
+        textToList(content.target_users).length,
+        textToList(content.use_scenarios).length,
+        textToList(attrs.features).length || attrs.usage_method,
+        product.assets?.length
+      ];
+      return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+    }
+
+    function productMaterialForApi(material) {
+      return {
+        id: material.id,
+        name: material.name,
+        kind: material.kind,
+        type: material.type,
+        size: material.size,
+        sizeLabel: material.sizeLabel,
+        width: material.width,
+        height: material.height,
+        duration: material.duration,
+        previewUrl: material.previewUrl || "",
+        previewDataUrl: material.previewDataUrl || "",
+        thumbnailUrl: material.thumbnailUrl || "",
+        notes: material.notes || ""
+      };
+    }
+
+    async function inspectProductFile(file) {
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      const objectUrl = URL.createObjectURL(file);
+      const metadata = isImage
+        ? await inspectImage(file, objectUrl)
+        : (isVideo ? await inspectVideo(file, objectUrl) : { previewUrl: "", dominantColor: "#c9904c" });
+      return {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        name: file.name,
+        kind: isImage ? "image" : (isVideo ? "video" : "document"),
+        type: file.type || file.name.split(".").pop()?.toLowerCase() || "file",
+        size: file.size,
+        sizeLabel: formatBytes(file.size),
+        notes: isImage ? "已读取图片尺寸和文件信息" : (isVideo ? "已读取视频封面、尺寸和时长" : "已记录资料文件名称和大小"),
+        ...metadata
+      };
+    }
+
+    async function addProductFiles(files) {
+      const selected = Array.from(files || []);
+      if (!selected.length) {
+        showToast("请选择产品图片、截图或资料文件");
+        return;
+      }
+      els.productMaterialStats.innerHTML = '<span class="badge amber">正在读取产品资料</span>';
+      for (const file of selected) {
+        state.productMaterials.push(await inspectProductFile(file));
+      }
+      renderProductMaterials();
+      showToast(`已加入 ${selected.length} 个产品资料`);
+    }
+
+    function renderProductMaterials() {
+      const imageCount = state.productMaterials.filter((item) => item.kind === "image").length;
+      const videoCount = state.productMaterials.filter((item) => item.kind === "video").length;
+      const documentCount = state.productMaterials.filter((item) => item.kind === "document").length;
+      els.productMaterialStats.innerHTML = `
+        <span class="badge">资料 ${state.productMaterials.length}</span>
+        <span class="badge green">图片 ${imageCount}</span>
+        <span class="badge amber">视频 ${videoCount}</span>
+        <span class="badge blue">文件 ${documentCount}</span>
+      `;
+      if (!state.productMaterials.length) {
+        els.productMaterialList.innerHTML = '<div class="empty">暂无产品资料，请先上传产品图片、详情截图或资料文件。</div>';
+        return;
+      }
+      els.productMaterialList.innerHTML = state.productMaterials.map((item) => {
+        const src = mediaPreviewSrc(item);
+        const thumb = src
+          ? item.kind === "video"
+            ? `<video src="${src}" muted playsinline></video>`
+            : `<img src="${src}" alt="${escapeHtml(item.name)}">`
+          : mediaPlaceholder(item.kind, item.name);
+        const meta = [item.width && item.height ? `${item.width} x ${item.height}` : "", item.duration ? formatDuration(item.duration) : "", item.sizeLabel].filter(Boolean).join(" / ");
+        const kindClass = item.kind === "video" ? "amber" : (item.kind === "image" ? "green" : "blue");
+        return `
+          <div class="product-file-item">
+            <div class="file-thumb">${thumb}</div>
+            <div>
+              <div class="file-kind-row">
+                <span class="badge ${kindClass}">${escapeHtml(fileKindLabel(item.kind))}</span>
+                <strong>${escapeHtml(item.name)}</strong>
+              </div>
+              <p class="hint">${escapeHtml(meta || item.type || "资料文件")}</p>
+              <p class="hint">${escapeHtml(item.notes || "")}</p>
+            </div>
+            <button class="small-btn danger" type="button" data-remove-product-file="${escapeHtml(item.id)}">移除</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function addClipFiles(files) {
+      const selected = Array.from(files || []).filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"));
+      if (!selected.length) {
+        showToast("请选择需要剪辑的视频或图片素材");
+        return;
+      }
+      els.clipMaterialStats.innerHTML = '<span class="badge amber">正在读取剪辑素材</span>';
+      for (const file of selected) {
+        state.clipMaterials.push(await inspectProductFile(file));
+      }
+      renderClipMaterials();
+      showToast(`已加入 ${selected.length} 个剪辑素材`);
+    }
+
+    function renderClipMaterials() {
+      const imageCount = state.clipMaterials.filter((item) => item.kind === "image").length;
+      const videoCount = state.clipMaterials.filter((item) => item.kind === "video").length;
+      els.clipMaterialStats.innerHTML = `
+        <span class="badge">素材 ${state.clipMaterials.length}</span>
+        <span class="badge green">图片 ${imageCount}</span>
+        <span class="badge amber">视频 ${videoCount}</span>
+      `;
+      if (!state.clipMaterials.length) {
+        els.clipMaterialList.innerHTML = '<div class="empty">暂无剪辑素材，请先上传需要生成短视频的图片或视频。</div>';
+        return;
+      }
+      els.clipMaterialList.innerHTML = state.clipMaterials.map((item) => {
+        const src = mediaPreviewSrc(item);
+        const thumb = src
+          ? item.kind === "video"
+            ? `<video src="${src}" muted playsinline></video>`
+            : `<img src="${src}" alt="${escapeHtml(item.name)}">`
+          : mediaPlaceholder(item.kind, item.name);
+        const kindClass = item.kind === "video" ? "amber" : "green";
+        const meta = [item.width && item.height ? `${item.width} x ${item.height}` : "", item.duration ? formatDuration(item.duration) : "", item.sizeLabel].filter(Boolean).join(" / ");
+        return `
+          <div class="product-file-item">
+            <div class="file-thumb">${thumb}</div>
+            <div>
+              <div class="file-kind-row">
+                <span class="badge ${kindClass}">${escapeHtml(fileKindLabel(item.kind))}</span>
+                <strong>${escapeHtml(item.name)}</strong>
+              </div>
+              <p class="hint">${escapeHtml(meta || item.type || "剪辑素材")}</p>
+              <p class="hint">${escapeHtml(item.notes || "")}</p>
+            </div>
+            <button class="small-btn danger" type="button" data-remove-clip-file="${escapeHtml(item.id)}">移除</button>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function getProductName(product) {
+      return product?.basic_info?.product_name || product?.name || "未命名产品";
+    }
+
+    function hydrateProductAsset(asset) {
+      const localMaterial = state.productMaterials.find((item) => (
+        String(item.id) === String(asset.file_id || asset.id || "") ||
+        String(item.name) === String(asset.file_name || asset.name || "")
+      ));
+      if (!localMaterial) return asset;
+      return {
+        ...asset,
+        previewUrl: asset.previewUrl || localMaterial.previewUrl || "",
+        previewDataUrl: asset.previewDataUrl || localMaterial.previewDataUrl || "",
+        thumbnailUrl: asset.thumbnailUrl || localMaterial.thumbnailUrl || "",
+        width: asset.width || localMaterial.width,
+        height: asset.height || localMaterial.height,
+        duration: asset.duration || localMaterial.duration,
+        sizeLabel: asset.sizeLabel || localMaterial.sizeLabel,
+        notes: asset.notes || localMaterial.notes || ""
+      };
+    }
+
+    function getProductMediaAssets(product) {
+      return (product?.assets || [])
+        .filter((asset) => ["image", "video"].includes(String(asset.file_type || asset.kind || "")))
+        .map((asset) => hydrateProductAsset(asset));
+    }
+
+    function productAssetToClipMaterial(asset, product) {
+      const kind = String(asset.file_type || asset.kind || "image");
+      return {
+        id: `product-${product.id || "local"}-${asset.file_id || asset.file_name || Math.random().toString(16).slice(2)}`,
+        name: asset.file_name || asset.name || "产品库素材",
+        kind,
+        type: asset.type || kind,
+        sizeLabel: asset.sizeLabel || "产品库素材",
+        width: asset.width,
+        height: asset.height,
+        duration: asset.duration,
+        previewUrl: asset.previewUrl || "",
+        previewDataUrl: asset.previewDataUrl || "",
+        thumbnailUrl: asset.thumbnailUrl || "",
+        notes: asset.notes || `来自产品知识库：${getProductName(product)}`,
+        source: "product_library",
+        productId: product.id,
+        productName: getProductName(product)
+      };
+    }
+
+    function getSelectedClipProduct() {
+      const selectedId = state.selectedClipProductId || els.clipProductSelect.value;
+      return getProductById(selectedId) || state.products[0] || null;
+    }
+
+    function buildProductCreationContext(product) {
+      if (!product) return "";
+      const basic = product.basic_info || {};
+      const content = product.content_info || {};
+      return [
+        `关联产品：${getProductName(product)}`,
+        basic.brand ? `品牌：${basic.brand}` : "",
+        basic.category ? `分类：${basic.category}` : "",
+        textToList(content.selling_points).length ? `核心卖点：${textToList(content.selling_points).join("；")}` : "",
+        textToList(content.target_users).length ? `适用人群：${textToList(content.target_users).join("；")}` : "",
+        textToList(content.use_scenarios).length ? `使用场景：${textToList(content.use_scenarios).join("；")}` : ""
+      ].filter(Boolean).join("\n");
+    }
+
+    function applyProductToClipFields(product) {
+      if (!product) return;
+      const basic = product.basic_info || {};
+      const context = buildProductCreationContext(product);
+      els.clipGoal.value = `小红书种草短视频：${getProductName(product)}`;
+      els.clipSubtitle.value = `${context}\n剪辑要求：突出产品细节、真实使用场景和收藏引导。`.trim();
+      els.contentDirection.value = `小红书种草：${getProductName(product)}`;
+      els.extraPrompt.value = context;
+      if (basic.category === "服饰配饰") {
+        els.clipStyle.value = "高级精致";
+        els.clipBgm.value = "温柔轻奢";
+      }
+      saveWorkspaceSettings();
+    }
+
+    function renderClipProductSelect() {
+      if (!els.clipProductSelect) return;
+      if (!state.products.length) {
+        els.clipProductSelect.innerHTML = '<option value="">请先在产品知识库导入产品</option>';
+        state.selectedClipProductId = "";
+        localStorage.removeItem("xhs_workspace_clip_product_id");
+        renderClipProductPreview();
+        return;
+      }
+      if (!state.selectedClipProductId || !state.products.some((product) => String(product.id) === String(state.selectedClipProductId))) {
+        state.selectedClipProductId = String(state.products[0].id);
+        localStorage.setItem("xhs_workspace_clip_product_id", state.selectedClipProductId);
+      }
+      els.clipProductSelect.innerHTML = state.products.map((product) => {
+        const mediaCount = getProductMediaAssets(product).length;
+        const label = `${getProductName(product)} / ${mediaCount} 个图片视频素材`;
+        return `<option value="${escapeHtml(product.id)}" ${String(product.id) === String(state.selectedClipProductId) ? "selected" : ""}>${escapeHtml(label)}</option>`;
+      }).join("");
+      renderClipProductPreview();
+    }
+
+    function renderClipProductPreview() {
+      const product = getSelectedClipProduct();
+      if (!product) {
+        els.clipProductBadge.innerHTML = '<span class="badge amber">待选择产品</span>';
+        els.clipProductSummary.innerHTML = `
+          <strong>未选择产品</strong>
+          <p class="hint">选择产品后，系统会读取产品库里的图片、视频、卖点、适用人群和使用场景，自动带入剪辑创作参数。</p>
+        `;
+        els.clipProductAssetsPreview.innerHTML = '<div class="empty">暂无产品素材，请先在产品知识库上传并导入产品。</div>';
+        return;
+      }
+      const mediaAssets = getProductMediaAssets(product);
+      const basic = product.basic_info || {};
+      const content = product.content_info || {};
+      const sellingPoints = textToList(content.selling_points).slice(0, 3);
+      const imageCount = mediaAssets.filter((asset) => String(asset.file_type || asset.kind) === "image").length;
+      const videoCount = mediaAssets.filter((asset) => String(asset.file_type || asset.kind) === "video").length;
+      els.clipProductBadge.innerHTML = `
+        <span class="badge green">已选择产品</span>
+        <span class="badge">图片 ${imageCount}</span>
+        <span class="badge amber">视频 ${videoCount}</span>
+      `;
+      els.clipProductSummary.innerHTML = `
+        <strong>${escapeHtml(getProductName(product))}</strong>
+        <p class="hint">${escapeHtml([basic.brand, basic.category, basic.spec].filter(Boolean).join(" / ") || "产品基础信息待补充")}</p>
+        <p class="hint">${escapeHtml(sellingPoints.join("；") || "核心卖点待补充")}</p>
+      `;
+      if (!mediaAssets.length) {
+        els.clipProductAssetsPreview.innerHTML = '<div class="empty">当前产品还没有图片或视频素材，可先回到产品知识库补充上传。</div>';
+        return;
+      }
+      els.clipProductAssetsPreview.innerHTML = mediaAssets.map((asset) => {
+        const kind = asset.file_type || asset.kind || "image";
+        const src = mediaPreviewSrc(asset);
+        const thumb = src
+          ? kind === "video"
+            ? `<video src="${src}" muted playsinline></video>`
+            : `<img src="${src}" alt="${escapeHtml(asset.file_name || "产品素材")}">`
+          : mediaPlaceholder(kind, asset.file_name || "产品素材");
+        const kindClass = kind === "video" ? "amber" : "green";
+        const meta = [asset.width && asset.height ? `${asset.width} x ${asset.height}` : "", asset.duration ? formatDuration(asset.duration) : "", asset.sizeLabel].filter(Boolean).join(" / ");
+        return `
+          <div class="product-file-item">
+            <div class="file-thumb">${thumb}</div>
+            <div>
+              <div class="file-kind-row">
+                <span class="badge ${kindClass}">${escapeHtml(fileKindLabel(kind))}</span>
+                <strong>${escapeHtml(asset.file_name || "产品素材")}</strong>
+              </div>
+              <p class="hint">${escapeHtml(meta || "产品库素材")}</p>
+              <p class="hint">${escapeHtml(asset.notes || "可用于智能创作")}</p>
+            </div>
+            <span class="badge">可载入</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function loadSelectedProductAssets(generateAfterLoad = false) {
+      const product = getSelectedClipProduct();
+      if (!product) {
+        showToast("请先在产品知识库选择产品");
+        return;
+      }
+      const mediaAssets = getProductMediaAssets(product);
+      if (!mediaAssets.length) {
+        showToast("当前产品没有图片或视频素材，请先在产品知识库补充");
+        return;
+      }
+      applyProductToClipFields(product);
+      const nextMaterials = mediaAssets.map((asset) => productAssetToClipMaterial(asset, product));
+      const existingIds = new Set(state.clipMaterials.map((item) => item.id));
+      const additions = nextMaterials.filter((item) => !existingIds.has(item.id));
+      state.clipMaterials = [...state.clipMaterials, ...additions];
+      renderClipMaterials();
+      addLog(`已从产品知识库载入素材：${getProductName(product)} / ${additions.length} 个`);
+      showToast(additions.length ? `已载入 ${additions.length} 个产品素材` : "该产品素材已在剪辑区");
+      if (generateAfterLoad) generateClipPlan();
+    }
+
+    function buildClipPlan() {
+      const imageCount = state.clipMaterials.filter((item) => item.kind === "image").length;
+      const videoCount = state.clipMaterials.filter((item) => item.kind === "video").length;
+      const selectedProduct = getSelectedClipProduct();
+      const goal = els.clipGoal.value.trim() || "小红书种草短视频";
+      const duration = els.clipDuration.value;
+      const style = els.clipStyle.value;
+      const opening = els.clipOpening.value;
+      const bgm = els.clipBgm.value;
+      const publishTime = els.clipPublishTime.value || els.publishTime.value || defaultPublishTime();
+      const subtitleNote = els.clipSubtitle.value.trim();
+      const planTitle = `${goal}｜${style}剪辑方案`.slice(0, 32);
+      return {
+        title: planTitle,
+        publishTime,
+        script: [
+          `开头 0-3 秒：使用「${opening}」，用一句短字幕先抛出用户最关心的问题或第一眼亮点。`,
+          `中段：围绕「${goal}」展示产品细节、使用场景和质感变化，节奏保持${duration}内完成。`,
+          `结尾：用收藏、私信或到店了解作为行动引导，音乐氛围建议选择「${bgm}」。`,
+          subtitleNote ? `额外字幕要求：${subtitleNote}` : "字幕建议控制在短句，单屏不超过 14 个字，方便小红书用户快速扫读。"
+        ].join("\n\n"),
+        storyboard: [
+          `镜头 1：前三秒强钩子，优先使用最清晰、最有冲击力的视频片段或主视觉图片。`,
+          `镜头 2：产品细节特写，突出材质、光泽、佩戴效果或核心卖点。`,
+          `镜头 3：场景化展示，把产品放到通勤、礼赠、门店体验或日常搭配里。`,
+          `镜头 4：结尾行动引导，保留品牌调性，不做夸张承诺。`
+        ],
+        assetPlan: [
+          `本次素材：视频 ${videoCount} 个，图片 ${imageCount} 个。`,
+          selectedProduct ? `产品来源：${getProductName(selectedProduct)}。` : "产品来源：可从产品知识库选择并载入。",
+          videoCount ? "优先从视频中截取动作变化、佩戴瞬间和近景细节。" : "当前暂无视频，可用图片做轻动效、推拉镜头和节奏切换。",
+          `成片比例：${els.clipRatio.value}。`,
+          `计划发布时间：${formatDateTime(publishTime)}。`
+        ],
+        qualityList: [
+          "确认素材为自有素材或已获授权，避免直接搬运爆款视频。",
+          "确认字幕没有遮挡产品主体，标题与封面画面一致。",
+          "确认发布时间、发布账号和标签与账号定位匹配。"
+        ]
+      };
+    }
+
+    function renderClipPlan(plan) {
+      state.clipPlan = plan;
+      els.clipEmpty.style.display = "none";
+      els.clipResultContent.style.display = "grid";
+      els.clipPlanTitle.value = plan.title;
+      els.clipScript.value = plan.script;
+      els.clipStoryboard.innerHTML = listItems(plan.storyboard);
+      els.clipAssetPlan.innerHTML = listItems(plan.assetPlan);
+      els.clipQualityList.innerHTML = listItems(plan.qualityList);
+      els.clipStatusBadges.innerHTML = `
+        <span class="badge green">剪辑方案已生成</span>
+        <span class="badge">${escapeHtml(formatDateTime(plan.publishTime))}</span>
+      `;
+    }
+
+    function generateClipPlan() {
+      if (!state.clipMaterials.length) {
+        showToast("请先上传需要剪辑的视频或图片素材");
+        return;
+      }
+      renderClipPlan(buildClipPlan());
+      addLog(`已生成 AI 剪辑方案：${els.clipPlanTitle.value || "未命名方案"}`);
+      showToast("剪辑方案已生成");
+    }
+
+    function resetClipPlan() {
+      state.clipPlan = null;
+      els.clipEmpty.style.display = "grid";
+      els.clipResultContent.style.display = "none";
+      els.clipStatusBadges.innerHTML = '<span class="badge amber">待生成</span>';
+      [els.clipPlanTitle, els.clipScript].forEach((input) => input.value = "");
+      els.clipStoryboard.innerHTML = "";
+      els.clipAssetPlan.innerHTML = "";
+      els.clipQualityList.innerHTML = "";
+      showToast("剪辑方案已清空");
+    }
+
+    function addClipTask() {
+      if (!state.clipPlan) {
+        showToast("请先生成剪辑方案");
+        return;
+      }
+      const activeAccount = getActiveAccount();
+      const task = {
+        id: Date.now(),
+        title: els.clipPlanTitle.value.trim() || state.clipPlan.title || "AI 自动剪辑任务",
+        body: els.clipScript.value.trim(),
+        tags: "#小红书种草 #视频笔记 #AI剪辑",
+        contentType: "视频笔记",
+        materialCount: state.clipMaterials.length,
+        publishTime: els.clipPublishTime.value || state.clipPlan.publishTime || "待定",
+        accountName: activeAccount?.name || "待选择发布账号",
+        status: "剪辑待确认"
+      };
+      state.tasks.unshift(task);
+      saveTasks();
+      renderTasks();
+      renderDashboard();
+      addLog(`已加入视频定时发布任务：${task.title}`);
+      showToast("视频任务已加入定时发布");
+      setActiveSection("schedule");
+    }
+
+    function buildLocalProductDraft(providerError = "") {
+      const note = els.productOperatorNote.value.trim();
+      const rawText = [...state.productMaterials.map((item) => item.name), note].join(" ");
+      const firstName = state.productMaterials[0]?.name?.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 28) || "KARRIES 禾一斯产品";
+      const category = guessProductCategoryFromText(rawText);
+      const brand = /karries|禾一斯/i.test(rawText) ? "KARRIES 禾一斯" : "";
+      const sellingPoints = category === "服饰配饰"
+        ? ["视觉质感突出", "适合通勤、约会和礼赠场景", "可围绕细节、光泽和佩戴氛围种草"]
+        : ["适合小红书种草内容延展", "可围绕产品细节和真实使用场景展开", "便于后续生成标题、正文和标签"];
+      const draft = {
+        basic_info: {
+          product_name: firstName,
+          brand,
+          category,
+          sku: "",
+          spec: "",
+          price: ""
+        },
+        product_attributes: {
+          ingredients_or_materials: [],
+          features: sellingPoints,
+          usage_method: "请根据产品实际使用方式或佩戴方式补充。",
+          notices: ["价格、规格、材质和功效类信息建议人工确认后再入库。"]
+        },
+        content_info: {
+          selling_points: sellingPoints,
+          pain_points: ["不知道如何提炼产品卖点", "每次创作文案都要重复整理资料"],
+          target_users: ["关注精致生活方式的用户", "小红书种草内容受众"],
+          use_scenarios: ["新品介绍", "门店体验", "日常搭配", "礼赠推荐"],
+          seeding_angles: ["第一眼质感", "细节控会喜欢", "日常也能高级"],
+          title_directions: ["把高级感戴进日常", "这组细节真的很适合发小红书"],
+          forbidden_words: ["最强", "100%有效", "根治", "全网第一"],
+          brand_tone: "自然真诚、精致但不夸张"
+        },
+        assets: state.productMaterials.map((item, index) => ({
+          file_id: item.id,
+          file_name: item.name,
+          file_type: item.kind,
+          type: item.type,
+          sizeLabel: item.sizeLabel,
+          width: item.width,
+          height: item.height,
+          duration: item.duration,
+          previewUrl: item.previewUrl || "",
+          previewDataUrl: item.previewDataUrl || "",
+          thumbnailUrl: item.thumbnailUrl || "",
+          notes: item.notes || "",
+          asset_type: index === 0 && item.kind === "image" ? "main_image" : "raw_file",
+          tags: ["原始资料", "待确认"]
+        })),
+        confidence: {
+          product_name: 0.68,
+          brand: brand ? 0.66 : 0.38,
+          category: 0.64,
+          price: 0.22,
+          selling_points: 0.76
+        },
+        provider: "local",
+        providerError,
+        status: "pending_confirm"
+      };
+      draft.completeness = productCompleteness(draft);
+      return draft;
+    }
+
+    function renderProductDraft(draft, task = null) {
+      state.productDraft = draft;
+      state.productTask = task || state.productTask || { task_id: `local_${Date.now()}` };
+      const basic = draft.basic_info || {};
+      const attrs = draft.product_attributes || {};
+      const content = draft.content_info || {};
+      els.productEmpty.style.display = "none";
+      els.productFormWrap.style.display = "grid";
+      els.productNameInput.value = basic.product_name || "";
+      els.productBrandInput.value = basic.brand || "";
+      const category = basic.category || "其他";
+      els.productCategoryInput.value = Array.from(els.productCategoryInput.options).some((option) => option.value === category) ? category : "其他";
+      els.productSkuInput.value = basic.sku || "";
+      els.productSpecInput.value = basic.spec || "";
+      els.productPriceInput.value = basic.price || "";
+      els.productMaterialsText.value = listToText(attrs.ingredients_or_materials);
+      els.productFeaturesText.value = listToText(attrs.features);
+      els.productUsageText.value = attrs.usage_method || "";
+      els.productNoticesText.value = listToText(attrs.notices);
+      els.productSellingPointsText.value = listToText(content.selling_points);
+      els.productPainPointsText.value = listToText(content.pain_points);
+      els.productTargetUsersText.value = listToText(content.target_users);
+      els.productUseScenariosText.value = listToText(content.use_scenarios);
+      els.productAnglesText.value = listToText(content.seeding_angles);
+      els.productTitleDirectionsText.value = listToText(content.title_directions);
+      els.productForbiddenWordsText.value = listToText(content.forbidden_words);
+      els.productBrandToneText.value = content.brand_tone || "";
+      const confidence = draft.confidence || {};
+      const confidenceLabels = {
+        product_name: "产品名称",
+        brand: "品牌",
+        category: "分类",
+        price: "价格",
+        selling_points: "卖点"
+      };
+      els.productConfidenceGrid.innerHTML = Object.entries(confidenceLabels).map(([key, label]) => {
+        const value = Number(confidence[key] || 0);
+        return `
+          <div class="confidence-item">
+            <span>${label}</span>
+            <strong>${Math.round(value * 100)}%</strong>
+          </div>
+        `;
+      }).join("");
+      const isAi = draft.provider === "deepseek";
+      els.productTaskBadge.className = isAi ? "badge green" : "badge amber";
+      els.productTaskBadge.textContent = isAi ? "AI 已识别，待确认" : "已生成待确认草稿";
+      if (draft.providerError) {
+        showToast("AI 接口暂未连接，已生成本地可编辑草稿");
+      }
+    }
+
+    function collectProductFromForm() {
+      const product = {
+        ...(state.productDraft || {}),
+        basic_info: {
+          product_name: els.productNameInput.value.trim(),
+          brand: els.productBrandInput.value.trim(),
+          category: els.productCategoryInput.value,
+          sku: els.productSkuInput.value.trim(),
+          spec: els.productSpecInput.value.trim(),
+          price: els.productPriceInput.value.trim()
+        },
+        product_attributes: {
+          ingredients_or_materials: textToList(els.productMaterialsText.value),
+          features: textToList(els.productFeaturesText.value),
+          usage_method: els.productUsageText.value.trim(),
+          notices: textToList(els.productNoticesText.value)
+        },
+        content_info: {
+          selling_points: textToList(els.productSellingPointsText.value),
+          pain_points: textToList(els.productPainPointsText.value),
+          target_users: textToList(els.productTargetUsersText.value),
+          use_scenarios: textToList(els.productUseScenariosText.value),
+          seeding_angles: textToList(els.productAnglesText.value),
+          title_directions: textToList(els.productTitleDirectionsText.value),
+          forbidden_words: textToList(els.productForbiddenWordsText.value),
+          brand_tone: els.productBrandToneText.value.trim()
+        },
+        assets: state.productDraft?.assets || state.productMaterials.map((item) => ({
+          file_id: item.id,
+          file_name: item.name,
+          file_type: item.kind,
+          type: item.type,
+          sizeLabel: item.sizeLabel,
+          width: item.width,
+          height: item.height,
+          duration: item.duration,
+          previewUrl: item.previewUrl || "",
+          previewDataUrl: item.previewDataUrl || "",
+          thumbnailUrl: item.thumbnailUrl || "",
+          notes: item.notes || "",
+          asset_type: "raw_file",
+          tags: ["原始资料"]
+        })),
+        status: "pending_confirm"
+      };
+      product.completeness = productCompleteness(product);
+      return product;
+    }
+
+    function validateProduct(product) {
+      if (!product.basic_info.product_name) return "请填写产品名称";
+      if (!product.basic_info.category) return "请选择产品分类";
+      if (!product.content_info.selling_points.length) return "核心卖点至少需要 1 条";
+      return "";
+    }
+
+    async function recognizeProduct() {
+      if (!state.productMaterials.length) {
+        showToast("请先上传产品资料");
+        return;
+      }
+      const originalText = els.recognizeProductBtn.innerHTML;
+      els.recognizeProductBtn.disabled = true;
+      els.recognizeProductBtn.innerHTML = '<span class="loading"></span> 正在识别';
+      els.productTaskBadge.className = "badge amber";
+      els.productTaskBadge.textContent = "AI 识别中";
+      try {
+        const payload = {
+          provider: els.aiProvider.value,
+          apiKey: els.apiKey.value.trim(),
+          model: els.modelName.value.trim(),
+          endpoint: els.apiEndpoint.value.trim(),
+          operatorNote: els.productOperatorNote.value.trim(),
+          materials: state.productMaterials.map(productMaterialForApi)
+        };
+        const response = await fetch("/api/products/recognize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const body = await response.json();
+        if (!body.success) throw new Error(body.error?.message || "产品识别失败");
+        renderProductDraft(body.data.productDraft, body.data.task);
+        addLog(`产品资料已识别：${body.data.productDraft.basic_info?.product_name || "待命名产品"}`);
+        showToast("产品信息已识别，请确认修正后导入产品库");
+      } catch (error) {
+        renderProductDraft(buildLocalProductDraft(error.message || "接口未连接"));
+        addLog("已生成产品知识库本地识别草稿");
+      } finally {
+        els.recognizeProductBtn.disabled = false;
+        els.recognizeProductBtn.innerHTML = originalText;
+      }
+    }
+
+    function upsertLocalProduct(product, status = "pending_confirm") {
+      const next = {
+        ...product,
+        id: product.id || `product_${Date.now()}`,
+        status,
+        updated_at: new Date().toLocaleString(),
+        created_at: product.created_at || new Date().toLocaleString()
+      };
+      const index = state.products.findIndex((item) => item.id === next.id);
+      if (index >= 0) state.products[index] = next;
+      else state.products.unshift(next);
+      saveProducts();
+      renderProductLibrary();
+      return next;
+    }
+
+    function saveProductDraft() {
+      if (!state.productDraft) {
+        showToast("请先完成 AI 识别");
+        return;
+      }
+      const product = collectProductFromForm();
+      const error = validateProduct(product);
+      if (error) {
+        showToast(error);
+        return;
+      }
+      const saved = upsertLocalProduct(product, "pending_confirm");
+      state.productDraft = saved;
+      showToast("识别草稿已保存到产品库待确认列表");
+    }
+
+    async function importProduct() {
+      if (!state.productDraft) {
+        showToast("请先完成 AI 识别");
+        return;
+      }
+      const product = collectProductFromForm();
+      const error = validateProduct(product);
+      if (error) {
+        showToast(error);
+        return;
+      }
+      try {
+        const response = await fetch("/api/products/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task_id: state.productTask?.task_id || "",
+            product_data: product
+          })
+        });
+        const body = await response.json();
+        if (!body.success) throw new Error(body.error?.message || "入库失败");
+        state.products = body.data.products || [body.data.product, ...state.products];
+        saveProducts();
+        state.productDraft = body.data.product;
+        renderProductLibrary();
+        renderProductDraft(body.data.product, state.productTask);
+        addLog(`产品已导入知识库：${body.data.product.basic_info?.product_name || "未命名产品"}`);
+        showToast("产品已导入产品知识库");
+      } catch (error) {
+        const saved = upsertLocalProduct(product, "active");
+        state.productDraft = saved;
+        renderProductDraft(saved, state.productTask);
+        addLog(`产品已保存到本地产品库：${saved.basic_info.product_name}`);
+        showToast("后端未连接，已保存到本地产品库");
+      }
+    }
+
+    async function loadProducts() {
+      try {
+        const response = await fetch("/api/products");
+        const body = await response.json();
+        if (!body.success) throw new Error(body.error?.message || "产品库加载失败");
+        state.products = body.data.products || [];
+        saveProducts();
+      } catch {
+        state.products = JSON.parse(localStorage.getItem("xhs_workspace_products") || "[]");
+      }
+      renderProductLibrary();
+    }
+
+    function renderProductLibrary() {
+      const keyword = els.productSearchInput.value.trim().toLowerCase();
+      const status = els.productStatusFilter.value;
+      let products = [...state.products];
+      if (keyword) {
+        products = products.filter((product) => JSON.stringify(product).toLowerCase().includes(keyword));
+      }
+      if (status) {
+        products = products.filter((product) => product.status === status);
+      }
+      const activeCount = state.products.filter((product) => product.status === "active").length;
+      const pendingCount = state.products.filter((product) => product.status === "pending_confirm").length;
+      els.productCountBadge.textContent = `产品 ${state.products.length}`;
+      els.productStats.innerHTML = `
+        <span class="badge green">已入库 ${activeCount}</span>
+        <span class="badge amber">待确认 ${pendingCount}</span>
+        <span class="badge">当前显示 ${products.length}</span>
+      `;
+      if (!products.length) {
+        els.productLibraryList.innerHTML = '<div class="empty">暂无产品，请先上传资料并完成 AI 识别入库。</div>';
+        renderClipProductSelect();
+        return;
+      }
+      els.productLibraryList.innerHTML = products.map((product) => {
+        const basic = product.basic_info || {};
+        const content = product.content_info || {};
+        const sellingPoints = textToList(content.selling_points).slice(0, 3);
+        const tags = [
+          basic.category || "未分类",
+          `${product.completeness || productCompleteness(product)}% 完整度`,
+          `${product.assets?.length || 0} 个素材`
+        ];
+        return `
+          <article class="product-row">
+            <div>
+              <strong>${escapeHtml(basic.product_name || "未命名产品")}</strong>
+              <p>${escapeHtml([basic.brand, basic.spec, basic.price].filter(Boolean).join(" / ") || "基础信息待补充")}</p>
+              <p>${escapeHtml(sellingPoints.join("；") || "核心卖点待补充")}</p>
+              <div class="tag-row">
+                ${tags.map((tag) => `<span class="tag-chip">${escapeHtml(tag)}</span>`).join("")}
+                <span class="tag-chip">${product.status === "active" ? "已入库" : "待确认"}</span>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="small-btn" type="button" data-edit-product="${escapeHtml(product.id)}">查看/编辑</button>
+              <button class="small-btn" type="button" data-use-product="${escapeHtml(product.id)}">用于创作</button>
+              <button class="small-btn danger" type="button" data-delete-product="${escapeHtml(product.id)}">删除</button>
+            </div>
+          </article>
+        `;
+      }).join("");
+      renderClipProductSelect();
+    }
+
+    function getProductById(productId) {
+      return state.products.find((product) => String(product.id) === String(productId));
+    }
+
+    function useProductForCreation(product = state.productDraft) {
+      if (!product) {
+        showToast("请先选择或导入产品");
+        return;
+      }
+      state.selectedClipProductId = String(product.id || "");
+      localStorage.setItem("xhs_workspace_clip_product_id", state.selectedClipProductId);
+      renderClipProductSelect();
+      applyProductToClipFields(product);
+      loadSelectedProductAssets(false);
+      setActiveSection("clip");
+      showToast("产品信息已带入智能创作");
+    }
+
+    async function deleteProduct(productId) {
+      const product = getProductById(productId);
+      if (!product) return;
+      if (!window.confirm(`确认删除「${product.basic_info?.product_name || "未命名产品"}」吗？`)) return;
+      try {
+        const response = await fetch(`/api/products/${encodeURIComponent(productId)}`, { method: "DELETE" });
+        const body = await response.json();
+        if (!body.success) throw new Error(body.error?.message || "删除失败");
+        state.products = body.data.products || state.products.filter((item) => item.id !== productId);
+      } catch {
+        state.products = state.products.filter((item) => item.id !== productId);
+      }
+      saveProducts();
+      renderProductLibrary();
+      showToast("产品已删除");
     }
 
     function renderResult(result) {
@@ -2115,7 +4060,10 @@
         addLog(`AI 已生成文案：${body.data.title || "未命名内容"}`);
         showToast("解析结果已生成");
       } catch (error) {
-        showToast(error.message || "解析失败");
+        const fallback = buildLocalCopyResult(error.message || "接口未连接");
+        renderResult(fallback);
+        addLog(`已生成本地文案草稿：${fallback.title || "未命名内容"}`);
+        showToast("AI 接口暂未连接，已生成本地可编辑草稿");
       } finally {
         els.analyzeBtn.disabled = false;
         els.sideAnalyzeBtn.disabled = false;
@@ -2156,7 +4104,7 @@
     async function copyText() {
       const text = `${els.resultTitle.value}\n\n${els.resultBody.value}\n\n${els.resultTags.value}`;
       if (!text.trim()) {
-        showToast("暂无可复制文案");
+        showToast("暂无可复制的拆解结果");
         return;
       }
       try {
@@ -2173,19 +4121,29 @@
         renderDashboard();
         return;
       }
-      els.taskRows.innerHTML = state.tasks.map((task) => `
-        <tr>
-          <td><strong>${escapeHtml(task.title)}</strong><br><span style="color:#667085;">${escapeHtml(task.accountName || "未选择账号")} / ${escapeHtml(String(task.tags || ""))}</span></td>
-          <td>${escapeHtml(task.contentType || "图文笔记")}</td>
-          <td>${task.materialCount} 个素材</td>
-          <td>${escapeHtml(task.publishTime || "待定")}</td>
-          <td><span class="badge ${task.status === "已提交" ? "green" : "amber"}">${escapeHtml(task.status)}</span></td>
-          <td>
-            <button class="small-btn" type="button" data-submit="${task.id}">提交发布</button>
-            <button class="small-btn danger" type="button" data-delete="${task.id}">删除</button>
-          </td>
-        </tr>
-      `).join("");
+      els.taskRows.innerHTML = state.tasks.map((task) => {
+        const statusClass = task.status === "已提交" ? "green" : (String(task.status || "").includes("剪辑") ? "blue" : "amber");
+        const timeValue = normalizeDateTimeLocal(task.publishTime);
+        return `
+          <tr>
+            <td><strong>${escapeHtml(task.title)}</strong><br><span style="color:#667085;">${escapeHtml(task.accountName || "未选择账号")} / ${escapeHtml(String(task.tags || ""))}</span></td>
+            <td>${escapeHtml(task.contentType || "图文笔记")}</td>
+            <td>${task.materialCount || 0} 个素材</td>
+            <td>
+              <div class="table-time-editor">
+                <input type="datetime-local" value="${escapeHtml(timeValue)}" data-time-input="${task.id}" aria-label="调整发布时间">
+                <span class="hint">当前：${escapeHtml(formatDateTime(task.publishTime))}</span>
+                <button class="small-btn" type="button" data-save-time="${task.id}">保存时间</button>
+              </div>
+            </td>
+            <td><span class="badge ${statusClass}">${escapeHtml(task.status || "待发布")}</span></td>
+            <td>
+              <button class="small-btn" type="button" data-submit="${task.id}">提交发布</button>
+              <button class="small-btn danger" type="button" data-delete="${task.id}">删除</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
       renderDashboard();
     }
 
@@ -2203,10 +4161,10 @@
       const pendingCount = state.tasks.filter((task) => task.status !== "已提交").length;
       const submittedCount = state.tasks.filter((task) => task.status === "已提交").length;
       const nextTask = state.tasks.find((task) => task.status !== "已提交");
-      els.metricMaterialCount.textContent = state.materials.length;
+      els.metricMaterialCount.textContent = state.materials.length + state.clipMaterials.length;
       els.metricPendingCount.textContent = pendingCount;
       els.metricSubmittedCount.textContent = submittedCount;
-      els.metricNextTime.textContent = nextTask?.publishTime || "待定";
+      els.metricNextTime.textContent = nextTask ? formatDateTime(nextTask.publishTime) : "待定";
       els.sideTaskCount.textContent = `任务 ${state.tasks.length}`;
     }
 
@@ -2263,6 +4221,9 @@
     els.pickFileBtn.addEventListener("click", () => els.fileInput.click());
     els.fileInput.addEventListener("change", (event) => addFiles(event.target.files));
     els.uploadZone.addEventListener("click", () => els.fileInput.click());
+    els.uploadZone.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") els.fileInput.click();
+    });
     els.uploadZone.addEventListener("dragover", (event) => {
       event.preventDefault();
       els.uploadZone.classList.add("dragover");
@@ -2284,6 +4245,111 @@
       state.materials = [];
       renderMaterials();
       showToast("素材已清空");
+    });
+    els.pickClipFileBtn.addEventListener("click", () => els.clipFileInput.click());
+    els.clipFileInput.addEventListener("change", (event) => addClipFiles(event.target.files));
+    els.clipUploadZone.addEventListener("click", () => els.clipFileInput.click());
+    els.clipUploadZone.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") els.clipFileInput.click();
+    });
+    els.clipUploadZone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      els.clipUploadZone.classList.add("dragover");
+    });
+    els.clipUploadZone.addEventListener("dragleave", () => els.clipUploadZone.classList.remove("dragover"));
+    els.clipUploadZone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      els.clipUploadZone.classList.remove("dragover");
+      addClipFiles(event.dataTransfer.files);
+    });
+    els.clipMaterialList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-remove-clip-file]");
+      if (!button) return;
+      const id = button.getAttribute("data-remove-clip-file");
+      state.clipMaterials = state.clipMaterials.filter((item) => item.id !== id);
+      renderClipMaterials();
+    });
+    els.clearClipFilesBtn.addEventListener("click", () => {
+      state.clipMaterials = [];
+      renderClipMaterials();
+      resetClipPlan();
+      showToast("剪辑素材已清空");
+    });
+    els.generateClipBtn.addEventListener("click", generateClipPlan);
+    els.resetClipBtn.addEventListener("click", resetClipPlan);
+    els.addClipTaskBtn.addEventListener("click", addClipTask);
+    els.goClipScheduleBtn.addEventListener("click", () => setActiveSection("schedule"));
+    els.clipProductSelect.addEventListener("change", () => {
+      state.selectedClipProductId = els.clipProductSelect.value;
+      localStorage.setItem("xhs_workspace_clip_product_id", state.selectedClipProductId);
+      const product = getSelectedClipProduct();
+      if (product) applyProductToClipFields(product);
+      renderClipProductPreview();
+    });
+    els.loadProductAssetsBtn.addEventListener("click", () => loadSelectedProductAssets(false));
+    els.autoClipFromProductBtn.addEventListener("click", () => loadSelectedProductAssets(true));
+    els.pickProductFileBtn.addEventListener("click", () => els.productFileInput.click());
+    els.productFileInput.addEventListener("change", (event) => addProductFiles(event.target.files));
+    els.productUploadZone.addEventListener("click", () => els.productFileInput.click());
+    els.productUploadZone.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") els.productFileInput.click();
+    });
+    els.productUploadZone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      els.productUploadZone.classList.add("dragover");
+    });
+    els.productUploadZone.addEventListener("dragleave", () => els.productUploadZone.classList.remove("dragover"));
+    els.productUploadZone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      els.productUploadZone.classList.remove("dragover");
+      addProductFiles(event.dataTransfer.files);
+    });
+    els.productMaterialList.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-remove-product-file]");
+      if (!button) return;
+      const id = button.getAttribute("data-remove-product-file");
+      state.productMaterials = state.productMaterials.filter((item) => item.id !== id);
+      renderProductMaterials();
+    });
+    els.clearProductFilesBtn.addEventListener("click", () => {
+      state.productMaterials = [];
+      renderProductMaterials();
+      showToast("产品资料已清空");
+    });
+    els.recognizeProductBtn.addEventListener("click", recognizeProduct);
+    els.saveProductDraftBtn.addEventListener("click", saveProductDraft);
+    els.importProductBtn.addEventListener("click", importProduct);
+    els.useProductForCreationBtn.addEventListener("click", () => useProductForCreation());
+    els.resetProductDraftBtn.addEventListener("click", () => {
+      state.productDraft = null;
+      state.productTask = null;
+      els.productFormWrap.style.display = "none";
+      els.productEmpty.style.display = "grid";
+      els.productTaskBadge.className = "badge amber";
+      els.productTaskBadge.textContent = "待上传资料";
+      showToast("识别结果已清空");
+    });
+    els.productSearchInput.addEventListener("input", renderProductLibrary);
+    els.productStatusFilter.addEventListener("change", renderProductLibrary);
+    els.refreshProductsBtn.addEventListener("click", loadProducts);
+    els.productLibraryList.addEventListener("click", (event) => {
+      const editButton = event.target.closest("[data-edit-product]");
+      const useButton = event.target.closest("[data-use-product]");
+      const deleteButton = event.target.closest("[data-delete-product]");
+      if (editButton) {
+        const product = getProductById(editButton.getAttribute("data-edit-product"));
+        if (product) {
+          renderProductDraft(product, { task_id: product.task_id || "" });
+          showToast("产品信息已载入右侧编辑区");
+        }
+      }
+      if (useButton) {
+        const product = getProductById(useButton.getAttribute("data-use-product"));
+        useProductForCreation(product);
+      }
+      if (deleteButton) {
+        deleteProduct(deleteButton.getAttribute("data-delete-product"));
+      }
     });
     els.aiProvider.addEventListener("change", () => {
       syncProviderControls(els.aiProvider.value);
@@ -2309,7 +4375,7 @@
     els.saveTaskBtn.addEventListener("click", saveTask);
     els.copyTextBtn.addEventListener("click", copyText);
     els.goScheduleBtn.addEventListener("click", () => setActiveSection("schedule"));
-    els.createFromScheduleBtn.addEventListener("click", () => setActiveSection("creation"));
+    els.createFromScheduleBtn.addEventListener("click", () => setActiveSection("clip"));
     els.clearTasksBtn.addEventListener("click", () => {
       state.tasks = [];
       saveTasks();
@@ -2320,6 +4386,19 @@
     els.taskRows.addEventListener("click", (event) => {
       const submit = event.target.closest("[data-submit]");
       const remove = event.target.closest("[data-delete]");
+      const saveTime = event.target.closest("[data-save-time]");
+      if (saveTime) {
+        const id = Number(saveTime.getAttribute("data-save-time"));
+        const input = els.taskRows.querySelector(`[data-time-input="${id}"]`);
+        const value = input?.value || "待定";
+        const task = state.tasks.find((item) => item.id === id);
+        state.tasks = state.tasks.map((item) => item.id === id ? { ...item, publishTime: value } : item);
+        saveTasks();
+        renderTasks();
+        addLog(`已调整发布时间：${task?.title || "未命名任务"} / ${formatDateTime(value)}`);
+        showToast("发布时间已更新");
+        return;
+      }
       if (submit) {
         const id = Number(submit.getAttribute("data-submit"));
         const task = state.tasks.find((item) => item.id === id);
@@ -2339,7 +4418,7 @@
     els.saveKeyBtn.addEventListener("click", () => {
       localStorage.setItem("xhs_workspace_ai_key", els.apiKey.value.trim());
       updateKeyStatus();
-      addLog(`${providerDefaults[els.aiProvider.value].label} Key 配置已更新`);
+      addLog("AI 智能体配置已更新");
       showToast("Key 已保存到本机浏览器");
     });
     els.clearKeyBtn.addEventListener("click", () => {
@@ -2368,22 +4447,24 @@
       }
     });
     els.testConfigBtn.addEventListener("click", () => {
-      const keyStatus = getProviderKeyStatus();
-      const provider = providerDefaults[els.aiProvider.value] || providerDefaults.deepseek;
-      const mode = keyStatus.hasKey ? `${provider.label} ${keyStatus.source} 已连接` : "当前未连接 Key";
-      showToast(`${mode}，后端服务状态见右上角`);
+      showToast(`当前已配置 ${state.accounts.length} 个小红书账号，发布前请确认浏览器登录状态`);
     });
 
     syncProviderControls("deepseek");
     loadSettings();
     els.apiKey.value = localStorage.getItem("xhs_workspace_ai_key") || "";
     els.publishTime.value = defaultPublishTime();
+    els.clipPublishTime.value = els.publishTime.value;
     updateKeyStatus();
     renderMaterials();
+    renderClipMaterials();
+    renderProductMaterials();
+    renderProductLibrary();
     renderTasks();
     renderAccounts();
     renderLogs();
     renderDashboard();
+    loadProducts();
     checkServer();
   </script>
 </body>

@@ -7,6 +7,7 @@ class TaskCreate(BaseModel):
     task_body: str = ""
     tags: list[str] = Field(default_factory=list)
     image_paths: list[str] = Field(default_factory=list)
+    material_ids: list[int] = Field(default_factory=list, max_length=20)
     schedule_time: int
 
 

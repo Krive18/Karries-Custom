@@ -48,6 +48,7 @@ class FakeUsageCursor:
                         "business_id",
                         "provider",
                         "model_name",
+                        "request_id",
                         "status",
                         "credit_cost",
                         "latency_ms",
@@ -97,6 +98,7 @@ def test_usage_service_records_success_with_generation_metrics():
         latency_ms=123,
         input_chars=18,
         output_chars=5,
+        request_id="req-provider-123",
     )
 
     usage.record_success(
@@ -117,6 +119,7 @@ def test_usage_service_records_success_with_generation_metrics():
             "business_id": 19,
             "provider": "deepseek",
             "model_name": "deepseek-chat",
+            "request_id": "req-provider-123",
             "status": "success",
             "credit_cost": 3,
             "latency_ms": 123,
@@ -202,6 +205,7 @@ def test_usage_service_records_failed_call_without_key_or_prompt():
         provider="deepseek",
         model_name="deepseek-chat",
         error_message="provider timeout for sk-private-secret",
+        request_id="trace-failure",
         latency_ms=50,
         input_chars=12,
     )
@@ -218,6 +222,7 @@ def test_usage_service_records_failed_call_without_key_or_prompt():
         "business_id",
         "provider",
         "model_name",
+        "request_id",
         "status",
         "credit_cost",
         "latency_ms",
@@ -387,8 +392,25 @@ def test_usage_repository_preserves_commit_failure_when_rollback_fails():
 def test_credit_charge_service_estimates_supported_business_types():
     service = CreditChargeService()
 
-    assert service.estimate("inspiration_chat") == 1
-    assert service.estimate("viral_analysis") == 3
+    assert service.estimate("inspiration_chat") == 0
+    assert service.estimate("inspiration_chat_pro") == 5
+    assert service.estimate("viral_analysis") == 100
+    assert service.estimate("video_production") == 140
+    assert service.estimate("ai_translation_delivery") == 60
+    assert service.estimate("omni_video_generation") == 40
+    assert service.estimate("omni_agent_image") == 30
+    assert service.estimate("scheduled_publish") == 20
+
+
+def test_credit_charge_service_adds_one_visual_analysis_surcharge():
+    service = CreditChargeService()
+
+    assert service.estimate_viral_analysis(
+        ["hook", "structure", "rhythm", "script", "selling", "reuse"]
+    ) == 100
+    assert service.estimate_viral_analysis(["hook", "setting"]) == 120
+    assert service.estimate_viral_analysis(["hook", "lighting"]) == 120
+    assert service.estimate_viral_analysis(["hook", "setting", "lighting"]) == 120
 
 
 def test_credit_charge_service_rejects_unknown_business_type():

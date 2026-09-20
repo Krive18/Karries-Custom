@@ -3,7 +3,11 @@ from pydantic import ValidationError
 
 from app.repositories.xhs_account_repository import XHSAccountRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.xhs_account import XHSAccountCreate, XHSAccountProfile, XHSAccountProfileUpdate
+from app.schemas.xhs_account import (
+    XHSAccountCreate,
+    XHSAccountProfile,
+    XHSAccountProfileUpdate,
+)
 
 
 class FakeXHSCursor:
@@ -150,6 +154,8 @@ def test_create_xhs_account_with_profile_and_list(mysql_conn, mysql_app_client):
     assert created["profile"]["persona"] == "gentle product consultant"
     assert created["profile"]["tag_preferences"] == "[\"#Karries\", \"#skincare\"]"
     assert created["profile"]["word_count_preference"] == 450
+    assert created["login_state_ready"] is False
+    assert "login_state_path" not in created
 
     list_response = mysql_app_client.get("/api/xhs-accounts", headers=headers)
 
@@ -163,6 +169,115 @@ def test_create_xhs_account_with_profile_and_list(mysql_conn, mysql_app_client):
     assert accounts[0]["profile"]["domain_name"] == "beauty care"
     assert accounts[0]["profile"]["persona"] == "gentle product consultant"
     assert accounts[0]["profile"]["tag_preferences"] == "[\"#Karries\", \"#skincare\"]"
+
+
+def test_start_xhs_login_session_and_get_latest(
+    mysql_conn,
+    mysql_app_client,
+    monkeypatch,
+):
+    headers = auth_headers(mysql_conn, mysql_app_client, "login-start")
+    create_response = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=headers,
+        json={"display_name": "Login account"},
+    )
+    account_id = create_response.json()["data"]["id"]
+
+    async def fake_login_runner(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.api.xhs_accounts.run_xhs_account_login",
+        fake_login_runner,
+    )
+    start_response = mysql_app_client.post(
+        f"/api/xhs-accounts/{account_id}/login/start",
+        headers=headers,
+    )
+
+    assert start_response.status_code == 202
+    session = start_response.json()["data"]
+    assert session["xhs_account_id"] == account_id
+    assert session["status"] == "starting"
+    assert session["qrcode_image_data"] == ""
+    assert "operation_token" not in session
+    assert "login_state_path" not in session
+
+    latest_response = mysql_app_client.get(
+        f"/api/xhs-accounts/{account_id}/login/session",
+        headers=headers,
+    )
+    assert latest_response.status_code == 200
+    assert latest_response.json()["data"]["id"] == session["id"]
+
+
+def test_xhs_login_session_is_user_isolated(
+    mysql_conn,
+    mysql_app_client,
+    monkeypatch,
+):
+    owner_headers = auth_headers(mysql_conn, mysql_app_client, "login-owner")
+    other_headers = auth_headers(mysql_conn, mysql_app_client, "login-other")
+    create_response = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=owner_headers,
+        json={"display_name": "Owner login account"},
+    )
+    account_id = create_response.json()["data"]["id"]
+
+    async def fake_login_runner(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setattr(
+        "app.api.xhs_accounts.run_xhs_account_login",
+        fake_login_runner,
+    )
+    response = mysql_app_client.post(
+        f"/api/xhs-accounts/{account_id}/login/start",
+        headers=other_headers,
+    )
+    assert response.status_code == 404
+
+
+def test_check_xhs_login_updates_public_status(
+    mysql_conn,
+    mysql_app_client,
+    monkeypatch,
+):
+    headers = auth_headers(mysql_conn, mysql_app_client, "login-check")
+    create_response = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=headers,
+        json={"display_name": "Checked account"},
+    )
+    account_id = create_response.json()["data"]["id"]
+    user_id = create_response.json()["data"]["user_id"]
+    XHSAccountRepository(mysql_conn).update_login_state(
+        user_id,
+        account_id,
+        status=2,
+        login_state_path="data/xhs_accounts/test/storage_state.json",
+    )
+
+    async def valid_cookie(_account_file: str) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "app.services.xhs_account_login_service.check_cookie",
+        valid_cookie,
+    )
+    response = mysql_app_client.post(
+        f"/api/xhs-accounts/{account_id}/login/check",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    result = response.json()["data"]
+    assert result["valid"] is True
+    assert result["account"]["status"] == 1
+    assert result["account"]["login_state_ready"] is True
+    assert "login_state_path" not in result["account"]
 
 
 def test_xhs_accounts_are_user_isolated(mysql_conn, mysql_app_client):
@@ -241,6 +356,86 @@ def test_update_xhs_account_profile(mysql_conn, mysql_app_client):
     assert account["profile"]["tone"] == "professional"
     assert account["profile"]["tag_preferences"] == "[\"#after\", \"#matrix\"]"
     assert account["profile"]["word_count_preference"] == 520
+
+
+def test_update_and_delete_xhs_account(mysql_conn, mysql_app_client):
+    headers = auth_headers(mysql_conn, mysql_app_client, "full-update-delete")
+    create_response = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=headers,
+        json={
+            "display_name": "Original account",
+            "account_group": "original",
+            "daily_limit": 1,
+            "min_interval_minutes": 360,
+            "profile": {"domain_name": "original domain"},
+        },
+    )
+    assert create_response.status_code == 200
+    account_id = create_response.json()["data"]["id"]
+
+    update_response = mysql_app_client.put(
+        f"/api/xhs-accounts/{account_id}",
+        headers=headers,
+        json={
+            "display_name": "Updated account",
+            "account_group": "flagship",
+            "daily_limit": 4,
+            "min_interval_minutes": 180,
+            "profile": {
+                "domain_name": "beauty care",
+                "persona": "professional beauty consultant",
+                "tone": "warm and clear",
+            },
+        },
+    )
+
+    assert update_response.status_code == 200
+    updated = update_response.json()["data"]
+    assert updated["display_name"] == "Updated account"
+    assert updated["account_group"] == "flagship"
+    assert updated["daily_limit"] == 4
+    assert updated["min_interval_minutes"] == 180
+    assert updated["profile"]["domain_name"] == "beauty care"
+    assert updated["profile"]["persona"] == "professional beauty consultant"
+
+    delete_response = mysql_app_client.delete(
+        f"/api/xhs-accounts/{account_id}",
+        headers=headers,
+    )
+
+    assert delete_response.status_code == 200
+    assert delete_response.json()["data"] == {"deleted": True}
+    list_response = mysql_app_client.get("/api/xhs-accounts", headers=headers)
+    assert list_response.status_code == 200
+    assert list_response.json()["data"] == []
+
+
+def test_update_and_delete_xhs_account_are_user_isolated(
+    mysql_conn,
+    mysql_app_client,
+):
+    owner_headers = auth_headers(mysql_conn, mysql_app_client, "edit-owner")
+    other_headers = auth_headers(mysql_conn, mysql_app_client, "edit-other")
+    create_response = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=owner_headers,
+        json={"display_name": "Owner account"},
+    )
+    account_id = create_response.json()["data"]["id"]
+
+    update_response = mysql_app_client.put(
+        f"/api/xhs-accounts/{account_id}",
+        headers=other_headers,
+        json={"display_name": "Cross user update"},
+    )
+    delete_response = mysql_app_client.delete(
+        f"/api/xhs-accounts/{account_id}",
+        headers=other_headers,
+    )
+
+    assert update_response.status_code == 404
+    assert delete_response.status_code == 404
 
 
 def test_xhs_account_requires_auth(app_client_without_db):

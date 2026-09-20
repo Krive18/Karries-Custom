@@ -1,5 +1,5 @@
-from pathlib import Path
+"""Uploader integrations.
 
-from conf import BASE_DIR
-
-Path(BASE_DIR / "cookies").mkdir(exist_ok=True)
+Runtime callers provide explicit account-state paths.  Package imports must not
+write to the vendored source tree because production mounts it read-only.
+"""

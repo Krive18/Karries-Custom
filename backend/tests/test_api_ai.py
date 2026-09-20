@@ -1,8 +1,12 @@
 from app.core.security import create_access_token
 from app.repositories.user_repository import UserRepository
+from app.schemas.ai import ImageCopyResult
 
 
-def _headers(mysql_conn, client, suffix: str, role: str = "client_member"):
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+
+
+def _headers(mysql_conn, client, suffix: str, role: str = "customer"):
     user_id = UserRepository(mysql_conn).create_user(
         login_name=f"image_copy_{suffix}",
         nickname="Image Copy User",
@@ -17,6 +21,23 @@ def _headers(mysql_conn, client, suffix: str, role: str = "client_member"):
         client.app.state.config.auth.access_token_seconds,
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+def _upload_product_asset(client, headers, suffix: str, file_name: str) -> dict:
+    folder_response = client.post(
+        "/api/material-library/folders",
+        headers=headers,
+        json={"parent_id": 0, "folder_name": f"AI 创作素材-{suffix}"},
+    )
+    assert folder_response.status_code == 200
+    upload_response = client.post(
+        "/api/material-library/assets/upload",
+        headers=headers,
+        params={"folder_id": folder_response.json()["data"]["id"]},
+        files={"file": (file_name, PNG_BYTES, "image/png")},
+    )
+    assert upload_response.status_code == 200
+    return upload_response.json()["data"]
 
 
 def test_image_copy_api_returns_unified_success_response(
@@ -42,6 +63,102 @@ def test_image_copy_api_returns_unified_success_response(
     assert len(payload["data"]["title"]) <= 20
     assert payload["data"]["body"]
     assert payload["data"]["tags"]
+
+
+def test_image_copy_api_resolves_uploaded_material_asset(
+    tmp_path, monkeypatch, mysql_conn, mysql_app_client
+):
+    mysql_app_client.app.state.config.data_dir = tmp_path
+    headers = _headers(mysql_conn, mysql_app_client, "material")
+    material_id = _upload_product_asset(
+        mysql_app_client,
+        headers,
+        "material",
+        "product.png",
+    )["id"]
+    captured_paths: list[str] = []
+
+    def fake_generate(payload, **_kwargs):
+        captured_paths.extend(payload.image_paths)
+        return ImageCopyResult(
+            title="产品素材已识别",
+            body="根据产品素材生成的正文",
+            tags=["产品素材"],
+        )
+
+    monkeypatch.setattr("app.api.ai.generate_image_copy", fake_generate)
+    response = mysql_app_client.post(
+        "/api/ai/image-copy",
+        headers=headers,
+        json={"material_ids": [material_id]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["title"] == "产品素材已识别"
+    assert len(captured_paths) == 1
+    assert captured_paths[0].endswith(".png")
+
+
+def test_image_copy_api_uses_account_positioning_and_persists_history(
+    tmp_path, monkeypatch, mysql_conn, mysql_app_client
+):
+    mysql_app_client.app.state.config.data_dir = tmp_path
+    headers = _headers(mysql_conn, mysql_app_client, "account-history")
+    account_response = mysql_app_client.post(
+        "/api/xhs-accounts",
+        headers=headers,
+        json={
+            "display_name": "禾一斯通勤穿搭",
+            "profile": {
+                "domain_name": "女装穿搭",
+                "persona": "专业但亲切的穿搭顾问",
+                "target_audience": "25-35 岁通勤女性",
+                "content_style": "先讲场景，再讲搭配细节",
+                "tone": "自然真诚",
+            },
+        },
+    )
+    assert account_response.status_code == 200
+    account_id = account_response.json()["data"]["id"]
+    material_id = _upload_product_asset(
+        mysql_app_client,
+        headers,
+        "account-history",
+        "dress.png",
+    )["id"]
+    captured_account = {}
+
+    def fake_generate(_payload, **kwargs):
+        captured_account.update(kwargs["account"])
+        return ImageCopyResult(
+            title="通勤穿搭灵感",
+            body="根据账号定位生成的正文",
+            tags=["通勤穿搭"],
+        )
+
+    monkeypatch.setattr("app.api.ai.generate_image_copy", fake_generate)
+    response = mysql_app_client.post(
+        "/api/ai/image-copy",
+        headers=headers,
+        json={
+            "material_ids": [material_id],
+            "xhs_account_id": account_id,
+        },
+    )
+
+    assert response.status_code == 200
+    history_id = response.json()["data"]["history_id"]
+    assert history_id > 0
+    assert captured_account["profile"]["persona"] == "专业但亲切的穿搭顾问"
+
+    history_response = mysql_app_client.get(
+        "/api/content-drafts?source_type=smart_create",
+        headers=headers,
+    )
+    rows = history_response.json()["data"]
+    assert [row["id"] for row in rows] == [history_id]
+    assert rows[0]["xhs_account_id"] == account_id
+    assert rows[0]["material"]["material_ids"] == [material_id]
 
 
 def test_image_copy_api_returns_400_for_invalid_image(
@@ -176,7 +293,7 @@ def test_image_copy_api_uses_saved_vision_and_copywriting_settings(
         headers=developer_headers,
         json={
             "api_key": "sk-vision-secret",
-            "model": "doubao-vision-pro",
+            "model": "doubao-seed-2-0-lite-260428",
             "enabled": True,
         },
     )
@@ -198,9 +315,10 @@ def test_image_copy_api_uses_saved_vision_and_copywriting_settings(
 
     assert response.status_code == 200
     assert vision_calls[0][0] == (
-        "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+        "https://ark.cn-beijing.volces.com/api/v3/responses"
     )
     assert vision_calls[0][1]["Authorization"] == "Bearer sk-vision-secret"
+    assert vision_calls[0][2]["model"] == "doubao-seed-2-0-lite-260428"
     assert copy_calls[0][0] == "https://api.deepseek.com/chat/completions"
     assert copy_calls[0][1]["Authorization"] == "Bearer sk-copy-secret"
     assert response.json()["data"]["title"] == "浅色裙太显气质"

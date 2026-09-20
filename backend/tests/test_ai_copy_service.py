@@ -26,8 +26,8 @@ class FakeCopyClient:
     def __init__(self):
         self.calls = []
 
-    def generate_from_analysis(self, request, analysis):
-        self.calls.append((request, analysis))
+    def generate_from_analysis(self, request, analysis, account_context=None):
+        self.calls.append((request, analysis, account_context))
         return ImageCopyResult(
             title="通勤裙太显气质",
             body=analysis.summary,
@@ -112,4 +112,5 @@ def test_generate_image_copy_uses_vision_then_copywriting_clients(tmp_path):
 
     assert vision_client.calls == [[str(image_path)]]
     assert copy_client.calls[0][1].summary == "浅色连衣裙，适合通勤穿搭"
+    assert copy_client.calls[0][2] == {}
     assert result.title == "通勤裙太显气质"

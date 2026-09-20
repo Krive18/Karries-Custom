@@ -1,0 +1,921 @@
+/*
+ * KARRIES product design system
+ *
+ * Scoped to the customer and manager portals so the developer operations
+ * console can keep its own high-density visual language.
+ */
+
+:is(.customer-shell, .manager-shell) {
+  --karries-brand-50: #fbf6ef;
+  --karries-brand-100: #f5eadb;
+  --karries-brand-200: #ead2b4;
+  --karries-brand-300: #d7ad7d;
+  --karries-brand-400: #bd8350;
+  --karries-brand-500: #a66b35;
+  --karries-brand-600: #8f5b23;
+  --karries-brand-700: #754817;
+  --karries-brand-800: #5b3714;
+
+  --karries-page: #f6f7fb;
+  --karries-sidebar: #fafbfc;
+  --karries-surface: #ffffff;
+  --karries-surface-elevated: #ffffff;
+  --karries-surface-soft: #f8f9fc;
+  --karries-surface-hover: #f3f4f8;
+  --karries-input: #ffffff;
+  --karries-control: #f8f9fc;
+  --karries-text: #20222a;
+  --karries-text-secondary: #656978;
+  --karries-text-muted: #8b90a0;
+  --karries-border: #e7e9f0;
+  --karries-border-strong: #d9dce7;
+
+  --karries-success: #16865a;
+  --karries-success-soft: #edf9f4;
+  --karries-warning: #b86b12;
+  --karries-warning-soft: #fff7e8;
+  --karries-danger: #ce3d4f;
+  --karries-danger-soft: #fff1f3;
+  --karries-info: #3976d6;
+  --karries-info-soft: #eff5ff;
+
+  --karries-shadow-card: 0 1px 2px rgb(24 28 42 / 4%);
+  --karries-shadow-float: 0 14px 38px rgb(24 28 42 / 12%);
+  --karries-radius-control: 6px;
+  --karries-radius-surface: 10px;
+  --karries-motion-fast: 120ms;
+  --karries-motion-mid: 200ms;
+
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--karries-page);
+  color: var(--karries-text);
+  font-family: Inter, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) {
+  --karries-brand-50: #2d261f;
+  --karries-brand-100: #392d22;
+  --karries-brand-200: #4b3825;
+  --karries-brand-300: #6a4a2b;
+  --karries-brand-400: #956438;
+  --karries-brand-500: #c58a49;
+  --karries-brand-600: #d19a5a;
+  --karries-brand-700: #e0ad70;
+  --karries-brand-800: #ebc28f;
+
+  --karries-page: var(--theme-page-bg);
+  --karries-sidebar: var(--theme-sidebar);
+  --karries-surface: var(--theme-surface-solid);
+  --karries-surface-elevated: var(--theme-surface-elevated);
+  --karries-surface-soft: var(--theme-surface-soft);
+  --karries-surface-hover: var(--theme-control);
+  --karries-input: var(--theme-input);
+  --karries-control: var(--theme-control);
+  --karries-text: var(--theme-text);
+  --karries-text-secondary: #c5c1b8;
+  --karries-text-muted: var(--theme-text-muted);
+  --karries-border: var(--theme-border);
+  --karries-border-strong: var(--theme-border-strong);
+
+  --karries-success: #6fd3a5;
+  --karries-success-soft: #1a3228;
+  --karries-warning: #efb565;
+  --karries-warning-soft: #342a1b;
+  --karries-danger: #ff8f9d;
+  --karries-danger-soft: #3b2026;
+  --karries-info: #8bb5ff;
+  --karries-info-soft: #1f2c42;
+
+  --karries-shadow-card: 0 1px 2px rgb(0 0 0 / 18%);
+  --karries-shadow-float: 0 18px 46px rgb(0 0 0 / 32%);
+
+  background: var(--karries-page);
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) *,
+:is(.customer-shell, .manager-shell) *::before,
+:is(.customer-shell, .manager-shell) *::after {
+  box-sizing: border-box;
+}
+
+:is(.customer-shell, .manager-shell) :is(button, input, select, textarea, a) {
+  transition:
+    background-color var(--karries-motion-fast) ease,
+    border-color var(--karries-motion-fast) ease,
+    color var(--karries-motion-fast) ease,
+    box-shadow var(--karries-motion-fast) ease,
+    transform var(--karries-motion-fast) ease;
+}
+
+:is(.customer-shell, .manager-shell) :is(button, input, select, textarea, a):focus-visible {
+  outline: 2px solid var(--karries-brand-400);
+  outline-offset: 2px;
+}
+
+:is(.customer-shell, .manager-shell) .sidebar {
+  gap: 18px;
+  padding: 20px 16px;
+  border-right: 1px solid var(--karries-border-strong);
+  background: var(--karries-sidebar);
+  box-shadow: 4px 0 18px rgb(24 28 42 / 5%);
+}
+
+:is(.customer-shell, .manager-shell).sidebar-collapsed {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+:is(.customer-shell, .manager-shell) .sidebar-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+:is(.customer-shell, .manager-shell) .sidebar-collapse-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--karries-border);
+  border-radius: 8px;
+  background: var(--karries-surface);
+  color: var(--karries-text-secondary);
+  cursor: pointer;
+}
+
+:is(.customer-shell, .manager-shell) .sidebar-collapse-button:hover {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell).sidebar-collapsed .sidebar {
+  padding-inline: 10px;
+}
+
+:is(.customer-shell, .manager-shell).sidebar-collapsed .sidebar-head {
+  flex-direction: column;
+}
+
+:is(.customer-shell, .manager-shell).sidebar-collapsed .brand-lockup {
+  display: flex;
+  min-height: 42px;
+  justify-content: center;
+  padding: 0;
+}
+
+:is(.customer-shell, .manager-shell).sidebar-collapsed .brand-lockup > div,
+:is(.customer-shell, .manager-shell).sidebar-collapsed :is(.nav-group-toggle, .nav-subitem, .nav-primary-item) > span,
+:is(.customer-shell, .manager-shell).sidebar-collapsed .nav-group-chevron,
+:is(.customer-shell, .manager-shell).sidebar-collapsed .operator-card > div {
+  display: none;
+}
+
+:is(.customer-shell, .manager-shell).sidebar-collapsed :is(.nav-group-toggle, .nav-subitem, .nav-primary-item) {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  padding-inline: 0;
+}
+
+:is(.customer-shell, .manager-shell).sidebar-collapsed .nav-sublist {
+  margin-left: 0;
+  padding-left: 0;
+  border-left: 0;
+}
+
+:is(.customer-shell, .manager-shell) .brand-lockup {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 8px;
+}
+
+:is(.customer-shell, .manager-shell) .brand-mark,
+:is(.customer-shell, .manager-shell) .avatar-button img {
+  filter: none;
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .brand-mark,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .avatar-button img {
+  filter: brightness(0) saturate(100%) invert(66%) sepia(35%) saturate(954%) hue-rotate(352deg) brightness(91%) contrast(88%);
+}
+
+:is(.customer-shell, .manager-shell) .brand-mark {
+  width: 38px;
+  height: 38px;
+}
+
+:is(.customer-shell, .manager-shell) .brand-name {
+  color: var(--karries-text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+:is(.customer-shell, .manager-shell) .brand-cn {
+  margin-top: 1px;
+  color: var(--karries-text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+:is(.customer-shell, .manager-shell) .nav-list {
+  gap: 4px;
+}
+
+:is(.customer-shell, .manager-shell) .nav-group {
+  gap: 2px;
+}
+
+:is(.customer-shell, .manager-shell) .nav-group-toggle,
+:is(.customer-shell, .manager-shell) .nav-subitem,
+:is(.customer-shell, .manager-shell) .nav-primary-item {
+  border: 0;
+  border-radius: var(--karries-radius-control);
+  background: transparent;
+  color: var(--karries-text-secondary);
+  font-weight: 500;
+}
+
+:is(.customer-shell, .manager-shell) .nav-group-toggle {
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 14px;
+}
+
+:is(.customer-shell, .manager-shell) .nav-primary-item {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--karries-radius-control);
+  background: transparent;
+  color: var(--karries-text-secondary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+:is(.customer-shell, .manager-shell) .nav-subitem {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+:is(.customer-shell, .manager-shell) .nav-group-toggle:hover,
+:is(.customer-shell, .manager-shell) .nav-subitem:hover,
+:is(.customer-shell, .manager-shell) .nav-primary-item:hover {
+  background: var(--karries-surface-hover);
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .nav-group-toggle.active,
+:is(.customer-shell, .manager-shell) .nav-subitem.active,
+:is(.customer-shell, .manager-shell) .nav-primary-item.active {
+  border: 0;
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+  box-shadow: inset 2px 0 var(--karries-brand-600);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .nav-group-toggle.active,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .nav-subitem.active,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .nav-primary-item.active {
+  color: var(--karries-brand-500);
+}
+
+:is(.customer-shell, .manager-shell) .nav-sublist {
+  gap: 2px;
+  margin-left: 19px;
+  padding: 2px 0 5px 10px;
+  border-left: 1px solid var(--karries-border);
+}
+
+:is(.customer-shell, .manager-shell) .workspace {
+  min-width: 0;
+  padding: 24px 28px 36px;
+  background: var(--karries-page);
+}
+
+:is(.customer-shell, .manager-shell) .topbar {
+  top: 16px;
+  right: 24px;
+  gap: 8px;
+}
+
+:is(.customer-shell, .manager-shell) .icon-button,
+:is(.customer-shell, .manager-shell) .avatar-button {
+  border: 1px solid var(--karries-border);
+  background: var(--karries-surface);
+  color: var(--karries-text-secondary);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .icon-button:hover,
+:is(.customer-shell, .manager-shell) .avatar-button:hover {
+  border-color: var(--karries-border-strong);
+  background: var(--karries-surface-hover);
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .account-dropdown,
+:is(.customer-shell, .manager-shell) .notification-popover,
+:is(.customer-shell, .manager-shell) .dialog-card,
+:is(.customer-shell, .manager-shell) .modal-card,
+:is(.customer-shell, .manager-shell) .dialog-panel {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface-elevated);
+  color: var(--karries-text);
+  box-shadow: var(--karries-shadow-float);
+}
+
+:is(.customer-shell, .manager-shell) .account-dropdown-user,
+:is(.customer-shell, .manager-shell) .theme-selector,
+:is(.customer-shell, .manager-shell) .dialog-header {
+  border-color: var(--karries-border);
+}
+
+:is(.customer-shell, .manager-shell) .account-dropdown-user strong,
+:is(.customer-shell, .manager-shell) .theme-selector > span {
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .account-dropdown-user span {
+  color: var(--karries-text-muted);
+}
+
+:is(.customer-shell, .manager-shell) .account-dropdown > button {
+  color: var(--karries-text-secondary);
+  font-weight: 550;
+}
+
+:is(.customer-shell, .manager-shell) .account-dropdown > button:hover {
+  background: var(--karries-surface-hover);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-selector {
+  position: relative;
+  display: inline-block;
+  width: min(224px, 100%);
+  min-width: 190px;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  gap: 9px;
+  padding: 0 11px;
+  border: 1px solid var(--karries-border);
+  border-radius: 9px;
+  background: var(--karries-control);
+  color: var(--karries-text);
+  text-align: left;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-trigger > svg {
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-trigger:hover,
+:is(.customer-shell, .manager-shell) .inspiration-space-selector.is-open .inspiration-space-trigger {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-surface);
+  color: var(--karries-brand-700);
+  box-shadow: 0 0 0 3px var(--karries-brand-100);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-selector-current {
+  position: static;
+  z-index: auto;
+  color: var(--karries-text);
+  font-size: 13px;
+  font-weight: 600;
+  pointer-events: auto;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-trigger:hover > svg,
+:is(.customer-shell, .manager-shell) .inspiration-space-trigger:hover .inspiration-space-selector-current,
+:is(.customer-shell, .manager-shell) .inspiration-space-selector.is-open .inspiration-space-trigger > svg,
+:is(.customer-shell, .manager-shell) .inspiration-space-selector.is-open .inspiration-space-selector-current {
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-chevron {
+  transition: transform var(--karries-motion-fast) ease;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-selector.is-open .inspiration-space-chevron {
+  transform: rotate(180deg);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-menu {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 8px);
+  left: 0;
+  display: grid;
+  width: max(100%, 268px);
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--karries-border);
+  border-radius: 10px;
+  background: var(--karries-surface-elevated);
+  box-shadow: var(--karries-shadow-float);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-menu > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 54px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--karries-text-secondary);
+  text-align: left;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-menu > button:hover,
+:is(.customer-shell, .manager-shell) .inspiration-space-menu > button.selected {
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-menu > button > span {
+  display: grid;
+  gap: 3px;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-menu strong {
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-menu small {
+  color: var(--karries-text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-space-menu > .inspiration-space-manage {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 42px;
+  margin-top: 3px;
+  border-top: 1px solid var(--karries-border);
+  border-radius: 0 0 7px 7px;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-composer-options .inspiration-space-menu {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-mode-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-mode-controls > * {
+  flex: 0 0 auto;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-mode-controls .inspiration-space-selector {
+  width: 210px;
+  min-width: 210px;
+}
+
+:is(.customer-shell, .manager-shell) .inspiration-mode-controls .inspiration-space-selector-current {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+:is(.customer-shell, .manager-shell) .collection-message-success {
+  border-color: color-mix(in srgb, var(--karries-success) 30%, transparent);
+  background: var(--karries-success-soft);
+  color: var(--karries-success);
+}
+
+:is(.customer-shell, .manager-shell) .ai-conversation-identity h2 {
+  color: var(--karries-text);
+}
+
+:is(.customer-shell, .manager-shell) .ai-conversation-identity > div > span,
+:is(.customer-shell, .manager-shell) .inspiration-composer-footer > span {
+  color: var(--karries-text-muted);
+}
+
+:is(.customer-shell, .manager-shell) .video-creation-mode-grid button {
+  border-color: var(--karries-border);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .video-creation-mode-grid button:hover {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-surface-hover);
+  transform: translateY(-1px);
+}
+
+:is(.customer-shell, .manager-shell) .video-creation-mode-grid button[aria-pressed="true"] {
+  border-color: var(--karries-brand-500);
+  background: var(--karries-brand-50);
+  box-shadow: 0 9px 24px rgb(143 91 35 / 12%), inset 3px 0 var(--karries-brand-600);
+  transform: translateY(-2px);
+}
+
+:is(.customer-shell, .manager-shell) .video-creation-mode-meta {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+:is(.customer-shell, .manager-shell) .video-creation-mode-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--karries-text-muted);
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+:is(.customer-shell, .manager-shell) .video-creation-mode-grid button[aria-pressed="true"] .video-creation-mode-status {
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-side-rail > .panel {
+  border-color: var(--karries-border-strong);
+  box-shadow: 0 2px 8px rgb(24 28 42 / 6%);
+}
+
+:is(.customer-shell, .manager-shell) :is(
+  .video-edit-summary-card,
+  .video-edit-progress-card,
+  .video-edit-history-card
+) header strong {
+  color: var(--karries-text);
+  font-weight: 650;
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-summary-card dl > div {
+  border-color: var(--karries-border);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-progress-card li:not(:last-child)::after {
+  height: 2px;
+  background: var(--karries-border-strong);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-progress-card li.active:not(:last-child)::after {
+  background: color-mix(in srgb, var(--karries-brand-400) 52%, var(--karries-border-strong));
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-progress-card li.active i {
+  border-color: var(--karries-brand-600);
+  background: var(--karries-brand-600);
+  box-shadow: 0 0 0 3px var(--karries-brand-100);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-card {
+  border-left: 3px solid var(--karries-brand-400);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list {
+  gap: 0;
+  border-top: 1px solid var(--karries-border);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list > button {
+  min-height: 86px;
+  padding: 13px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--karries-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list > button:hover,
+:is(.customer-shell, .manager-shell) .video-edit-history-list > button:focus-visible {
+  border-color: var(--karries-border);
+  background: var(--karries-brand-50);
+  box-shadow: inset 3px 0 var(--karries-brand-500);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list > button:focus-visible {
+  outline-offset: -2px;
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list button em {
+  background: var(--karries-brand-100);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list button em[data-history-status="completed"] {
+  background: var(--karries-success-soft);
+  color: var(--karries-success);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list button em[data-history-status="pending"] {
+  background: var(--karries-warning-soft);
+  color: var(--karries-warning);
+}
+
+:is(.customer-shell, .manager-shell) .video-edit-history-list button em[data-history-status="returned"] {
+  background: var(--karries-danger-soft);
+  color: var(--karries-danger);
+}
+
+:is(.customer-shell, .manager-shell) .page-heading,
+:is(.customer-shell, .manager-shell) .compact-page-heading,
+:is(.customer-shell, .manager-shell) .manager-page-header {
+  padding-top: 4px;
+}
+
+:is(.customer-shell, .manager-shell) :is(.page-heading, .compact-page-heading, .manager-page-header) h1 {
+  color: var(--karries-text);
+  font-size: clamp(24px, 2vw, 30px);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+:is(.customer-shell, .manager-shell) :is(.page-heading, .compact-page-heading, .manager-page-header) p {
+  color: var(--karries-text-secondary);
+}
+
+:is(.customer-shell, .manager-shell) .panel {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: var(--karries-shadow-card);
+}
+
+:is(.customer-shell, .manager-shell) .panel-title h2,
+:is(.customer-shell, .manager-shell) .section-title-row h2,
+:is(.customer-shell, .manager-shell) .manager-section-heading h2 {
+  color: var(--karries-text);
+  font-weight: 600;
+}
+
+:is(.customer-shell, .manager-shell) .primary-button {
+  min-height: 36px;
+  border: 1px solid var(--karries-brand-600);
+  border-radius: var(--karries-radius-control);
+  background: var(--karries-brand-600);
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgb(143 91 35 / 18%);
+  font-weight: 600;
+}
+
+:is(.customer-shell, .manager-shell) .primary-button:hover:not(:disabled) {
+  border-color: var(--karries-brand-700);
+  background: var(--karries-brand-700);
+  transform: translateY(-1px);
+}
+
+:is(.customer-shell, .manager-shell) :is(.secondary-button, .soft-button, .table-action) {
+  min-height: 36px;
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-control);
+  background: var(--karries-surface);
+  color: var(--karries-text-secondary);
+  box-shadow: none;
+  font-weight: 550;
+}
+
+:is(.customer-shell, .manager-shell) :is(.secondary-button, .soft-button, .table-action):hover:not(:disabled) {
+  border-color: var(--karries-brand-300);
+  background: var(--karries-brand-50);
+  color: var(--karries-brand-700);
+}
+
+:is(.customer-shell, .manager-shell) :is(input, select, textarea) {
+  border-color: var(--karries-border);
+  border-radius: var(--karries-radius-control);
+  background: var(--karries-input);
+  color: var(--karries-text);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) :is(input, select, textarea)::placeholder {
+  color: var(--karries-text-muted);
+}
+
+:is(.customer-shell, .manager-shell) :is(input, select, textarea):focus {
+  border-color: var(--karries-brand-400);
+  box-shadow: 0 0 0 3px var(--karries-brand-100);
+}
+
+:is(.customer-shell, .manager-shell) .form-message {
+  border-radius: var(--karries-radius-control);
+  font-weight: 550;
+}
+
+:is(.customer-shell, .manager-shell) .form-message.success {
+  border-color: color-mix(in srgb, var(--karries-success) 24%, transparent);
+  background: var(--karries-success-soft);
+  color: var(--karries-success);
+}
+
+:is(.customer-shell, .manager-shell) :is(.form-message.error, .app-alert) {
+  border-color: color-mix(in srgb, var(--karries-danger) 24%, transparent);
+  background: var(--karries-danger-soft);
+  color: var(--karries-danger);
+}
+
+/* Semantic modifiers intentionally follow the legacy generic alert rule. */
+:is(.customer-shell, .manager-shell) :is(.form-message.success, .app-alert.success, .collection-message-success) {
+  border-color: color-mix(in srgb, var(--karries-success) 24%, transparent);
+  background: var(--karries-success-soft);
+  color: var(--karries-success);
+}
+
+:is(.customer-shell, .manager-shell) :is(.form-message.info, .app-alert.info) {
+  border-color: color-mix(in srgb, var(--karries-info) 24%, transparent);
+  background: var(--karries-info-soft);
+  color: var(--karries-info);
+}
+
+:is(.customer-shell, .manager-shell) .operator-card {
+  border: 1px solid var(--karries-border);
+  border-radius: var(--karries-radius-surface);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+  box-shadow: none;
+}
+
+:is(.customer-shell, .manager-shell) .operator-card span {
+  color: var(--karries-text-muted);
+}
+
+/*
+ * Legacy dark selectors carry higher specificity than the migration layer.
+ * Re-declare the shared surfaces here so every authenticated customer and
+ * manager page resolves to the same palette instead of mixing two systems.
+ */
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .workspace {
+  background: var(--karries-page);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .sidebar {
+  border-color: var(--karries-border-strong);
+  background: var(--karries-sidebar);
+  box-shadow: 4px 0 18px rgb(0 0 0 / 22%);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) :is(.panel, .operator-card) {
+  border-color: var(--karries-border);
+  background: var(--karries-surface);
+  color: var(--karries-text);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) :is(
+  .account-dropdown,
+  .notification-popover,
+  .dialog-card,
+  .modal-card,
+  .dialog-panel
+) {
+  border-color: var(--karries-border);
+  background: var(--karries-surface-elevated);
+  color: var(--karries-text);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) :is(
+  .icon-button,
+  .avatar-button,
+  .secondary-button,
+  .soft-button,
+  .table-action
+) {
+  border-color: var(--karries-border);
+  background: var(--karries-control);
+  color: var(--karries-text-secondary);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) :is(input, select, textarea) {
+  border-color: var(--karries-border);
+  background: var(--karries-input);
+  color: var(--karries-text);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .account-dropdown > button {
+  color: var(--karries-text-secondary);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .account-dropdown > button:hover {
+  background: var(--karries-surface-hover);
+  color: var(--karries-brand-700);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .inspiration-space-trigger,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .inspiration-space-menu {
+  border-color: var(--karries-border);
+  background: var(--karries-surface-elevated);
+  color: var(--karries-text);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .ai-conversation-identity h2 {
+  color: var(--karries-text);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .ai-conversation-identity > div > span,
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .inspiration-composer-footer > span {
+  color: var(--karries-text-muted);
+}
+
+:root[data-theme="dark"] :is(.customer-shell, .manager-shell) .video-edit-side-rail > .panel {
+  border-color: var(--karries-border-strong);
+  box-shadow: 0 2px 12px rgb(0 0 0 / 24%);
+}
+
+@media (max-width: 1100px) {
+  :is(.customer-shell, .manager-shell) {
+    grid-template-columns: 204px minmax(0, 1fr);
+  }
+
+  :is(.customer-shell, .manager-shell).sidebar-collapsed {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  :is(.customer-shell, .manager-shell) .workspace {
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  :is(.customer-shell, .manager-shell) {
+    grid-template-columns: 1fr;
+  }
+
+  :is(.customer-shell, .manager-shell).sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  :is(.customer-shell, .manager-shell).sidebar-collapsed .sidebar {
+    padding-inline: 16px;
+  }
+
+  :is(.customer-shell, .manager-shell).sidebar-collapsed .sidebar-head {
+    flex-direction: row;
+  }
+
+  :is(.customer-shell, .manager-shell).sidebar-collapsed .brand-lockup {
+    display: grid;
+    justify-content: initial;
+  }
+
+  :is(.customer-shell, .manager-shell).sidebar-collapsed .brand-lockup > div {
+    display: block;
+  }
+
+  :is(.customer-shell, .manager-shell) .sidebar {
+    position: relative;
+    z-index: 3;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 1px solid var(--karries-border);
+  }
+
+  :is(.customer-shell, .manager-shell) .workspace {
+    padding: 72px 16px 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.customer-shell, .manager-shell) *,
+  :is(.customer-shell, .manager-shell) *::before,
+  :is(.customer-shell, .manager-shell) *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

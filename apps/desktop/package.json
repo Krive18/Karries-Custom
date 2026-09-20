@@ -4,29 +4,38 @@
   "private": true,
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
-    "dev:developer": "vite --mode developer --host 127.0.0.1",
-    "build": "vite build && tsc -p tsconfig.main.json",
+    "dev": "vite --mode customer",
+    "dev:manager": "vite --mode manager",
+    "dev:developer": "vite --mode developer",
+    "build": "npm run build:customer",
+    "build:customer": "vite build --mode customer && tsc -p tsconfig.main.json",
+    "build:manager": "vite build --mode manager",
     "build:developer": "vite build --mode developer",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "lucide-react": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "lucide-react": "1.21.0",
+    "motion": "13.1.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-markdown": "10.1.0",
+    "recharts": "3.10.1",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "latest",
-    "@testing-library/react": "latest",
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "@vitejs/plugin-react": "latest",
-    "electron": "latest",
-    "jsdom": "latest",
-    "typescript": "latest",
-    "vite": "latest",
-    "vitest": "latest"
+    "@tailwindcss/vite": "4.3.3",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "26.0.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.3",
+    "electron": "42.5.0",
+    "jsdom": "29.1.1",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vite": "8.1.0",
+    "vitest": "4.1.9"
   }
 }

@@ -1,6 +1,9 @@
 from app.repositories.user_repository import UserRepository
 
 
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+
+
 def auth_headers(mysql_conn, mysql_app_client, suffix: str) -> dict[str, str]:
     invite_code = f"INV-DRAFT-{suffix}"
     UserRepository(mysql_conn).create_invite_code(
@@ -211,6 +214,57 @@ def test_generate_list_and_confirm_content_draft(mysql_conn, mysql_app_client):
     assert updated["title"] == "Friendly routine note"
     assert updated["body"] == "Final reviewed copy"
     assert updated["tags"] == ["#reviewed", "#skincare"]
+
+
+def test_create_manual_draft_resolves_product_library_images(
+    mysql_conn,
+    mysql_app_client,
+):
+    headers = auth_headers(mysql_conn, mysql_app_client, "manual")
+    account_id = create_xhs_account(mysql_app_client, headers, "manual")
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            update xhs_account
+            set status = 1, login_state_path = 'data/test-manual-account.json'
+            where id = %s
+            """,
+            (account_id,),
+        )
+    mysql_conn.commit()
+    folder = mysql_app_client.post(
+        "/api/material-library/folders",
+        headers=headers,
+        json={"parent_id": 0, "folder_name": "人工审核素材"},
+    )
+    assert folder.status_code == 200
+    upload = mysql_app_client.post(
+        "/api/material-library/assets/upload",
+        headers=headers,
+        params={"folder_id": folder.json()["data"]["id"]},
+        files={"file": ("product.png", PNG_BYTES, "image/png")},
+    )
+    assert upload.status_code == 200
+    material_id = upload.json()["data"]["id"]
+
+    response = mysql_app_client.post(
+        "/api/content-drafts/manual",
+        headers=headers,
+        json={
+            "xhs_account_id": account_id,
+            "title": "Reviewed product note",
+            "body": "Final copy ready for publishing.",
+            "tags": ["reviewed", "product"],
+            "material_ids": [material_id],
+        },
+    )
+
+    assert response.status_code == 200
+    draft = response.json()["data"]
+    assert draft["status"] == "confirmed"
+    assert draft["source_type"] == "manual_composer"
+    assert draft["material"]["material_ids"] == [material_id]
+    assert len(draft["material"]["image_paths"]) == 1
 
 
 def test_content_drafts_are_user_isolated(mysql_conn, mysql_app_client):

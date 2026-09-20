@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.core.dependencies import current_user, get_db_connection
+from app.core.dependencies import get_db_connection, require_customer_user
 from app.core.responses import fail, ok
 from app.repositories.product_repository import ProductRepository
 from app.schemas.product import MaterialPackageCreate, ProductCreate
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/products", tags=["products"])
 @router.post("")
 def create_product(
     payload: ProductCreate,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = ProductRepository(conn)
@@ -23,7 +23,7 @@ def create_product(
 
 @router.get("")
 def list_products(
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = ProductRepository(conn)
@@ -33,7 +33,7 @@ def list_products(
 @router.get("/{product_id}")
 def get_product(
     product_id: int,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = ProductRepository(conn)
@@ -47,7 +47,7 @@ def get_product(
 def create_material_package(
     product_id: int,
     payload: MaterialPackageCreate,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = ProductRepository(conn)
@@ -65,7 +65,7 @@ def create_material_package(
 @router.get("/{product_id}/material-packages")
 def list_material_packages(
     product_id: int,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = ProductRepository(conn)

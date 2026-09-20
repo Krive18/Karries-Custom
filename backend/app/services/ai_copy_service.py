@@ -14,6 +14,7 @@ def generate_image_copy(
     client: DeepSeekImageCopyClient | None = None,
     vision_client=None,
     copy_client=None,
+    account: dict | None = None,
 ) -> ImageCopyResult:
     _validate_image_paths(request.image_paths)
     if vision_client is not None:
@@ -25,7 +26,11 @@ def generate_image_copy(
         api_key=os.getenv("DEEPSEEK_API_KEY")
     )
     if hasattr(deepseek_client, "generate_from_analysis"):
-        return deepseek_client.generate_from_analysis(request, analysis)
+        return deepseek_client.generate_from_analysis(
+            request,
+            analysis,
+            account_context=_account_context(account),
+        )
     return deepseek_client.generate_image_copy(request)
 
 
@@ -50,3 +55,27 @@ def _validate_image_paths(image_paths: list[str]) -> None:
             raise ValueError(f"图片不是文件: {image_path}")
         if path.suffix.lower() not in SUPPORTED_IMAGE_EXTENSIONS:
             raise ValueError(f"不支持的图片格式: {path.suffix}")
+
+
+def _account_context(account: dict | None) -> dict[str, str | int]:
+    if not account:
+        return {}
+    profile = account.get("profile") or {}
+    context: dict[str, str | int] = {
+        "account_name": str(account.get("display_name") or "").strip(),
+    }
+    for field in (
+        "domain_name",
+        "persona",
+        "target_audience",
+        "content_style",
+        "tone",
+        "common_phrases",
+        "forbidden_phrases",
+        "tag_preferences",
+        "word_count_preference",
+    ):
+        value = profile.get(field)
+        if isinstance(value, int) or (isinstance(value, str) and value.strip()):
+            context[field] = value
+    return context

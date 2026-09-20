@@ -291,10 +291,16 @@ class ViralAnalysisRepository:
                 """
                 insert into viral_analysis_result (
                     tenant_id, job_id, hook_summary, structure_summary, shot_rhythm,
-                    script_breakdown, selling_points, reuse_suggestions, rewritten_script,
+                    script_breakdown, original_transcript, transcript_analysis,
+                    selling_points, reuse_suggestions, rewritten_script,
+                    setting_analysis, lighting_analysis, visual_style,
+                    timeline_visual_analysis_json, visual_evidence_json,
                     tags, raw_result_json, create_time
                 )
-                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                values (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
                 """,
                 (
                     tenant_id,
@@ -303,9 +309,22 @@ class ViralAnalysisRepository:
                     result.structure_summary,
                     result.shot_rhythm,
                     result.script_breakdown,
+                    result.original_transcript,
+                    result.transcript_analysis,
                     result.selling_points,
                     result.reuse_suggestions,
                     result.rewritten_script,
+                    result.setting_analysis,
+                    result.lighting_analysis,
+                    result.visual_style,
+                    json.dumps(
+                        [item.model_dump() for item in result.timeline_visual_analysis],
+                        ensure_ascii=False,
+                    ),
+                    json.dumps(
+                        [item.model_dump() for item in result.visual_evidence],
+                        ensure_ascii=False,
+                    ),
                     json.dumps(result.tags, ensure_ascii=False),
                     json.dumps(result.model_dump(), ensure_ascii=False),
                     now,
@@ -444,6 +463,8 @@ class ViralAnalysisRepository:
                               viral_analysis_result.hook_summary like %s
                               or viral_analysis_result.structure_summary like %s
                               or viral_analysis_result.script_breakdown like %s
+                              or viral_analysis_result.original_transcript like %s
+                              or viral_analysis_result.transcript_analysis like %s
                               or viral_analysis_result.selling_points like %s
                               or viral_analysis_result.reuse_suggestions like %s
                               or viral_analysis_result.rewritten_script like %s
@@ -452,7 +473,7 @@ class ViralAnalysisRepository:
                 )
                 """
             )
-            params.extend([match] * 8)
+            params.extend([match] * 10)
         return "where " + " and ".join(clauses), tuple(params)
 
     def _get_job(self, where_sql: str, params: tuple) -> dict | None:
@@ -462,7 +483,7 @@ class ViralAnalysisRepository:
         if row is None:
             return None
         job = self._row_to_job(row)
-        job["materials"] = self._list_materials(job["id"])
+        job["materials"] = self._list_materials(job["tenant_id"], job["id"])
         job["result"] = self._get_result(job["tenant_id"], job["id"])
         return job
 
@@ -518,25 +539,52 @@ class ViralAnalysisRepository:
             raise ViralAnalysisStateError("missing_material")
         raise ViralAnalysisStateError(str(row["status"]))
 
-    def _list_materials(self, job_id: int) -> list[dict]:
+    def _list_materials(self, tenant_id: int, job_id: int) -> list[dict]:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
                 select id, job_id, file_name, file_type, mime_type, file_size, create_time
                 from viral_analysis_material
-                where job_id = %s
+                where tenant_id = %s and job_id = %s
                 order by id asc
                 """,
-                (job_id,),
+                (tenant_id, job_id),
             )
             return list(cursor.fetchall())
+
+    def get_material_for_job(
+        self,
+        tenant_id: int,
+        job_id: int,
+        material_id: int,
+    ) -> dict | None:
+        with self.conn.cursor() as cursor:
+            cursor.execute(
+                """
+                select id, job_id, file_name, file_type, mime_type, file_size,
+                       storage_path, create_time
+                from viral_analysis_material
+                where tenant_id = %s and job_id = %s and id = %s
+                """,
+                (tenant_id, job_id, material_id),
+            )
+            return cursor.fetchone()
 
     def _get_result(self, tenant_id: int, job_id: int) -> dict | None:
         with self.conn.cursor() as cursor:
             cursor.execute(
                 """
                 select hook_summary, structure_summary, shot_rhythm, script_breakdown,
-                       selling_points, reuse_suggestions, rewritten_script, tags, create_time
+                       coalesce(original_transcript, '') as original_transcript,
+                       coalesce(transcript_analysis, '') as transcript_analysis,
+                       selling_points, reuse_suggestions, rewritten_script,
+                       coalesce(setting_analysis, '') as setting_analysis,
+                       coalesce(lighting_analysis, '') as lighting_analysis,
+                       coalesce(visual_style, '') as visual_style,
+                       coalesce(timeline_visual_analysis_json, '[]')
+                           as timeline_visual_analysis_json,
+                       coalesce(visual_evidence_json, '[]') as visual_evidence_json,
+                       tags, create_time
                 from viral_analysis_result
                 where tenant_id = %s and job_id = %s
                 """,
@@ -546,6 +594,12 @@ class ViralAnalysisRepository:
         if row is None:
             return None
         row["tags"] = self._load_json_list(row["tags"])
+        row["timeline_visual_analysis"] = self._load_json_list(
+            row.pop("timeline_visual_analysis_json")
+        )
+        row["visual_evidence"] = self._load_json_list(
+            row.pop("visual_evidence_json")
+        )
         return row
 
     def _job_select_sql(self) -> str:

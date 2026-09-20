@@ -10,13 +10,27 @@ from app.repositories.viral_analysis_repository import (
     ViralAnalysisRepository,
     ViralAnalysisStateError,
 )
-from app.schemas.viral_analysis import ViralAnalysisStructuredResult
+from app.schemas.viral_analysis import ViralAnalysisJobCreate, ViralAnalysisStructuredResult
+from app.services.remote_media_service import RemoteMedia
 from app.services.upload_storage_service import UploadStorageService
 from app.services.viral_analysis_service import (
     ViralAnalysisCapabilityError,
     ViralAnalysisResponseError,
     parse_structured_result,
 )
+
+
+PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"\x00" * 40
+
+
+def test_job_create_accepts_setting_and_lighting_analysis_goals():
+    payload = ViralAnalysisJobCreate(
+        title="布景与光影拆解",
+        source_type="upload",
+        analysis_goal=["hook", "setting", "lighting"],
+    )
+
+    assert payload.analysis_goal == ["hook", "setting", "lighting"]
 
 
 def test_parse_structured_result_accepts_fenced_json():
@@ -26,6 +40,14 @@ def test_parse_structured_result_accepts_fenced_json():
             {
                 "hook_summary": "前三秒用痛点提问抓住注意力",
                 "structure_summary": "痛点、展示、转化三段式",
+                "original_transcript": [
+                    {"time": "0-3秒", "speaker": "口播", "content": "还在为桌面杂乱发愁吗"},
+                    {"time": "3-6秒", "speaker": "画面字幕", "content": "一秒收纳"},
+                ],
+                "transcript_analysis": {
+                    "hook": "疑问句制造痛点",
+                    "progression": "痛点后立即给出结果承诺",
+                },
                 "rewritten_script": "先说痛点，再展示细节，最后引导收藏。",
                 "tags": ["小红书运营", "视频拆解"],
             },
@@ -36,12 +58,127 @@ def test_parse_structured_result_accepts_fenced_json():
 
     assert isinstance(parsed, ViralAnalysisStructuredResult)
     assert parsed.tags == ["小红书运营", "视频拆解"]
+    assert "time: 0-3秒" in parsed.original_transcript
+    assert "content: 一秒收纳" in parsed.original_transcript
+    assert parsed.transcript_analysis == "hook: 疑问句制造痛点\nprogression: 痛点后立即给出结果承诺"
+
+
+def test_parse_structured_result_accepts_json_embedded_in_provider_explanation():
+    raw = (
+        "已完成视频分析，结构化结果如下：\n"
+        + json.dumps(
+            {
+                "hook_summary": "前三秒展示产品使用前后的差异",
+                "structure_summary": "问题、演示、结果、行动引导",
+                "shot_rhythm": "开场快切，中段放慢展示细节",
+                "tags": ["爆款拆解", "视频脚本"],
+            },
+            ensure_ascii=False,
+        )
+        + "\n以上内容均来自参考素材。"
+    )
+
+    parsed = parse_structured_result(raw)
+
+    assert parsed.hook_summary == "前三秒展示产品使用前后的差异"
+    assert parsed.structure_summary == "问题、演示、结果、行动引导"
+    assert parsed.tags == ["爆款拆解", "视频脚本"]
 
 
 @pytest.mark.parametrize("raw", ["not json", "{}", '{"hook_summary": "only hook"}'])
 def test_parse_structured_result_rejects_invalid_provider_payload(raw):
     with pytest.raises(ViralAnalysisResponseError):
         parse_structured_result(raw)
+
+
+def test_parse_structured_result_normalizes_structured_text_fields():
+    parsed = parse_structured_result(
+        json.dumps(
+            {
+                "hook_summary": "hook",
+                "structure_summary": "structure",
+                "script_breakdown": [
+                    {"time": "0-3s", "content": "open with a question"},
+                    {"time": "3-8s", "content": "show product details"},
+                ],
+                "selling_points": ["easy to use", "clear details"],
+                "reuse_suggestions": {"structure": "replace the product"},
+                "tags": ["analysis"],
+            }
+        )
+    )
+
+    assert "time: 0-3s" in parsed.script_breakdown
+    assert "content: show product details" in parsed.script_breakdown
+    assert parsed.selling_points == "easy to use\nclear details"
+    assert parsed.reuse_suggestions == "structure: replace the product"
+
+
+def test_parse_structured_result_accepts_visual_analysis_with_evidence_labels():
+    parsed = parse_structured_result(
+        json.dumps(
+            {
+                "hook_summary": "0-3 秒以桌面产品特写建立视觉钩子",
+                "structure_summary": "产品特写、操作演示、成品展示",
+                "setting_analysis": "室内桌面拍摄，产品位于画面中心，道具分布在中景。",
+                "lighting_analysis": "主光从画面左前方进入，光线偏柔，整体暖色温。",
+                "visual_style": "暖调、清透、生活化产品展示",
+                "timeline_visual_analysis": [
+                    {
+                        "time_range": "0-3秒",
+                        "setting": "浅色桌面产品布景",
+                        "lighting": "暖色侧光，阴影边缘柔和",
+                        "visual_style": "清透生活化",
+                        "evidence_type": "画面可确认",
+                        "confidence": "高",
+                        "visible_evidence": "桌面左侧更亮，产品右侧存在柔和阴影",
+                    }
+                ],
+                "visual_evidence": [
+                    {
+                        "conclusion": "使用了浅景深",
+                        "evidence_type": "根据画面推测",
+                        "confidence": "中",
+                        "visible_evidence": "主体边缘清晰，后景明显虚化",
+                    }
+                ],
+                "tags": ["布景分析", "光影分析"],
+            },
+            ensure_ascii=False,
+        )
+    )
+
+    assert parsed.setting_analysis.startswith("室内桌面拍摄")
+    assert parsed.timeline_visual_analysis[0].evidence_type == "visible_confirmed"
+    assert parsed.timeline_visual_analysis[0].confidence == "high"
+    assert parsed.visual_evidence[0].evidence_type == "inferred"
+    assert parsed.visual_evidence[0].confidence == "medium"
+
+
+def test_visual_prompt_requires_grounded_timeline_and_forbids_fake_camera_parameters():
+    from app.services.viral_analysis_service import ViralAnalysisService
+
+    service = object.__new__(ViralAnalysisService)
+    prompt = service._vision_prompt(
+        {
+            "analysis_goal": ["hook", "structure"],
+            "supplement_text": "重点分析产品展示画面",
+        }
+    )
+
+    assert "setting_analysis" in prompt
+    assert "lighting_analysis" in prompt
+    assert "timeline_visual_analysis" in prompt
+    assert "original_transcript" in prompt
+    assert "transcript_analysis" in prompt
+    assert "audible speech" in prompt
+    assert "visible subtitles" in prompt
+    assert "Do not fabricate transcript" in prompt
+    assert "visible_confirmed" in prompt
+    assert "inferred" in prompt
+    assert "lighting power" in prompt
+    assert "lux" in prompt
+    assert "exact camera" in prompt
 
 
 @pytest.mark.parametrize("tag", ["", "x" * 101])
@@ -74,7 +211,7 @@ def test_provider_result_contract_is_text_only():
 def _auth_headers(mysql_conn, mysql_app_client, suffix: str, tenant_id: int = 1) -> dict[str, str]:
     invite_code = f"INV-VIRAL-{suffix}"
     UserRepository(mysql_conn).create_invite_code(
-        invite_code, 0, 1, 0, "viral analysis test", tenant_id=tenant_id
+        invite_code, 1000, 1, 0, "viral analysis test", tenant_id=tenant_id
     )
     response = mysql_app_client.post(
         "/api/auth/register",
@@ -94,12 +231,12 @@ def _management_headers(mysql_conn, mysql_app_client, suffix: str, tenant_id: in
         login_name=f"viral_admin_{suffix}",
         nickname="Viral Admin",
         password_hash="not-used-by-token-auth",
-        user_role="client_admin",
+        user_role="client_owner",
         invite_code="",
         tenant_id=tenant_id,
     )
     token = create_access_token(
-        {"user_id": user_id, "tenant_id": tenant_id, "role": "client_admin"},
+        {"user_id": user_id, "tenant_id": tenant_id, "role": "client_owner"},
         mysql_app_client.app.state.config.auth.token_secret,
         mysql_app_client.app.state.config.auth.access_token_seconds,
     )
@@ -140,7 +277,10 @@ def _configure_ai(monkeypatch, content: str | None = None) -> None:
     )
 
     def fake_transport(_url, _headers, _payload, _timeout):
-        return {"choices": [{"message": {"content": result}}]}
+        return {
+            "id": "req-text-provider",
+            "choices": [{"message": {"content": result}}],
+        }
 
     monkeypatch.setattr("app.integrations.deepseek._post_json", fake_transport)
 
@@ -151,6 +291,8 @@ def _create_job(
     suffix: str,
     supplement_text: str = "前3秒提问，中段展示产品，结尾引导收藏",
     source_type: str = "text",
+    source_url: str = "",
+    analysis_goal: list[str] | None = None,
 ) -> int:
     response = mysql_app_client.post(
         "/api/viral-analysis/jobs",
@@ -158,8 +300,8 @@ def _create_job(
         json={
             "title": f"参考视频拆解 {suffix}",
             "source_type": source_type,
-            "source_url": "",
-            "analysis_goal": ["hook", "structure", "script", "reuse"],
+            "source_url": source_url,
+            "analysis_goal": analysis_goal or ["hook", "structure", "script", "reuse"],
             "supplement_text": supplement_text,
         },
     )
@@ -184,7 +326,7 @@ def test_internal_and_developer_routes_are_not_in_openapi_schema(
     assert not any(path.startswith("/api/internal/") for path in paths)
 
 
-def test_user_runs_text_analysis_and_saves_idempotent_video_draft(
+def test_user_runs_text_analysis_and_saves_idempotent_content_collection(
     monkeypatch, mysql_conn, mysql_app_client
 ):
     _configure_ai(monkeypatch)
@@ -195,30 +337,70 @@ def test_user_runs_text_analysis_and_saves_idempotent_video_draft(
     assert run.status_code == 200
     data = run.json()["data"]
     assert data["status"] == "completed"
-    assert data["credit_cost"] == 3
+    assert data["credit_cost"] == 100
     assert data["result"]["hook_summary"]
     assert data["result"]["tags"] == ["小红书运营", "视频拆解"]
     assert "ai_provider" not in data
     assert "ai_model" not in data
     assert "error_message" not in data
 
-    first = mysql_app_client.post(f"/api/viral-analysis/jobs/{job_id}/save-draft", headers=headers)
-    second = mysql_app_client.post(f"/api/viral-analysis/jobs/{job_id}/save-draft", headers=headers)
+    first = mysql_app_client.post(
+        "/api/content-collections",
+        headers=headers,
+        json={"source_type": "viral_analysis", "source_id": job_id},
+    )
+    second = mysql_app_client.post(
+        "/api/content-collections",
+        headers=headers,
+        json={"source_type": "viral_analysis", "source_id": job_id},
+    )
     assert first.status_code == 200
-    assert first.json()["data"]["draft_id"] == second.json()["data"]["draft_id"]
+    assert first.json()["data"]["item"]["id"] == second.json()["data"]["item"]["id"]
+    assert first.json()["data"]["created"] is True
+    assert second.json()["data"]["created"] is False
     with mysql_conn.cursor() as cursor:
         cursor.execute(
-            "select content_type, tag_json from content_draft where id = %s",
-            (first.json()["data"]["draft_id"],),
+            "select tags from content_collection where id = %s",
+            (first.json()["data"]["item"]["id"],),
         )
-        draft = cursor.fetchone()
+        collection = cursor.fetchone()
         cursor.execute(
-            "select count(*) as total from ai_usage_log where business_type = 'viral_analysis'"
+            "select count(*) as total from content_draft_source "
+            "where source_type = 'viral_analysis' and source_id = %s",
+            (job_id,),
+        )
+        old_draft_count = int(cursor.fetchone()["total"])
+        cursor.execute(
+            """
+            select provider, model_name, request_id, status, credit_cost, latency_ms
+            from ai_usage_log
+            where business_type = 'viral_analysis' and business_id = %s
+            """,
+            (job_id,),
         )
         usage = cursor.fetchone()
-    assert draft["content_type"] == "video"
-    assert json.loads(draft["tag_json"]) == ["小红书运营", "视频拆解"]
-    assert usage["total"] == 1
+        cursor.execute(
+            """
+            select change_amount, business_type, business_id
+            from credit_ledger
+            where business_type = 'viral_analysis' and business_id = %s
+            """,
+            (job_id,),
+        )
+        ledger = cursor.fetchone()
+    assert json.loads(collection["tags"]) == ["小红书运营", "视频拆解"]
+    assert old_draft_count == 0
+    assert usage["provider"] == "deepseek"
+    assert usage["model_name"]
+    assert usage["request_id"] == "req-text-provider"
+    assert usage["status"] == "success"
+    assert usage["credit_cost"] == 100
+    assert usage["latency_ms"] >= 0
+    assert ledger == {
+        "change_amount": -100,
+        "business_type": "viral_analysis",
+        "business_id": job_id,
+    }
 
 
 def test_user_and_management_tenant_isolation(mysql_conn, mysql_app_client):
@@ -237,7 +419,10 @@ def test_empty_supplement_text_returns_capability_conflict(mysql_conn, mysql_app
     headers = _auth_headers(mysql_conn, mysql_app_client, "capability")
     job_id = _create_job(mysql_app_client, headers, "capability", supplement_text="")
 
-    response = mysql_app_client.post(f"/api/viral-analysis/jobs/{job_id}/run", headers=headers)
+    response = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/run",
+        headers={**headers, "X-Request-ID": "trace-failure"},
+    )
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "CAPABILITY_UNAVAILABLE"
@@ -277,12 +462,32 @@ def test_provider_failure_records_failed_job_without_credit(monkeypatch, mysql_c
     with mysql_conn.cursor() as cursor:
         cursor.execute("select status, credit_cost, error_message from viral_analysis_job where id = %s", (job_id,))
         job = cursor.fetchone()
-        cursor.execute("select status, credit_cost from ai_usage_log where business_type = 'viral_analysis'")
+        cursor.execute(
+            """
+            select status, credit_cost, request_id
+            from ai_usage_log
+            where business_type = 'viral_analysis'
+            """
+        )
         usage = cursor.fetchone()
+        cursor.execute(
+            """
+            select count(*) as total
+            from credit_ledger
+            where business_type = 'viral_analysis' and business_id = %s
+            """,
+            (job_id,),
+        )
+        ledger = cursor.fetchone()
     assert job["status"] == "failed"
     assert job["credit_cost"] == 0
     assert "AI provider returned invalid analysis result" in job["error_message"]
-    assert usage == {"status": "failed", "credit_cost": 0}
+    assert usage == {
+        "status": "failed",
+        "credit_cost": 0,
+        "request_id": "req-text-provider",
+    }
+    assert ledger["total"] == 0
 
 
 def test_stale_lease_can_be_claimed_again_and_old_token_cannot_finalize(mysql_conn, mysql_app_client):
@@ -381,6 +586,332 @@ def test_upload_persists_safe_metadata_without_storage_path(
     assert material["file_type"] == "image"
     assert "storage_path" not in material
     assert list(tmp_path.rglob("*.jpg"))
+
+
+def test_uploaded_material_content_is_inline_and_user_isolated(
+    monkeypatch, tmp_path, mysql_conn, mysql_app_client
+):
+    owner_headers = _auth_headers(mysql_conn, mysql_app_client, "material-owner")
+    other_headers = _auth_headers(mysql_conn, mysql_app_client, "material-other")
+    job_id = _create_job(
+        mysql_app_client,
+        owner_headers,
+        "material-content",
+        source_type="upload",
+    )
+    monkeypatch.setattr(mysql_app_client.app.state.config, "data_dir", tmp_path)
+    uploaded = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/upload",
+        headers=owner_headers,
+        files={"file": ("reference.png", PNG_BYTES, "image/png")},
+    )
+    assert uploaded.status_code == 200
+    material_id = uploaded.json()["data"]["id"]
+
+    response = mysql_app_client.get(
+        f"/api/viral-analysis/jobs/{job_id}/materials/{material_id}/content",
+        headers=owner_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.content == PNG_BYTES
+    assert response.headers["content-type"].startswith("image/png")
+    assert response.headers["content-disposition"].startswith("inline")
+    assert (
+        mysql_app_client.get(
+            f"/api/viral-analysis/jobs/{job_id}/materials/{material_id}/content",
+            headers=other_headers,
+        ).status_code
+        == 404
+    )
+
+
+def test_product_library_material_is_copied_into_a_pending_viral_analysis_job(
+    tmp_path,
+    mysql_conn,
+    mysql_app_client,
+):
+    mysql_app_client.app.state.config.data_dir = tmp_path
+    headers = _auth_headers(mysql_conn, mysql_app_client, "library-material")
+    folder = mysql_app_client.post(
+        "/api/material-library/folders",
+        headers=headers,
+        json={"parent_id": 0, "folder_name": "爆款参考素材"},
+    )
+    assert folder.status_code == 200
+    asset = mysql_app_client.post(
+        "/api/material-library/assets/upload",
+        headers=headers,
+        params={"folder_id": folder.json()["data"]["id"]},
+        files={"file": ("product.png", PNG_BYTES, "image/png")},
+    )
+    assert asset.status_code == 200
+    job_id = _create_job(
+        mysql_app_client,
+        headers,
+        "library-material",
+        source_type="upload",
+    )
+
+    selected = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/library-material",
+        headers=headers,
+        json={"material_file_id": asset.json()["data"]["id"]},
+    )
+
+    assert selected.status_code == 200, selected.text
+    material = selected.json()["data"]
+    assert material["file_name"] == "product.png"
+    assert material["file_type"] == "image"
+    assert "storage_path" not in material
+    assert list((tmp_path / "product_materials").rglob("*.png"))
+    assert list((tmp_path / "viral_analysis_uploads").rglob("*.png"))
+
+
+def test_uploaded_video_runs_with_saved_doubao_vision_setting(
+    monkeypatch, tmp_path, mysql_conn, mysql_app_client
+):
+    analysis_response_json = json.dumps(
+        {
+            "hook_summary": "前三秒用产品特写吸引注意",
+            "structure_summary": "痛点、展示、转化三段式",
+            "shot_rhythm": "前快后稳",
+            "script_breakdown": "先提问，再展示细节，最后引导收藏",
+            "selling_points": "场景真实，细节清晰",
+            "reuse_suggestions": "替换产品后复用镜头结构",
+            "rewritten_script": "开头提出痛点，中段展示产品，结尾引导收藏",
+            "setting_analysis": "室内桌面拍摄，浅色背景，产品位于画面中心。",
+            "lighting_analysis": "主光来自左前侧，柔光，暖色温，明暗对比较低。",
+            "visual_style": "清透、暖调、生活化",
+            "timeline_visual_analysis": [
+                {
+                    "time_range": "0-3秒",
+                    "setting": "浅色桌面与单品陈设",
+                    "lighting": "暖色左侧柔光",
+                    "visual_style": "清透生活化",
+                    "evidence_type": "visible_confirmed",
+                    "confidence": "high",
+                    "visible_evidence": "左侧高光更明显，右侧阴影边缘柔和",
+                }
+            ],
+            "visual_evidence": [
+                {
+                    "conclusion": "画面可能采用浅景深",
+                    "evidence_type": "inferred",
+                    "confidence": "medium",
+                    "visible_evidence": "主体清晰且背景虚化",
+                }
+            ],
+            "tags": ["小红书运营", "视频拆解"],
+        },
+        ensure_ascii=False,
+    )
+    transcript_response_json = json.dumps(
+        {
+            "original_transcript": "[口播 0-3秒] 还在为桌面杂乱发愁吗？\n[画面字幕 3-6秒] 一秒收纳",
+            "transcript_analysis": "疑问句制造痛点，随后用短句给出结果承诺。",
+        },
+        ensure_ascii=False,
+    )
+    calls = []
+
+    def fake_vision_transport(url, headers, payload, timeout):
+        calls.append((url, headers, payload, timeout))
+        return {
+            "id": "req-doubao-video" if len(calls) == 1 else "req-doubao-transcript",
+            "output": [
+                {
+                    "type": "message",
+                    "content": [
+                        {
+                            "type": "output_text",
+                            "text": analysis_response_json if len(calls) == 1 else transcript_response_json,
+                        }
+                    ],
+                }
+            ]
+        }
+
+    monkeypatch.setattr("app.integrations.vision._post_json", fake_vision_transport)
+    monkeypatch.setattr(mysql_app_client.app.state.config, "data_dir", tmp_path)
+    user_headers = _auth_headers(mysql_conn, mysql_app_client, "video-vision")
+    developer_headers = _developer_headers(mysql_conn, mysql_app_client, "video-vision")
+    setting_response = mysql_app_client.put(
+        "/api/settings/ai/vision",
+        headers=developer_headers,
+        json={
+            "api_key": "ark-video-test",
+            "model": "doubao-seed-2-0-lite-260428",
+            "enabled": True,
+        },
+    )
+    assert setting_response.status_code == 200
+    job_id = _create_job(
+        mysql_app_client,
+        user_headers,
+        "video-vision",
+        supplement_text="",
+        source_type="upload",
+        analysis_goal=["hook", "structure", "script", "reuse", "setting", "lighting"],
+    )
+    upload = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/upload",
+        headers=user_headers,
+        files={
+            "file": (
+                "reference.mp4",
+                b"\x00\x00\x00\x18ftypmp42video-content",
+                "video/mp4",
+            )
+        },
+    )
+    assert upload.status_code == 200
+
+    run = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/run",
+        headers=user_headers,
+    )
+
+    assert run.status_code == 200
+    data = run.json()["data"]
+    assert data["status"] == "completed"
+    assert data["credit_cost"] == 120
+    assert data["result"]["hook_summary"] == "前三秒用产品特写吸引注意"
+    assert data["result"]["original_transcript"].startswith("[口播 0-3秒]")
+    assert data["result"]["transcript_analysis"].startswith("疑问句制造痛点")
+    assert data["result"]["setting_analysis"].startswith("室内桌面拍摄")
+    assert data["result"]["timeline_visual_analysis"][0]["time_range"] == "0-3秒"
+    assert data["result"]["visual_evidence"][0]["evidence_type"] == "inferred"
+    assert calls[0][0] == "https://ark.cn-beijing.volces.com/api/v3/responses"
+    media = calls[0][2]["input"][0]["content"][1]
+    assert media["type"] == "input_video"
+    assert media["video_url"].startswith("data:video/mp4;base64,")
+    prompt = calls[0][2]["input"][0]["content"][0]["text"]
+    assert "timeline_visual_analysis" in prompt
+    assert "Do not invent lighting power" in prompt
+    assert len(calls) == 2
+    transcript_prompt = calls[1][2]["input"][0]["content"][0]["text"]
+    assert "original_transcript and transcript_analysis" in transcript_prompt
+    assert "[口播]" in transcript_prompt
+    assert "[画面字幕]" in transcript_prompt
+
+    collection = mysql_app_client.post(
+        "/api/content-collections",
+        headers=user_headers,
+        json={"source_type": "viral_analysis", "source_id": job_id},
+    )
+    assert collection.status_code == 200
+    collection_item = collection.json()["data"]["item"]
+    assert collection_item["lighting_analysis"].startswith("主光来自左前侧")
+    assert collection_item["original_transcript"].startswith("[口播 0-3秒]")
+    assert collection_item["transcript_analysis"].startswith("疑问句制造痛点")
+    assert collection_item["timeline_visual_analysis"][0]["setting"] == "浅色桌面与单品陈设"
+    assert collection_item["visual_evidence"][0]["confidence"] == "medium"
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select provider, model_name, request_id, status, credit_cost, latency_ms
+            from ai_usage_log
+            where business_type = 'viral_analysis' and business_id = %s
+            """,
+            (job_id,),
+        )
+        usage = cursor.fetchone()
+    assert usage == {
+        "provider": "doubao",
+        "model_name": "doubao-seed-2-0-lite-260428",
+        "request_id": "req-doubao-video",
+        "status": "success",
+        "credit_cost": 120,
+        "latency_ms": usage["latency_ms"],
+    }
+
+
+def test_video_link_downloads_public_media_before_vision_analysis(
+    monkeypatch, tmp_path, mysql_conn, mysql_app_client
+):
+    response_json = json.dumps(
+        {
+            "hook_summary": "首秒产品特写建立视觉吸引",
+            "structure_summary": "开场、体验、转化三段式",
+            "shot_rhythm": "密集开场后放缓",
+            "script_breakdown": "先展示产品，再说明体验，最后引导收藏",
+            "original_transcript": "[口播 0-2秒] 先看这个细节",
+            "transcript_analysis": "以命令式短句制造注意力，并迅速进入产品证明。",
+            "selling_points": "画面直观，使用场景清晰",
+            "reuse_suggestions": "保留节奏并替换为自有产品",
+            "rewritten_script": "先用产品特写抓住注意，再展示实际体验。",
+            "tags": ["爆款拆解", "视频脚本"],
+        },
+        ensure_ascii=False,
+    )
+    calls = []
+
+    def fake_vision_transport(url, headers, payload, timeout):
+        calls.append((url, headers, payload, timeout))
+        return {
+            "output": [
+                {
+                    "type": "message",
+                    "content": [{"type": "output_text", "text": response_json}],
+                }
+            ]
+        }
+
+    linked_video = tmp_path / "linked-reference.mp4"
+    linked_video.write_bytes(b"\x00\x00\x00\x18ftypmp42linked-video")
+
+    def fake_fetch(_self, source_url):
+        assert source_url == "https://cdn.example.com/reference.mp4"
+        return RemoteMedia(
+            path=linked_video,
+            media_type="video",
+            mime_type="video/mp4",
+            source_url=source_url,
+        )
+
+    monkeypatch.setattr("app.integrations.vision._post_json", fake_vision_transport)
+    monkeypatch.setattr(
+        "app.services.viral_analysis_service.RemoteMediaService.fetch",
+        fake_fetch,
+    )
+    monkeypatch.setattr(mysql_app_client.app.state.config, "data_dir", tmp_path)
+    user_headers = _auth_headers(mysql_conn, mysql_app_client, "linked-video")
+    developer_headers = _developer_headers(
+        mysql_conn,
+        mysql_app_client,
+        "linked-video",
+    )
+    setting_response = mysql_app_client.put(
+        "/api/settings/ai/vision",
+        headers=developer_headers,
+        json={
+            "api_key": "ark-linked-video-test",
+            "model": "doubao-seed-2-0-lite-260428",
+            "enabled": True,
+        },
+    )
+    assert setting_response.status_code == 200
+    job_id = _create_job(
+        mysql_app_client,
+        user_headers,
+        "linked-video",
+        supplement_text="",
+        source_type="link",
+        source_url="https://cdn.example.com/reference.mp4",
+    )
+
+    run = mysql_app_client.post(
+        f"/api/viral-analysis/jobs/{job_id}/run",
+        headers=user_headers,
+    )
+
+    assert run.status_code == 200
+    data = run.json()["data"]
+    assert data["status"] == "completed"
+    assert data["result"]["hook_summary"] == "首秒产品特写建立视觉吸引"
+    assert calls[0][2]["input"][0]["content"][1]["type"] == "input_video"
+    assert not linked_video.exists()
 
 
 def test_upload_job_without_material_cannot_be_claimed(

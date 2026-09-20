@@ -48,7 +48,12 @@ def create_access_token(
     return f"{body_text}.{signature}"
 
 
-def verify_access_token(token: str, secret: str, now: int | None = None) -> dict[str, Any]:
+def verify_access_token(
+    token: str,
+    secret: str,
+    now: int | None = None,
+    expected_audience: str | None = None,
+) -> dict[str, Any]:
     try:
         body_text, signature = token.split(".", 1)
     except ValueError as exc:
@@ -61,6 +66,8 @@ def verify_access_token(token: str, secret: str, now: int | None = None) -> dict
     current = int(time.time() if now is None else now)
     if int(payload.get("exp", 0)) <= current:
         raise InvalidTokenError("token expired")
+    if expected_audience is not None and payload.get("aud") != expected_audience:
+        raise InvalidTokenError("invalid token audience")
     return payload
 
 

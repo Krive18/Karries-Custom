@@ -4,7 +4,11 @@ from typing import Any, Literal
 
 import pymysql
 
-from app.schemas.content_draft import ContentDraftGenerateRequest, ContentDraftUpdateRequest
+from app.schemas.content_draft import (
+    ContentDraftGenerateRequest,
+    ContentDraftManualCreateRequest,
+    ContentDraftUpdateRequest,
+)
 
 
 STATUS_TO_CODE = {"draft": 1, "confirmed": 2, "rejected": 3}
@@ -136,6 +140,89 @@ class ContentDraftRepository:
             self.conn.rollback()
             raise
 
+    def create_manual_draft(
+        self,
+        user_id: int,
+        payload: ContentDraftManualCreateRequest,
+        material: dict[str, Any],
+    ) -> int:
+        now = int(time.time())
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    insert into content_draft (
+                        user_id, product_id, xhs_account_id, source_type,
+                        content_type, title, body, tag_json, material_json,
+                        status, ai_provider, model_name, prompt_json,
+                        create_time, update_time
+                    )
+                    values (%s, 0, %s, 'manual_composer', %s, %s, %s, %s, %s,
+                            2, '', '', '{}', %s, %s)
+                    """,
+                    (
+                        user_id,
+                        payload.xhs_account_id,
+                        payload.content_type,
+                        payload.title.strip(),
+                        payload.body.strip(),
+                        self._dump_json(payload.tags),
+                        self._dump_json(material),
+                        now,
+                        now,
+                    ),
+                )
+                draft_id = int(cursor.lastrowid)
+            self.conn.commit()
+            return draft_id
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def create_smart_create_draft(
+        self,
+        user_id: int,
+        *,
+        xhs_account_id: int,
+        title: str,
+        body: str,
+        tags: list[str],
+        material: dict[str, Any],
+        prompt: dict[str, Any],
+    ) -> int:
+        now = int(time.time())
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    insert into content_draft (
+                        user_id, product_id, xhs_account_id, source_type,
+                        content_type, title, body, tag_json, material_json,
+                        status, ai_provider, model_name, prompt_json,
+                        create_time, update_time
+                    )
+                    values (%s, 0, %s, 'smart_create', 'image_text', %s, %s, %s, %s,
+                            1, 'internal_ai', 'image-copy-pipeline', %s, %s, %s)
+                    """,
+                    (
+                        user_id,
+                        xhs_account_id,
+                        title.strip(),
+                        body.strip(),
+                        self._dump_json(tags),
+                        self._dump_json(material),
+                        self._dump_json(prompt),
+                        now,
+                        now,
+                    ),
+                )
+                draft_id = int(cursor.lastrowid)
+            self.conn.commit()
+            return draft_id
+        except Exception:
+            self.conn.rollback()
+            raise
+
     def get_for_user(self, user_id: int, draft_id: int) -> dict | None:
         with self.conn.cursor() as cursor:
             cursor.execute(
@@ -173,6 +260,7 @@ class ContentDraftRepository:
         user_id: int,
         product_id: int | None = None,
         status: str | None = None,
+        source_type: str | None = None,
     ) -> list[dict]:
         clauses = ["user_id = %s"]
         params: list[Any] = [user_id]
@@ -182,6 +270,9 @@ class ContentDraftRepository:
         if status is not None:
             clauses.append("status = %s")
             params.append(STATUS_TO_CODE[status])
+        if source_type is not None:
+            clauses.append("source_type = %s")
+            params.append(source_type)
 
         with self.conn.cursor() as cursor:
             cursor.execute(

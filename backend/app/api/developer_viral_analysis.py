@@ -41,6 +41,7 @@ def get_job(
         )
     try:
         AdminAuditRepository(conn).create(
+            tenant_id=job["tenant_id"],
             admin_user_id=developer["id"],
             action="view_viral_analysis_job",
             target_type="viral_analysis_job",

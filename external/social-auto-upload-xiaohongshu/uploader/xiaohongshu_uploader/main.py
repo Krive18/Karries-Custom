@@ -4,11 +4,13 @@ from __future__ import annotations
 import asyncio
 import inspect
 import os
+import shutil
 from datetime import datetime
 from pathlib import Path
 
 from patchright.async_api import Page
 from patchright.async_api import Playwright
+from patchright.async_api import TimeoutError as PlaywrightTimeoutError
 from patchright.async_api import async_playwright
 
 from conf import DEBUG_MODE, LOCAL_CHROME_HEADLESS, LOCAL_CHROME_PATH
@@ -28,6 +30,72 @@ XHS_LOGIN_BOX_SELECTOR = "div[class*='login-box']"
 XHS_LOGIN_SWITCH_SELECTOR = "img.css-wemwzq"
 XIAOHONGSHU_PUBLISH_STRATEGY_IMMEDIATE = "immediate"
 XIAOHONGSHU_PUBLISH_STRATEGY_SCHEDULED = "scheduled"
+BROWSER_EXECUTABLE_PATH_ENV = "SAU_BROWSER_EXECUTABLE_PATH"
+
+
+def _browser_executable_candidates() -> list[Path]:
+    environment_path = os.getenv(BROWSER_EXECUTABLE_PATH_ENV, "").strip()
+    configured_path = str(LOCAL_CHROME_PATH or "").strip()
+    local_app_data = Path(os.getenv("LOCALAPPDATA", ""))
+    program_files = Path(os.getenv("PROGRAMFILES", ""))
+    program_files_x86 = Path(os.getenv("PROGRAMFILES(X86)", ""))
+
+    candidates = [
+        Path(environment_path) if environment_path else None,
+        Path(configured_path) if configured_path else None,
+        local_app_data / "Google/Chrome/Application/chrome.exe",
+        local_app_data / "Microsoft/Edge/Application/msedge.exe",
+        program_files / "Google/Chrome/Application/chrome.exe",
+        program_files / "Microsoft/Edge/Application/msedge.exe",
+        program_files_x86 / "Google/Chrome/Application/chrome.exe",
+        program_files_x86 / "Microsoft/Edge/Application/msedge.exe",
+        Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+        Path("/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
+    ]
+    for command in (
+        "google-chrome",
+        "google-chrome-stable",
+        "chromium",
+        "chromium-browser",
+        "microsoft-edge",
+    ):
+        resolved = shutil.which(command)
+        if resolved:
+            candidates.append(Path(resolved))
+
+    unique_candidates: list[Path] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        normalized = str(candidate).strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique_candidates.append(candidate)
+    return unique_candidates
+
+
+def _resolve_browser_executable_path() -> str:
+    for candidate in _browser_executable_candidates():
+        if candidate.is_file():
+            return str(candidate)
+    return ""
+
+
+async def _launch_browser(playwright: Playwright, *, headless: bool):
+    executable_path = _resolve_browser_executable_path()
+    try:
+        if executable_path:
+            return await playwright.chromium.launch(
+                headless=headless,
+                executable_path=executable_path,
+            )
+        return await playwright.chromium.launch(headless=headless)
+    except Exception as exc:
+        raise RuntimeError(
+            "无法启动账号授权浏览器，请安装最新版 Chrome 或 Microsoft Edge 后重试"
+        ) from exc
 
 
 def _build_xhs_creator_url(path: str) -> str:
@@ -159,20 +227,30 @@ async def cookie_auth(account_file):
         return False
 
     async with async_playwright() as playwright:
-        if LOCAL_CHROME_PATH:
-            browser = await playwright.chromium.launch(headless=True, executable_path=LOCAL_CHROME_PATH)
-        else:
-            browser = await playwright.chromium.launch(headless=True, channel="chrome")
+        browser = await _launch_browser(playwright, headless=True)
         try:
             context = await browser.new_context(storage_state=account_file)
             context = await set_init_script(context)
             page = await context.new_page()
-            await page.goto(
-                _build_xhs_creator_url(
-                    "/publish/publish?from=homepage&target=video"
+            try:
+                await page.goto(
+                    _build_xhs_creator_url(
+                        "/publish/publish?from=homepage&target=video"
+                    ),
+                    wait_until="domcontentloaded",
+                    timeout=45000,
                 )
-            )
-            await page.wait_for_timeout(3000)
+            except PlaywrightTimeoutError as exc:
+                creator_base_url = _build_xhs_creator_url("/").rstrip("/")
+                if not page.url.startswith(creator_base_url):
+                    raise
+                xiaohongshu_logger.warning(
+                    _msg(
+                        "!",
+                        f"cookie 校验页面加载超时，继续根据当前页面判断登录状态: {exc}",
+                    )
+                )
+            await page.wait_for_timeout(2000)
 
             if page.url.startswith(_build_xhs_creator_url("/login")):
                 xiaohongshu_logger.info(_msg("🥹", "cookie 已失效，得重新登录一下"))
@@ -233,7 +311,7 @@ async def xiaohongshu_cookie_gen(
     account_path.parent.mkdir(parents=True, exist_ok=True)
 
     async with async_playwright() as playwright:
-        browser = await playwright.chromium.launch(headless=headless, channel="chrome")
+        browser = await _launch_browser(playwright, headless=headless)
         context = await browser.new_context()
         context = await set_init_script(context)
         qrcode_path = None
@@ -241,7 +319,22 @@ async def xiaohongshu_cookie_gen(
         result = _build_login_result(False, "failed", "小红书登录失败", account_file)
         try:
             page = await context.new_page()
-            await page.goto(_build_xhs_creator_url("/login"))
+            login_url = _build_xhs_creator_url("/login")
+            try:
+                await page.goto(
+                    login_url,
+                    wait_until="domcontentloaded",
+                    timeout=45000,
+                )
+            except PlaywrightTimeoutError as exc:
+                if not page.url.startswith(login_url):
+                    raise
+                xiaohongshu_logger.warning(
+                    _msg(
+                        "!",
+                        f"登录页加载超时，继续从已打开页面提取二维码: {exc}",
+                    )
+                )
             qrcode_info = await _save_xhs_qrcode(page, account_file, qrcode_callback=qrcode_callback)
             qrcode_path = Path(qrcode_info["image_path"])
             xiaohongshu_logger.info(_msg("🧍", "请扫码，小人正在耐心等待登录完成"))
@@ -619,7 +712,7 @@ class XiaoHongShuVideo(XiaoHongShuBaseUploader):
         xiaohongshu_logger.info(_msg("🧍", "小人先检查 cookie、视频文件、封面和发布时间"))
         await self.validate_upload_args()
         xiaohongshu_logger.info(_msg("🥳", "上传前检查通过"))
-        browser = await playwright.chromium.launch(headless=self.headless, channel="chrome")
+        browser = await _launch_browser(playwright, headless=self.headless)
         context = await browser.new_context(
             permissions=["geolocation"],
             storage_state=self.account_file,
@@ -742,7 +835,7 @@ class XiaoHongShuNote(XiaoHongShuBaseUploader):
         xiaohongshu_logger.info(_msg("🧍", "小人先检查 cookie、图片和发布时间"))
         await self.validate_upload_args()
         xiaohongshu_logger.info(_msg("🥳", "图文上传前检查通过"))
-        browser = await playwright.chromium.launch(headless=self.headless, channel="chrome")
+        browser = await _launch_browser(playwright, headless=self.headless)
         context = await browser.new_context(
             permissions=["geolocation"],
             storage_state=self.account_file,

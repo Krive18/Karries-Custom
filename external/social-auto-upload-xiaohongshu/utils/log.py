@@ -1,8 +1,12 @@
+import os
 import sys
 from pathlib import Path
 from loguru import logger
 
 from conf import BASE_DIR
+
+
+LOG_DIR = Path(os.getenv("SAU_LOG_DIR", str(BASE_DIR / "logs"))).expanduser()
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -39,8 +43,9 @@ def create_logger(log_name: str, file_path: str):
     def filter_record(record):
         return record["extra"].get("business_name") == log_name
 
-    Path(BASE_DIR / file_path).parent.mkdir(exist_ok=True)
-    logger.add(Path(BASE_DIR / file_path), filter=filter_record, level="INFO", rotation="10 MB", retention="10 days", backtrace=True, diagnose=True)
+    log_path = LOG_DIR / Path(file_path).name
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logger.add(log_path, filter=filter_record, level="INFO", rotation="10 MB", retention="10 days", backtrace=True, diagnose=True)
     return logger.bind(business_name=log_name)
 
 

@@ -30,28 +30,43 @@ def test_column_comment_uses_stable_information_schema_alias():
 
 SAAS_FOUNDATION_TABLES = {
     "app_user",
+    "user_creation_request",
     "invite_code",
     "credit_wallet",
     "credit_ledger",
     "recharge_package",
+    "membership_plan",
+    "user_membership",
+    "membership_upgrade_order",
+    "membership_monthly_credit_grant",
+    "user_daily_checkin",
+    "recharge_order",
     "xhs_account",
+    "xhs_account_login_session",
     "xhs_account_profile",
     "product",
     "product_material_package",
+    "material_project_group",
+    "product_material_folder",
     "material_file",
     "content_draft",
     "matrix_publish_plan",
     "matrix_publish_item",
     "admin_audit_log",
     "video_edit_job",
+    "video_edit_revision_request",
 }
 
 AI_MODULE_TABLES = {
     "tenant",
     "ai_usage_log",
+    "ai_translation_task",
+    "ai_translation_delivery",
     "inspiration_session",
     "inspiration_message",
+    "inspiration_attachment",
     "content_draft_source",
+    "content_collection",
     "viral_analysis_job",
     "viral_analysis_result",
     "viral_analysis_material",
@@ -142,6 +157,55 @@ def test_migrate_declares_expected_indexes(mysql_conn):
     assert ("app_setting", "uk_app_setting_key") in indexes
 
 
+def test_app_user_auth_version_has_comment_and_default(mysql_conn):
+    row = fetch_one(
+        mysql_conn,
+        """
+        select is_nullable as is_nullable,
+               column_default as column_default,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'app_user'
+          and column_name = 'auth_version'
+        """,
+    )
+
+    assert row["is_nullable"] == "NO"
+    assert str(row["column_default"]) == "1"
+    assert row["column_comment"] == "认证版本，密码重置或账号状态变化时递增"
+
+
+def test_migrate_updates_video_credit_defaults_to_current_price(mysql_conn):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "alter table `video_edit_job` alter column `credit_cost` set default 160"
+        )
+        cursor.execute(
+            "alter table `video_edit_revision_request` "
+            "alter column `credit_cost` set default 160"
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select table_name as table_name, column_default as column_default
+        from information_schema.columns
+        where table_schema = database()
+          and table_name in ('video_edit_job', 'video_edit_revision_request')
+          and column_name = 'credit_cost'
+        order by table_name
+        """,
+    )
+    assert rows == [
+        {"table_name": "video_edit_job", "column_default": "140"},
+        {"table_name": "video_edit_revision_request", "column_default": "140"},
+    ]
+
+
 def test_migrate_encrypts_legacy_plaintext_ai_keys(
     monkeypatch, mysql_conn
 ):
@@ -178,6 +242,115 @@ def test_migrate_encrypts_legacy_plaintext_ai_keys(
     assert decrypt_secret(stored) == "sk-legacy-value"
 
 
+def test_migrate_replaces_retired_deepseek_model_name(mysql_conn):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            insert into app_setting (
+                setting_key, setting_value, create_time, update_time
+            )
+            values (%s, %s, %s, %s)
+            on duplicate key update
+                setting_value = values(setting_value),
+                update_time = values(update_time)
+            """,
+            ("ai.copywriting.model", "deepseek-chat", 1, 1),
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select setting_value
+            from app_setting
+            where setting_key = %s
+            """,
+            ("ai.copywriting.model",),
+        )
+        stored = cursor.fetchone()["setting_value"]
+    assert stored == "deepseek-v4-flash"
+
+
+def test_migrate_replaces_retired_pro_copywriting_model_name(mysql_conn):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            insert into app_setting (
+                setting_key, setting_value, create_time, update_time
+            )
+            values (%s, %s, %s, %s)
+            on duplicate key update
+                setting_value = values(setting_value),
+                update_time = values(update_time)
+            """,
+            (
+                "ai.pro_copywriting.model",
+                "doubao-seed-2-0-lite-260428",
+                1,
+                1,
+            ),
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select setting_value
+            from app_setting
+            where setting_key = %s
+            """,
+            ("ai.pro_copywriting.model",),
+        )
+        stored = cursor.fetchone()["setting_value"]
+    assert stored == "doubao-seed-2-1-pro-260628"
+
+
+def test_migrate_rewrites_legacy_client_admin_role(mysql_conn):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            insert into app_user (
+                login_name, password_hash, user_role, create_time, update_time
+            )
+            values (%s, %s, %s, %s, %s)
+            """,
+            ("legacy_client_admin_user", "hash", "client_admin", 1, 1),
+        )
+        cursor.execute(
+            """
+            insert into app_user (
+                login_name, password_hash, user_role, create_time, update_time
+            )
+            values (%s, %s, %s, %s, %s)
+            """,
+            ("regular_customer_user", "hash", "customer", 1, 1),
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+    migrate(mysql_conn)
+
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select login_name, user_role
+            from app_user
+            where login_name in (%s, %s)
+            order by login_name
+            """,
+            ("legacy_client_admin_user", "regular_customer_user"),
+        )
+        rows = {row["login_name"]: row["user_role"] for row in cursor.fetchall()}
+    assert rows == {
+        "legacy_client_admin_user": "client_owner",
+        "regular_customer_user": "customer",
+    }
+
+
 def test_migrate_creates_saas_foundation_tables(mysql_conn):
     rows = fetch_all(
         mysql_conn,
@@ -187,11 +360,19 @@ def test_migrate_creates_saas_foundation_tables(mysql_conn):
         from information_schema.tables
         where table_schema = database()
           and table_name in (
-            'app_user', 'invite_code', 'credit_wallet', 'credit_ledger',
-            'recharge_package', 'xhs_account', 'xhs_account_profile',
-            'product', 'product_material_package', 'material_file',
+                'app_user', 'user_creation_request', 'invite_code',
+                    'credit_wallet', 'credit_ledger',
+                    'recharge_package', 'membership_plan', 'user_membership',
+                    'membership_upgrade_order',
+                    'membership_monthly_credit_grant', 'user_daily_checkin',
+                    'recharge_order', 'xhs_account', 'xhs_account_login_session',
+                'xhs_account_profile',
+            'product', 'product_material_package', 'material_project_group',
+            'product_material_folder',
+            'material_file',
             'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
-            'admin_audit_log', 'video_edit_job'
+                'admin_audit_log', 'video_edit_job',
+                'video_edit_revision_request'
           )
         """,
     )
@@ -212,18 +393,34 @@ def test_migrate_declares_saas_foundation_column_comments_and_not_null(mysql_con
         from information_schema.columns
         where table_schema = database()
           and table_name in (
-            'app_user', 'invite_code', 'credit_wallet', 'credit_ledger',
-            'recharge_package', 'xhs_account', 'xhs_account_profile',
-            'product', 'product_material_package', 'material_file',
+                'app_user', 'user_creation_request', 'invite_code',
+                    'credit_wallet', 'credit_ledger',
+                    'recharge_package', 'membership_plan', 'user_membership',
+                    'membership_upgrade_order',
+                    'membership_monthly_credit_grant', 'user_daily_checkin',
+                    'recharge_order', 'xhs_account', 'xhs_account_login_session',
+                'xhs_account_profile',
+            'product', 'product_material_package', 'material_project_group',
+            'product_material_folder',
+            'material_file',
             'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
-            'admin_audit_log', 'video_edit_job'
+                'admin_audit_log', 'video_edit_job',
+                'video_edit_revision_request'
           )
         """,
     )
 
     assert rows
     assert {row["table_name"] for row in rows} == SAAS_FOUNDATION_TABLES
-    assert all(row["is_nullable"] == "NO" for row in rows)
+    nullable_columns = {
+        (row["table_name"], row["column_name"])
+        for row in rows
+        if row["is_nullable"] != "NO"
+    }
+    assert nullable_columns == {
+        ("membership_monthly_credit_grant", "remaining_credits"),
+        ("video_edit_job", "request_snapshot_json"),
+    }
     assert all(row["column_comment"] for row in rows)
 
 
@@ -241,7 +438,9 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
           and table_name in (
             'app_user', 'invite_code', 'credit_wallet', 'credit_ledger',
             'recharge_package', 'xhs_account', 'xhs_account_profile',
-            'product', 'product_material_package', 'material_file',
+            'product', 'product_material_package', 'material_project_group',
+            'product_material_folder',
+            'material_file',
             'content_draft', 'matrix_publish_plan', 'matrix_publish_item',
             'admin_audit_log', 'video_edit_job'
           )
@@ -328,6 +527,39 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
             "columns": ["user_id"],
             "non_unique": 1,
         },
+        (
+            "material_project_group",
+            "uk_material_project_group_tenant_name",
+        ): {
+            "columns": ["tenant_id", "group_name"],
+            "non_unique": 0,
+        },
+        (
+            "material_project_group",
+            "idx_material_project_group_tenant_update_id",
+        ): {
+            "columns": ["tenant_id", "update_time", "id"],
+            "non_unique": 1,
+        },
+        (
+            "product_material_folder",
+            "uk_product_material_folder_tenant_group_parent_name",
+        ): {
+            "columns": [
+                "tenant_id",
+                "project_group_id",
+                "parent_id",
+                "folder_name",
+            ],
+            "non_unique": 0,
+        },
+        (
+            "product_material_folder",
+            "idx_product_material_folder_tenant_group_parent_id",
+        ): {
+            "columns": ["tenant_id", "project_group_id", "parent_id", "id"],
+            "non_unique": 1,
+        },
         ("material_file", "idx_material_file_user_id"): {
             "columns": ["user_id"],
             "non_unique": 1,
@@ -338,6 +570,14 @@ def test_migrate_declares_saas_foundation_indexes(mysql_conn):
         },
         ("material_file", "idx_material_file_package_id"): {
             "columns": ["package_id"],
+            "non_unique": 1,
+        },
+        ("material_file", "idx_material_file_tenant_folder_id"): {
+            "columns": ["tenant_id", "folder_id", "id"],
+            "non_unique": 1,
+        },
+        ("material_file", "idx_material_file_tenant_type_id"): {
+            "columns": ["tenant_id", "file_type", "id"],
             "non_unique": 1,
         },
         ("content_draft", "idx_content_draft_user_id"): {
@@ -439,7 +679,9 @@ def test_migrate_creates_ai_module_tables(mysql_conn):
         where table_schema = database()
           and table_name in (
             'tenant', 'ai_usage_log', 'inspiration_session',
-            'inspiration_message', 'content_draft_source', 'viral_analysis_job',
+            'inspiration_message', 'inspiration_attachment',
+            'ai_translation_task', 'ai_translation_delivery',
+            'content_draft_source', 'content_collection', 'viral_analysis_job',
             'viral_analysis_result', 'viral_analysis_material'
           )
         """,
@@ -462,7 +704,9 @@ def test_migrate_declares_ai_module_column_comments_and_not_null(mysql_conn):
         where table_schema = database()
           and table_name in (
             'tenant', 'ai_usage_log', 'inspiration_session',
-            'inspiration_message', 'content_draft_source', 'viral_analysis_job',
+            'inspiration_message', 'inspiration_attachment',
+            'ai_translation_task', 'ai_translation_delivery',
+            'content_draft_source', 'content_collection', 'viral_analysis_job',
             'viral_analysis_result', 'viral_analysis_material'
           )
         """,
@@ -545,6 +789,16 @@ def test_ai_schema_declares_persisted_inspiration_session_context():
         "generation_started_time bigint unsigned not null default 0 comment '当前生成开始时间戳'"
         in schema
     )
+
+
+def test_ai_schema_declares_personalization_profile_with_comments_and_scope():
+    schema = "\n".join(SCHEMA_STATEMENTS)
+
+    assert "create table if not exists ai_personalization_profile" in schema
+    assert "assistant_name varchar(50) not null default 'AI Agent' comment '用户自定义 AI 名称'" in schema
+    assert "user_details varchar(2000) not null default '' comment '需要长期记住的用户背景与偏好'" in schema
+    assert "unique key uk_ai_personalization_tenant_user (tenant_id, user_id)" in schema
+    assert "comment='AI 个性化档案'" in schema
 
 
 def test_ai_schema_declares_inspiration_workflow_mapping_and_indexes():
@@ -683,6 +937,38 @@ def test_viral_analysis_schema_declares_processing_lease_columns():
     )
     assert "key idx_viral_job_tenant_time_id (tenant_id, create_time, id)" in schema
     assert "key idx_viral_job_time_id (create_time, id)" in schema
+
+
+def test_visual_and_transcript_analysis_columns_exist_for_results_and_collections(mysql_conn):
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select table_name as table_name,
+               column_name as column_name,
+               data_type as data_type
+        from information_schema.columns
+        where table_schema = database()
+          and table_name in ('viral_analysis_result', 'content_collection')
+          and column_name in (
+              'setting_analysis', 'lighting_analysis', 'visual_style',
+              'timeline_visual_analysis_json', 'visual_evidence_json',
+              'original_transcript', 'transcript_analysis'
+          )
+        """,
+    )
+
+    columns = {
+        (row["table_name"], row["column_name"]): row["data_type"]
+        for row in rows
+    }
+    for table_name in ("viral_analysis_result", "content_collection"):
+        assert columns[(table_name, "setting_analysis")] == "text"
+        assert columns[(table_name, "lighting_analysis")] == "text"
+        assert columns[(table_name, "visual_style")] == "text"
+        assert columns[(table_name, "timeline_visual_analysis_json")] == "mediumtext"
+        assert columns[(table_name, "visual_evidence_json")] == "mediumtext"
+        assert columns[(table_name, "original_transcript")] == "longtext"
+        assert columns[(table_name, "transcript_analysis")] == "text"
 
 
 def test_migrate_upgrades_viral_result_json_column_and_query_indexes(mysql_conn):
@@ -932,6 +1218,7 @@ def test_migrate_declares_ai_module_indexes(mysql_conn):
 def test_ai_schema_declares_relationship_indexes():
     schema = "\n".join(SCHEMA_STATEMENTS)
 
+    assert "request_id varchar(128) not null default ''" in schema
     assert "key idx_inspiration_session_xhs_account (linked_xhs_account_id)" in schema
     assert "key idx_inspiration_session_tenant_update_id (tenant_id, update_time, id)" in schema
     assert (
@@ -939,6 +1226,71 @@ def test_ai_schema_declares_relationship_indexes():
         "(tenant_id, user_id, session_id, status, id)"
     ) in schema
     assert "key idx_viral_job_material_file_id (material_file_id)" in schema
+
+
+def test_ai_translation_schema_declares_lifecycle_and_billing_guards():
+    schema = "\n".join(SCHEMA_STATEMENTS).lower()
+
+    assert "create table if not exists ai_translation_task" in schema
+    assert "create table if not exists ai_translation_delivery" in schema
+    assert "charged_credit_cost int unsigned not null default 0" in schema
+    assert "credit_ledger_id bigint unsigned not null default 0" in schema
+    assert "unique key uk_ai_translation_user_request" in schema
+    assert "unique key uk_ai_translation_delivery_request_asset" in schema
+    assert "idx_ai_translation_operator_status" in schema
+
+
+def test_employee_management_schema_declares_tenant_indexes_and_comments():
+    schema = "\n".join(SCHEMA_STATEMENTS)
+
+    assert (
+        "key idx_app_user_tenant_role_status_id "
+        "(tenant_id, user_role, status, id)"
+    ) in schema
+    assert (
+        "tenant_id bigint unsigned not null default 0 "
+        "comment '所属租户 ID，平台级操作为 0'"
+    ) in schema
+    assert (
+        "key idx_admin_audit_log_tenant_time "
+        "(tenant_id, create_time, id)"
+    ) in schema
+
+
+def test_billing_schema_declares_comments_and_query_indexes():
+    schema = "\n".join(SCHEMA_STATEMENTS)
+
+    assert "comment='会员方案'" in schema
+    assert "comment='用户会员订阅'" in schema
+    assert "comment='会员月度算力发放记录'" in schema
+    assert "comment='用户每日签到记录'" in schema
+    assert "comment='算力充值申请单'" in schema
+    assert "price_cent int unsigned not null comment '月费价格，单位分'" in schema
+    assert "tenant_id bigint unsigned not null comment '所属租户 ID'" in schema
+    assert "amount_cent int unsigned not null comment '申请金额，单位分'" in schema
+    assert "payer_note varchar(100) not null default ''" in schema
+    assert "proof_file_path varchar(500) not null default ''" in schema
+    assert "proof_file_name varchar(255) not null default ''" in schema
+    assert "proof_mime_type varchar(100) not null default ''" in schema
+    assert "proof_file_size bigint unsigned not null default 0" in schema
+    assert "proof_submit_time bigint unsigned not null default 0" in schema
+    assert "monthly_credits int unsigned not null default 0" in schema
+    assert "remaining_credits int unsigned null" in schema
+    assert "expired_credits int unsigned not null default 0" in schema
+    assert "daily_checkin_credits int unsigned not null default 20" in schema
+    assert "base_credits int not null default 0" in schema
+    assert "key idx_membership_plan_status_sort (status, sort_order, id)" in schema
+    assert "key idx_user_membership_tenant_status (tenant_id, status, id)" in schema
+    assert (
+        "unique key uk_monthly_credit_grant_user_month "
+        "(user_id, grant_month)"
+    ) in schema
+    assert "comment='管理员新增用户审核申请'" in schema
+    assert "unique key uk_daily_checkin_user_date (user_id, checkin_date)" in schema
+    assert (
+        "key idx_recharge_order_tenant_status_time "
+        "(tenant_id, status, create_time, id)"
+    ) in schema
 
 
 def test_migrate_backfills_tenant_columns_for_legacy_tables(mysql_conn):
@@ -1001,7 +1353,7 @@ def test_migrate_backfills_tenant_columns_for_legacy_tables(mysql_conn):
         "is_nullable": "NO",
         "column_default": "customer",
         "column_comment": (
-            "用户角色，customer、client_owner、client_admin、platform_admin 或 developer_admin"
+            "用户角色，customer、client_owner、platform_admin 或 developer_admin"
         ),
     }
 
@@ -1064,8 +1416,85 @@ def test_migrate_is_idempotent(mysql_conn):
     assert after == before
 
 
+def test_material_project_group_migration_backfills_existing_folders_idempotently(
+    mysql_conn,
+):
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            """
+            select 1
+            from information_schema.columns
+            where table_schema = database()
+              and table_name = 'product_material_folder'
+              and column_name = 'project_group_id'
+            """
+        )
+        if cursor.fetchone() is not None:
+            cursor.execute(
+                "alter table product_material_folder "
+                "drop index uk_product_material_folder_tenant_group_parent_name"
+            )
+            cursor.execute(
+                "alter table product_material_folder drop column project_group_id"
+            )
+            cursor.execute(
+                "alter table product_material_folder "
+                "add unique key uk_product_material_folder_tenant_parent_name "
+                "(tenant_id, parent_id, folder_name)"
+            )
+        cursor.execute(
+            "insert into product_material_folder "
+            "(tenant_id, parent_id, folder_name, created_by_user_id, create_time, update_time) "
+            "values (%s, 0, %s, %s, %s, %s)",
+            (91, "旧素材", 7, 1, 1),
+        )
+        folder_id = int(cursor.lastrowid)
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+    migrate(mysql_conn)
+
+    groups = fetch_all(
+        mysql_conn,
+        "select * from material_project_group where tenant_id = %s",
+        (91,),
+    )
+    folder = fetch_one(
+        mysql_conn,
+        "select project_group_id from product_material_folder where id = %s",
+        (folder_id,),
+    )
+    project_group_column = fetch_one(
+        mysql_conn,
+        """
+        select is_nullable as is_nullable,
+               column_default as column_default
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'product_material_folder'
+          and column_name = 'project_group_id'
+        """,
+    )
+    assert [group["group_name"] for group in groups] == ["默认项目组"]
+    assert int(folder["project_group_id"]) == int(groups[0]["id"])
+    assert project_group_column == {
+        "is_nullable": "NO",
+        "column_default": None,
+    }
+
+
+def test_mysql_fixture_cleans_material_project_group_rows(mysql_conn):
+    row = fetch_one(
+        mysql_conn,
+        "select count(*) as total from material_project_group where tenant_id = %s",
+        (91,),
+    )
+
+    assert row["total"] == 0
+
+
 def test_migrate_updates_app_user_role_comment_for_existing_database(mysql_conn):
-    expected_comment = "用户角色，customer、client_owner、client_admin、platform_admin 或 developer_admin"
+    expected_comment = "用户角色，customer、client_owner、platform_admin 或 developer_admin"
     with mysql_conn.cursor() as cursor:
         cursor.execute(
             "alter table app_user modify column user_role varchar(30) not null "
@@ -1104,3 +1533,148 @@ def test_matrix_publish_status_comments_include_cancelled_status(mysql_conn):
     comments = {row["table_name"]: row["column_comment"] for row in rows}
     assert "7-取消" in comments["matrix_publish_plan"]
     assert "7-取消" in comments["matrix_publish_item"]
+
+
+def test_migrate_updates_membership_order_cancelled_status_comment(mysql_conn):
+    expected_comment = "状态，1-待付款，2-待审核，3-已开通，4-已驳回，5-已取消"
+    with mysql_conn.cursor() as cursor:
+        cursor.execute(
+            "alter table membership_upgrade_order "
+            "modify column status tinyint unsigned not null default 1 "
+            "comment '状态，1-待付款，2-待审核，3-已开通，4-已驳回'"
+        )
+    mysql_conn.commit()
+
+    migrate(mysql_conn)
+
+    row = fetch_one(
+        mysql_conn,
+        """
+        select column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'membership_upgrade_order'
+          and column_name = 'status'
+        """,
+    )
+    assert row["column_comment"] == expected_comment
+
+
+def test_matrix_publish_worker_lease_columns_and_indexes(mysql_conn):
+    rows = fetch_all(
+        mysql_conn,
+        """
+        select column_name as column_name,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'matrix_publish_item'
+          and column_name in (
+              'attempt_count',
+              'max_attempts',
+              'lease_token',
+              'lease_expires_time',
+              'next_retry_time',
+              'submitted_time',
+              'publish_result_json'
+          )
+        """,
+    )
+
+    comments = {row["column_name"]: row["column_comment"] for row in rows}
+    assert comments == {
+        "attempt_count": "自动执行尝试次数",
+        "max_attempts": "最大自动执行次数",
+        "lease_token": "当前执行租约令牌",
+        "lease_expires_time": "执行租约过期时间戳",
+        "next_retry_time": "下次允许重试时间戳",
+        "submitted_time": "成功提交时间戳",
+        "publish_result_json": "发布结果 JSON",
+    }
+
+    indexes = fetch_all(
+        mysql_conn,
+        """
+        select index_name as index_name,
+               group_concat(column_name order by seq_in_index) as columns
+        from information_schema.statistics
+        where table_schema = database()
+          and table_name = 'matrix_publish_item'
+          and index_name in (
+              'idx_matrix_publish_item_retry_queue',
+              'idx_matrix_publish_item_lease_expiry'
+          )
+        group by index_name
+        """,
+    )
+    assert {row["index_name"]: row["columns"] for row in indexes} == {
+        "idx_matrix_publish_item_retry_queue": "status,next_retry_time,scheduled_time",
+        "idx_matrix_publish_item_lease_expiry": "status,lease_expires_time",
+    }
+
+
+def test_matrix_publish_safety_columns_and_event_log(mysql_conn):
+    columns = fetch_all(
+        mysql_conn,
+        """
+        select table_name as table_name,
+               column_name as column_name,
+               column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and (
+                (table_name = 'xhs_account' and column_name = 'publish_count_date')
+                or
+                (
+                    table_name = 'matrix_publish_item'
+                    and column_name = 'content_fingerprint'
+                )
+              )
+        """,
+    )
+    assert {
+        (row["table_name"], row["column_name"]): row["column_comment"]
+        for row in columns
+    } == {
+        ("xhs_account", "publish_count_date"): "发布计数所属日期，Asia/Shanghai",
+        ("matrix_publish_item", "content_fingerprint"): "发布内容指纹，用于拦截重复提交",
+    }
+
+    event_table = fetch_one(
+        mysql_conn,
+        """
+        select table_comment as table_comment
+        from information_schema.tables
+        where table_schema = database()
+          and table_name = 'matrix_publish_event_log'
+        """,
+    )
+    assert event_table["table_comment"] == "矩阵发布执行审计事件"
+
+    tenant_column = fetch_one(
+        mysql_conn,
+        """
+        select column_comment as column_comment
+        from information_schema.columns
+        where table_schema = database()
+          and table_name = 'matrix_publish_event_log'
+          and column_name = 'tenant_id'
+        """,
+    )
+    assert tenant_column["column_comment"] == "所属租户 ID"
+
+    indexes = fetch_all(
+        mysql_conn,
+        """
+        select index_name as index_name,
+               group_concat(column_name order by seq_in_index) as columns
+        from information_schema.statistics
+        where table_schema = database()
+          and table_name = 'matrix_publish_event_log'
+          and index_name = 'idx_matrix_publish_event_tenant_item_time'
+        group by index_name
+        """,
+    )
+    assert {row["index_name"]: row["columns"] for row in indexes} == {
+        "idx_matrix_publish_event_tenant_item_time": "tenant_id,item_id,create_time,id",
+    }

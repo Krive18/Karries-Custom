@@ -85,6 +85,12 @@ class MatrixPlanItemDetail(BaseModel):
     scheduled_time: int
     status: int
     last_error: str
+    attempt_count: int
+    max_attempts: int
+    next_retry_time: int
+    submitted_time: int
+    publish_result: dict[str, Any]
+    content_fingerprint: str
     create_time: int
     update_time: int
 
@@ -99,6 +105,10 @@ class WorkerClaimedItem(BaseModel):
     plan_id: int
     user_id: int
     xhs_account_id: int
+    lease_token: str
+    lease_expires_time: int
+    attempt_count: int
+    max_attempts: int
     login_state_path: str
     content_type: str
     title: str
@@ -113,12 +123,20 @@ class WorkerClaimResponse(BaseModel):
 
 
 class WorkerItemSuccessRequest(BaseModel):
+    lease_token: str = Field(min_length=1, max_length=64)
     message: str = Field(default="", max_length=1000)
+    result_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class WorkerItemFailRequest(BaseModel):
+    lease_token: str = Field(min_length=1, max_length=64)
     error_message: str = Field(min_length=1, max_length=1000)
+    retryable: bool = False
+    retry_delay_seconds: int = Field(default=60, ge=5, le=3600)
 
 
 class WorkerItemManualTakeoverRequest(BaseModel):
+    lease_token: str = Field(min_length=1, max_length=64)
     reason: str = Field(min_length=1, max_length=1000)
+    invalidate_account_login: bool = False
+    mark_account_risk: bool = False

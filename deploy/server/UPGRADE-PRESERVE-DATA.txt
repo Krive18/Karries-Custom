@@ -1,0 +1,61 @@
+KARRIES 生产环境保库增量升级说明
+
+适用场景：腾讯云服务器上已经有正式用户、算力、任务、会员、素材、AI Provider
+配置和小红书账号数据，只更新最新版程序，不重新建库、不清空生产数据。
+
+本升级脚本会保留：
+  1. 当前 MySQL 数据库及数据库账号；
+  2. /etc/karries-api.env 和 /etc/karries-bootstrap.env；
+  3. /opt/karries/data、runtime、logs；
+  4. 当前 Nginx 域名和 HTTPS 配置；
+  5. systemd 的现有 drop-in 配置。
+
+本升级脚本不会执行：
+  install.sh、seed_users.py、CREATE/DROP DATABASE、DROP USER 或数据库导入。
+
+一、上传
+
+只需要上传两个文件到 /home/ubuntu：
+  karries-server-<时间>-upgrade.tar.gz
+  karries-server-<时间>-upgrade.tar.gz.sha256
+
+二、校验与解压
+
+  cd /home/ubuntu
+  sha256sum -c karries-server-<时间>-upgrade.tar.gz.sha256
+  tar -xzf karries-server-<时间>-upgrade.tar.gz
+  cd karries-server-<时间>-upgrade
+  sha256sum -c SHA256SUMS --quiet && echo "包内文件校验通过"
+
+三、执行保库升级
+
+注意：不要先复制到 /opt/karries，不要执行 install.sh。
+
+  cd /home/ubuntu/karries-server-<时间>-upgrade
+  sudo bash deploy/server/upgrade-preserve-data.sh
+
+脚本会先强制生成生产数据库和上传文件备份。备份、依赖安装、包校验中的任意一步
+失败时都不会开始替换线上代码。代码切换失败时会自动恢复上一版应用代码。
+
+四、升级完成后验收
+
+  sudo systemctl status karries-api karries-publish-worker nginx mysql --no-pager
+  sudo bash /opt/karries/deploy/server/smoke-test.sh http://127.0.0.1
+  sudo journalctl -u karries-api -n 100 --no-pager
+  sudo journalctl -u karries-publish-worker -n 100 --no-pager
+
+浏览器继续人工验证：
+  用户端：      http://服务器地址/
+  管理端：      http://服务器地址/manager/
+  开发者端：    http://服务器地址/developer/
+
+还必须验证登录、AI Agent、爆款解析、小红书扫码二维码、素材预览以及视频下载。
+
+五、手动回滚应用代码
+
+若升级后出现应用问题：
+
+  sudo bash /opt/karries/deploy/server/rollback-preserve-data.sh
+
+回滚脚本只恢复上一版应用代码、Python 环境和前端静态文件，不自动回滚生产数据库，
+避免误覆盖升级后新产生的用户数据。升级脚本输出中会显示数据库备份和代码回滚点。

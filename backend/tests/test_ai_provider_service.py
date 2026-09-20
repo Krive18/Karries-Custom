@@ -44,10 +44,11 @@ def test_text_client_sends_openai_compatible_messages():
 
     assert result.content == "reply"
     assert result.provider == "deepseek"
-    assert result.model_name == "deepseek-chat"
+    assert result.model_name == "deepseek-v4-flash"
     assert result.input_chars == len("systemhello")
     assert result.output_chars == len("reply")
-    assert calls[0]["payload"]["model"] == "deepseek-chat"
+    assert calls[0]["payload"]["model"] == "deepseek-v4-flash"
+    assert calls[0]["payload"]["thinking"] == {"type": "disabled"}
     assert calls[0]["payload"]["messages"][1]["content"] == "hello"
     assert calls[0]["payload"]["temperature"] == 0.4
 
@@ -58,7 +59,7 @@ def test_provider_uses_database_key_before_environment(monkeypatch):
         {
             "ai.copywriting.api_key": "sk-database",
             "ai.copywriting.base_url": "https://deepseek.example/chat/completions",
-            "ai.copywriting.model": "deepseek-reasoner",
+            "ai.copywriting.model": "deepseek-v4-pro",
         }
     )
     captured = {}
@@ -74,7 +75,7 @@ def test_provider_uses_database_key_before_environment(monkeypatch):
     result = service.generate_text("system", "user", history=(("assistant", "earlier"),))
 
     assert result.content == "configured reply"
-    assert result.model_name == "deepseek-reasoner"
+    assert result.model_name == "deepseek-v4-pro"
     assert captured["url"] == "https://api.deepseek.com/chat/completions"
     assert captured["authorization"] == "Bearer sk-database"
     assert captured["payload"]["messages"] == [
@@ -82,6 +83,29 @@ def test_provider_uses_database_key_before_environment(monkeypatch):
         {"role": "assistant", "content": "earlier"},
         {"role": "user", "content": "user"},
     ]
+
+
+def test_provider_normalizes_retired_deepseek_model_name():
+    captured = {}
+
+    def fake_transport(_url, _headers, payload, _timeout):
+        captured["model"] = payload["model"]
+        return {"choices": [{"message": {"content": "reply"}}]}
+
+    service = AIProviderService(
+        FakeSettingRepository(
+            {
+                "ai.copywriting.api_key": "sk-database",
+                "ai.copywriting.model": "deepseek-chat",
+            }
+        ),
+        transport=fake_transport,
+    )
+
+    result = service.generate_text("system", "user")
+
+    assert result.model_name == "deepseek-v4-flash"
+    assert captured["model"] == "deepseek-v4-flash"
 
 
 def test_provider_rejects_missing_key(monkeypatch):

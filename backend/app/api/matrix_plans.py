@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 
-from app.core.dependencies import current_user, get_db_connection
+from app.core.dependencies import get_db_connection, require_customer_user
 from app.core.responses import fail, ok
 from app.repositories.content_draft_repository import ContentDraftRepository
 from app.repositories.matrix_plan_repository import MatrixPlanRepository
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/matrix-plans", tags=["matrix-plans"])
 @router.post("")
 def create_matrix_plan(
     payload: MatrixPlanCreate,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = MatrixPlanRepository(conn)
@@ -49,7 +49,7 @@ def create_matrix_plan(
 @router.post("/from-drafts")
 def create_matrix_plan_from_drafts(
     payload: MatrixPlanFromDraftsCreate,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     if _has_duplicates(payload.draft_ids):
@@ -100,7 +100,7 @@ def create_matrix_plan_from_drafts(
 
 @router.get("")
 def list_matrix_plans(
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = MatrixPlanRepository(conn)
@@ -110,7 +110,7 @@ def list_matrix_plans(
 @router.get("/{plan_id}")
 def get_matrix_plan(
     plan_id: int,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = MatrixPlanRepository(conn)
@@ -123,7 +123,7 @@ def get_matrix_plan(
 @router.get("/{plan_id}/items")
 def list_matrix_plan_items(
     plan_id: int,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     repo = MatrixPlanRepository(conn)
@@ -136,10 +136,16 @@ def list_matrix_plan_items(
 @router.post("/{plan_id}/confirm")
 def confirm_matrix_plan(
     plan_id: int,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
-    result = MatrixPlanRepository(conn).confirm_plan(user["id"], plan_id)
+    try:
+        result = MatrixPlanRepository(conn).confirm_plan(user["id"], plan_id)
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=400,
+            content=fail("INSUFFICIENT_CREDITS", str(exc)),
+        )
     if result is None:
         return _not_found("matrix plan not found")
     if "error" in result:
@@ -150,10 +156,24 @@ def confirm_matrix_plan(
 @router.post("/{plan_id}/cancel")
 def cancel_matrix_plan(
     plan_id: int,
-    user: dict = Depends(current_user),
+    user: dict = Depends(require_customer_user),
     conn=Depends(get_db_connection),
 ) -> dict:
     result = MatrixPlanRepository(conn).cancel_plan(user["id"], plan_id)
+    if result is None:
+        return _not_found("matrix plan not found")
+    if "error" in result:
+        return _validation_error(result["error"])
+    return ok(result)
+
+
+@router.post("/{plan_id}/retry-failed")
+def retry_failed_matrix_plan_items(
+    plan_id: int,
+    user: dict = Depends(require_customer_user),
+    conn=Depends(get_db_connection),
+) -> dict:
+    result = MatrixPlanRepository(conn).retry_failed_items(user["id"], plan_id)
     if result is None:
         return _not_found("matrix plan not found")
     if "error" in result:

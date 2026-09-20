@@ -125,7 +125,7 @@ def auth_headers(mysql_conn, mysql_app_client, suffix: str) -> dict[str, str]:
     invite_code = f"INV-QUEUE-{suffix}"
     UserRepository(mysql_conn).create_invite_code(
         invite_code,
-        initial_credits=0,
+        initial_credits=1000,
         max_uses=1,
         expires_time=0,
         remark="matrix-plan-execution-queue-api",

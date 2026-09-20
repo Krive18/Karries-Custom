@@ -1,4 +1,9 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+
+AuthPortal = Literal["customer", "manager", "developer"]
 
 
 class RegisterRequest(BaseModel):

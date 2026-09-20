@@ -16,6 +16,7 @@ class AIUsageService:
         business_id: int,
         result: TextGenerationResult,
         credit_cost: int,
+        request_id: str = "",
         commit: bool = True,
     ) -> int:
         return self.repository.create(
@@ -25,6 +26,7 @@ class AIUsageService:
             business_id=business_id,
             provider=result.provider,
             model_name=result.model_name,
+            request_id=result.request_id or request_id,
             status="success",
             credit_cost=credit_cost,
             latency_ms=result.latency_ms,
@@ -46,6 +48,7 @@ class AIUsageService:
         latency_ms: int = 0,
         input_chars: int = 0,
         error_code: str | None = None,
+        request_id: str = "",
         commit: bool = True,
     ) -> int:
         return self.repository.create(
@@ -55,6 +58,7 @@ class AIUsageService:
             business_id=business_id,
             provider=provider,
             model_name=model_name,
+            request_id=request_id,
             status="failed",
             credit_cost=0,
             latency_ms=latency_ms,

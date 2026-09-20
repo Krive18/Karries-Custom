@@ -13,8 +13,7 @@ def summary(
     conn=Depends(get_db_connection),
 ) -> dict:
     with conn.cursor() as cursor:
-        tenant_scoped = user["user_role"] in {"client_owner", "client_admin"}
-        scope_params = (1 if tenant_scoped else 0, user["tenant_id"])
+        scope_params = (1, user["tenant_id"])
 
         cursor.execute(
             """
@@ -62,7 +61,8 @@ def summary(
             from video_edit_job
             inner join app_user on app_user.id = video_edit_job.user_id
             where (%s = 0 or app_user.tenant_id = %s)
-              and video_edit_job.status in (1, 2, 4)
+              and video_edit_job.status in (1, 2)
+              and video_edit_job.review_status <> 'rejected'
             """,
             scope_params,
         )

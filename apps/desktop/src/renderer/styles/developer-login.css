@@ -1,0 +1,351 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+  --font-sans: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+@keyframes blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.animate-blink {
+  display: inline-block;
+  margin-left: 0.08em;
+  color: #8ef0dc;
+  font-weight: 400;
+  animation: blink 0.85s steps(1, end) infinite;
+}
+
+.lux-login-page--developer {
+  grid-template-columns: minmax(0, 1.55fr) minmax(430px, 0.72fr);
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #080a0a;
+}
+
+.lux-login-page--developer .lux-login-access,
+.lux-login-page--developer .lux-login-card--developer,
+.lux-login-page--developer .lux-login-card--developer * {
+  box-sizing: border-box;
+}
+
+.lux-login-page--developer .developer-login-hero {
+  min-height: 100dvh;
+  color: #f3f5f2;
+  background: #080a0a;
+}
+
+.lux-login-page--developer .developer-login-media,
+.lux-login-page--developer .developer-login-media__wash,
+.lux-login-page--developer .developer-login-media__aurora,
+.lux-login-page--developer .developer-login-media__grid,
+.lux-login-page--developer .developer-login-media__scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lux-login-page--developer .developer-login-media {
+  z-index: 0;
+  overflow: hidden;
+  background: #080a0a;
+}
+
+.lux-login-page--developer .developer-login-media video {
+  width: 100%;
+  height: 100%;
+  opacity: 0.58;
+  object-fit: cover;
+  filter: saturate(0.7) contrast(1.08) brightness(0.7);
+  transform: scale(1.025);
+  animation: none;
+}
+
+.lux-login-page--developer .developer-login-media__wash {
+  background:
+    linear-gradient(90deg, rgba(6, 8, 8, 0.9) 0%, rgba(6, 8, 8, 0.34) 52%, rgba(6, 8, 8, 0.82) 100%),
+    linear-gradient(0deg, rgba(6, 8, 8, 0.92) 0%, transparent 58%, rgba(6, 8, 8, 0.56) 100%);
+}
+
+.lux-login-page--developer .developer-login-media__aurora {
+  inset: -20%;
+  opacity: 0.42;
+  background:
+    radial-gradient(circle at 66% 30%, rgba(45, 197, 166, 0.34), transparent 26%),
+    radial-gradient(circle at 36% 72%, rgba(176, 96, 42, 0.26), transparent 30%);
+  filter: blur(26px);
+  animation: developer-aurora-shift 9s ease-in-out infinite alternate;
+}
+
+.lux-login-page--developer .developer-login-media__grid {
+  inset: -16%;
+  opacity: 0.17;
+  background-image:
+    linear-gradient(rgba(142, 240, 220, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(142, 240, 220, 0.2) 1px, transparent 1px);
+  background-size: 58px 58px;
+  mask-image: linear-gradient(90deg, #000, transparent 88%);
+  transform: perspective(900px) rotateX(64deg) translate3d(0, 35%, 0) scale(1.24);
+  transform-origin: center bottom;
+  animation: developer-login-grid-run 7s linear infinite;
+}
+
+.lux-login-page--developer .developer-login-media__scan {
+  right: 10%;
+  left: 10%;
+  height: 1px;
+  opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(142, 240, 220, 0.82), transparent);
+  box-shadow: 0 0 22px rgba(82, 222, 195, 0.36);
+  animation: developer-login-scan 5.6s ease-in-out infinite;
+}
+
+.lux-login-page--developer .developer-login-brand,
+.lux-login-page--developer .developer-login-copy,
+.lux-login-page--developer .developer-login-footer {
+  z-index: 2;
+}
+
+.lux-login-page--developer .developer-login-copy {
+  top: 50%;
+  left: clamp(44px, 6.2vw, 118px);
+  width: min(760px, 78%);
+  transform: translateY(-46%);
+}
+
+.lux-login-page--developer .developer-login-copy > div:first-child > p {
+  margin: 0 0 22px;
+  color: #8ef0dc;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.lux-login-page--developer .developer-login-copy h1 {
+  min-height: 2.24em;
+  margin: 0;
+  color: #f7f8f5;
+  font-family: "Inter", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: clamp(52px, 5.3vw, 88px);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.055em;
+  white-space: pre-line;
+  text-wrap: balance;
+  text-shadow: 0 12px 44px rgba(0, 0, 0, 0.48);
+}
+
+.lux-login-page--developer .developer-login-copy > div:nth-child(2) > strong {
+  display: block;
+  max-width: 590px;
+  margin-top: 26px;
+  color: rgba(236, 239, 234, 0.68);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.8;
+}
+
+.lux-login-page--developer .developer-login-capabilities {
+  gap: 8px;
+  margin-top: 34px;
+}
+
+.lux-login-page--developer .developer-login-capabilities span {
+  min-height: 38px;
+  padding: 0 13px;
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  color: rgba(245, 247, 242, 0.74);
+  background: rgba(8, 11, 11, 0.46);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(14px);
+}
+
+.lux-login-page--developer .developer-login-capabilities svg {
+  color: #d2a069;
+}
+
+.lux-login-page--developer .lux-login-access {
+  border-left: 1px solid rgba(142, 240, 220, 0.1);
+  background:
+    radial-gradient(circle at 48% 26%, rgba(69, 190, 166, 0.08), transparent 30%),
+    #0d0f0f;
+}
+
+.lux-login-page--developer .lux-login-card--developer {
+  width: min(500px, 100%);
+  min-height: min(620px, calc(100dvh - 100px));
+  padding: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #f1f3ef;
+  background: rgba(20, 23, 22, 0.84);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.42), inset 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px) saturate(0.86);
+}
+
+.lux-login-page--developer .lux-login-card__header {
+  justify-items: start;
+  margin-bottom: 34px;
+  text-align: left;
+}
+
+.lux-login-card__secure-index {
+  margin-bottom: 24px;
+  color: #8ef0dc;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+}
+
+.lux-login-page--developer .lux-login-card__eyebrow {
+  margin-bottom: 9px;
+  color: rgba(210, 160, 105, 0.88);
+  font-family: "Inter", "PingFang SC", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.lux-login-page--developer .lux-login-card__header h2 {
+  color: #f3f5f2;
+  font-family: "Inter", "PingFang SC", sans-serif;
+  font-size: clamp(32px, 2.3vw, 40px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.lux-login-page--developer .lux-login-card__header p,
+.lux-login-page--developer .lux-login-security-badge {
+  color: rgba(226, 230, 224, 0.52);
+}
+
+.lux-login-page--developer .lux-login-field label {
+  color: rgba(239, 241, 237, 0.72);
+}
+
+.lux-login-page--developer .lux-login-input {
+  border-color: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: #1d211f;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.lux-login-page--developer .lux-login-input:focus-within {
+  border-color: rgba(142, 240, 220, 0.68);
+  background: #1d211f;
+  box-shadow: 0 0 0 3px rgba(85, 218, 192, 0.1);
+}
+
+.lux-login-page--developer .lux-login-input__icon {
+  color: #d2a069;
+}
+
+.lux-login-page--developer .lux-login-input input {
+  background: transparent !important;
+  color: #f4f6f2;
+  box-shadow: none;
+}
+
+.lux-login-page--developer .lux-login-input input::placeholder {
+  color: rgba(229, 232, 226, 0.3);
+}
+
+.lux-login-page--developer .lux-login-input input:-webkit-autofill,
+.lux-login-page--developer .lux-login-input input:-webkit-autofill:hover,
+.lux-login-page--developer .lux-login-input input:-webkit-autofill:focus,
+.lux-login-page--developer .lux-login-input input:-webkit-autofill:active {
+  -webkit-text-fill-color: #f4f6f2;
+  caret-color: #f4f6f2;
+  -webkit-box-shadow: 0 0 0 1000px #1d211f inset;
+  box-shadow: 0 0 0 1000px #1d211f inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.lux-login-page--developer .lux-login-input__action button {
+  color: rgba(231, 234, 229, 0.52);
+}
+
+.lux-login-page--developer .lux-login-card__submit {
+  border-color: rgba(255, 255, 255, 0.64);
+  border-radius: 8px;
+  color: #111514;
+  background: #edf1eb;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.3);
+}
+
+.lux-login-page--developer .lux-login-security-badge {
+  width: 100%;
+  justify-content: center;
+}
+
+.lux-login-page--developer .lux-login-card__submit:not(:disabled):hover {
+  color: #06110e;
+  background: #9cebd9;
+  box-shadow: 0 20px 46px rgba(52, 183, 157, 0.18);
+}
+
+@keyframes developer-aurora-shift {
+  from { transform: translate3d(-3%, 2%, 0) scale(0.94); }
+  to { transform: translate3d(5%, -3%, 0) scale(1.08); }
+}
+
+@media (max-width: 1180px) {
+  .lux-login-page--developer {
+    grid-template-columns: minmax(0, 1fr) minmax(410px, 0.78fr);
+  }
+
+  .lux-login-page--developer .developer-login-copy {
+    left: 46px;
+    width: calc(100% - 92px);
+  }
+}
+
+@media (max-width: 860px) {
+  .lux-login-page--developer .developer-login-media__wash {
+    background: rgba(5, 8, 7, 0.79);
+  }
+
+  .lux-login-page--developer .lux-login-access {
+    width: 100%;
+    padding-right: 0;
+    padding-left: 0;
+    background: transparent;
+  }
+
+  .lux-login-page--developer .lux-login-card--developer {
+    width: min(520px, calc(100% - 36px));
+    max-width: 100%;
+    min-height: 570px;
+    padding: 42px clamp(26px, 7vw, 46px);
+    background: rgba(16, 19, 18, 0.88);
+  }
+}
+
+@media (max-width: 520px) {
+  .lux-login-page--developer .lux-login-access {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .lux-login-page--developer .lux-login-card--developer {
+    width: calc(100% - 24px);
+    padding: 34px 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blink,
+  .lux-login-page--developer .developer-login-media__aurora,
+  .lux-login-page--developer .developer-login-media__grid,
+  .lux-login-page--developer .developer-login-media__scan {
+    animation: none;
+  }
+
+  .lux-login-page--developer .developer-login-media__scan {
+    display: none;
+  }
+}

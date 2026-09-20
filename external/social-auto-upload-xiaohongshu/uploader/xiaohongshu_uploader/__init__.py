@@ -1,5 +1,5 @@
-from pathlib import Path
+"""Xiaohongshu uploader integration.
 
-from conf import BASE_DIR
-
-Path(BASE_DIR / "cookies" / "xiaohongshu_uploader").mkdir(exist_ok=True)
+Login state and temporary QR images live beside the explicit account-state
+path under the application's writable data directory.
+"""

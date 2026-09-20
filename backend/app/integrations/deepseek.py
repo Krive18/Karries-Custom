@@ -10,6 +10,7 @@ from app.schemas.vision import VisionAnalysisResult
 
 Transport = Callable[[str, dict[str, str], dict[str, Any], int], dict[str, Any]]
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
+DEEPSEEK_DEFAULT_MODEL = "deepseek-v4-flash"
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class TextGenerationResult:
     latency_ms: int
     input_chars: int
     output_chars: int
+    request_id: str = ""
 
 
 class DeepSeekTextClient:
@@ -27,7 +29,7 @@ class DeepSeekTextClient:
         self,
         api_key: str,
         base_url: str = DEEPSEEK_CHAT_COMPLETIONS_URL,
-        model: str = "deepseek-chat",
+        model: str = DEEPSEEK_DEFAULT_MODEL,
         transport: Transport | None = None,
     ) -> None:
         if base_url != DEEPSEEK_CHAT_COMPLETIONS_URL:
@@ -53,6 +55,7 @@ class DeepSeekTextClient:
                 "model": self.model,
                 "messages": messages,
                 "temperature": temperature,
+                "thinking": {"type": "disabled"},
             },
             60,
         )
@@ -66,6 +69,7 @@ class DeepSeekTextClient:
             latency_ms=int((time.monotonic() - started_at) * 1000),
             input_chars=sum(len(message.get("content", "")) for message in messages),
             output_chars=len(content),
+            request_id=str(payload.get("id") or "")[:128],
         )
 
 
@@ -74,7 +78,7 @@ class DeepSeekImageCopyClient:
         self,
         api_key: str | None = None,
         base_url: str = DEEPSEEK_CHAT_COMPLETIONS_URL,
-        model: str = "deepseek-chat",
+        model: str = DEEPSEEK_DEFAULT_MODEL,
         transport: Transport | None = None,
     ) -> None:
         if base_url != DEEPSEEK_CHAT_COMPLETIONS_URL:
@@ -96,6 +100,7 @@ class DeepSeekImageCopyClient:
         self,
         request: ImageCopyRequest,
         analysis: VisionAnalysisResult,
+        account_context: dict[str, Any] | None = None,
     ) -> ImageCopyResult:
         if not self.api_key:
             return _fallback_copy(request, analysis)
@@ -122,6 +127,7 @@ class DeepSeekImageCopyClient:
                             {
                                 "style": request.style,
                                 "extra_prompt": request.extra_prompt,
+                                "account_positioning": account_context or {},
                                 "vision_analysis": analysis.model_dump(),
                             },
                             ensure_ascii=False,
@@ -129,6 +135,7 @@ class DeepSeekImageCopyClient:
                     },
                 ],
                 "temperature": 0.7,
+                "thinking": {"type": "disabled"},
             },
             60,
         )
